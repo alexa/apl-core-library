@@ -504,3 +504,22 @@ TEST_F(CommandSetValueTest, TextLayout)
     ASSERT_TRUE(CheckDirty(root, component, text));
     ASSERT_TRUE(IsEqual(Rect(0, 0, s.size() * 10, 10), text->getCalculated(kPropertyBounds)));
 }
+
+TEST_F(CommandSetValueTest, InvalidTargetId)
+{
+    loadDocument(TEXT_LAYOUT_CHANGE);
+
+    auto text = component->getChildAt(0);
+
+    std::string s("Short phrase combined with a longer phrase");
+    executeSetValue("InvalidId", "text", s);
+    root->clearPending();  // This toggles the layout pass
+
+    ASSERT_TRUE(session->checkAndClear("Illegal command SetValue: Could not resolve target 'InvalidId'. Need to specify a valid target componentId",
+                               "Dumping all properties for SetValue",
+                               "   property: 'componentId', value: 'InvalidId'",
+                               "   property: 'property', value: 'text'",
+                               "   property: 'value', value: 'Short phrase combined with a longer phrase'"));
+    ASSERT_FALSE(CheckDirty(text, kPropertyBounds, kPropertyInnerBounds, kPropertyText, kPropertyVisualHash));
+    ASSERT_FALSE(CheckDirty(root, component, text));
+}

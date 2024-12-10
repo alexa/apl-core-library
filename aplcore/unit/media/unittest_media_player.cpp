@@ -21,51 +21,27 @@
 
 using namespace apl;
 
-using EventExpectation = std::pair<TestMediaPlayer::EventType, int>;
-
-::testing::AssertionResult
-CheckPlayerEvents(const std::map<TestMediaPlayer::EventType, int> &events, std::vector<EventExpectation> &&expectations)
-{
-    if (expectations.size() != events.size()) {
-        return ::testing::AssertionFailure() << "Expected " << events.size() << " events but found " << expectations.size();
-    }
-
-    for (const EventExpectation &expectation : expectations) {
-        const auto &it = events.find(expectation.first);
-        int actual;
-        if (it == events.end()) {
-            actual = 0;
-        } else {
-            actual = it->second;
-        }
-
-        if (actual != expectation.second) {
-            return ::testing::AssertionFailure() << "Expected " << expectation.second
-                                                 << " but found " << actual
-                                                 << " for event type " << TestMediaPlayer::sEventTypeMap.get(expectation.first, "???");
-        }
-    }
-
-    return ::testing::AssertionSuccess();
-}
-
 class MediaPlayerTest : public DocumentWrapper {
 public:
     MediaPlayerTest() : DocumentWrapper(), mediaDocument(rapidjson::kObjectType) {
         config->enableExperimentalFeature(RootConfig::kExperimentalFeatureManageMediaRequests);
-        mediaPlayerFactory = std::make_shared<TestMediaPlayerFactory>();
-        mediaPlayerFactory->setEventCallback([&](TestMediaPlayer::EventType event) {
-              if (eventCounts.count(event) == 0) {
-                  eventCounts[event] = 1;
-              } else {
-                  eventCounts[event] = eventCounts.at(event) + 1;
-              }
-        });
         config->mediaPlayerFactory(mediaPlayerFactory);
     }
 
-    void serializeVisualContext() {
+    ::testing::AssertionResult
+    checkVisualContext(const std::string& id, int position) {
+        if (!root->isVisualContextDirty()) return ::testing::AssertionFailure() << "Visual context not dirty.";
         visualContext = root->serializeVisualContext(mediaDocument.GetAllocator());
+
+        if (!visualContext.HasMember("tags")) return ::testing::AssertionFailure() << "Visual context have no tags.";
+        if (id != visualContext["id"].GetString()) return ::testing::AssertionFailure() << "ID is incorrect.";
+
+        auto& tags = visualContext["tags"];
+        if (!tags.HasMember("media")) return ::testing::AssertionFailure() << "Visual context has no media tag.";
+        auto& media = tags["media"];
+        if (position != media["positionInMilliseconds"].GetInt()) return ::testing::AssertionFailure() << "Track position is incorrect.";
+
+        return ::testing::AssertionSuccess();
     }
 
     // Step forward time for both the system clock AND the media player in small increments
@@ -77,10 +53,6 @@ public:
             duration -= delta;
         }
     };
-
-
-    std::shared_ptr<TestMediaPlayerFactory> mediaPlayerFactory;
-    std::map<TestMediaPlayer::EventType, int> eventCounts;
 
 protected:
     rapidjson::Document mediaDocument;
@@ -182,7 +154,6 @@ TEST_F(MediaPlayerTest, BasicPlayback)
                                "TrackIndex: 0 (0)",
                                "TrackState: ready (ready)"));
     ASSERT_TRUE(root->isVisualContextDirty());
-    root->clearVisualContextDirty();
 
     // Move forward 500 milliseconds.  The "onTimeUpdate" handler executes
     mediaPlayerFactory->advanceTime(500);
@@ -197,14 +168,7 @@ TEST_F(MediaPlayerTest, BasicPlayback)
                                "TrackCount: 1 (1)",
                                "TrackIndex: 0 (0)",
                                "TrackState: ready (ready)"));
-    ASSERT_TRUE(CheckDirtyVisualContext(root, component));
-    serializeVisualContext();
-    ASSERT_TRUE(visualContext.HasMember("tags"));
-    ASSERT_STREQ("MyVideo", visualContext["id"].GetString());
-    auto& tags = visualContext["tags"];
-    ASSERT_TRUE(tags.HasMember("media"));
-    auto& media = tags["media"];
-    ASSERT_EQ(500, media["positionInMilliseconds"].GetInt());
+    ASSERT_TRUE(checkVisualContext("MyVideo", 500));
 
     // Move forward another 500 milliseconds.  The "onEnd" handler executes
     mediaPlayerFactory->advanceTime(500);

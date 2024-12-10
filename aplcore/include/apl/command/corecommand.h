@@ -120,6 +120,9 @@ protected:
     std::string       mSequencer;
 
 private:
+    void logProperties();
+
+private:
     std::string mBaseId;
     std::string mTargetId;
     rapidjson::Document mFrozenEventContext;

@@ -25,6 +25,8 @@
 
 #include "apl/apl.h"
 
+#include "../test_sg_textmeasure.h"
+
 using namespace apl;
 
 static const char *MAIN = R"apl({
@@ -102,15 +104,24 @@ static const char *BASIC = R"apl({
   }
 })apl";
 
-class MyTextMeasure : public TextMeasurement {
+class FixedTestTextMeasure : public sg::TextMeasurement {
 public:
-    LayoutSize measure(Component *component, float width, MeasureMode widthMode, float height,
-                   MeasureMode heightMode) override {
-        return LayoutSize({ 120.0, 60.0 });
+    sg::TextLayoutPtr layout(const sg::TextChunkPtr& chunk,
+                             const sg::TextPropertiesPtr& textProperties,
+                             float width,
+                             MeasureMode widthMode,
+                             float height,
+                             MeasureMode heightMode) override {
+        return std::make_shared<FixedTestTextLayout>(Size{120, 60}, 0);
     }
 
-    float baseline(Component *component, float width, float height) override {
-        return 0;
+    sg::EditTextBoxPtr box(int size,
+                           const sg::TextPropertiesPtr& textProperties,
+                           float width,
+                           MeasureMode widthMode,
+                           float height,
+                           MeasureMode heightMode) override {
+        return std::make_shared<FixedTestTextBox>(Size{120, 60}, 0);
     }
 };
 
@@ -140,7 +151,7 @@ TEST(APLTest, Basic)
 
     // Inflate the document
     auto metrics = Metrics().size(800,800).dpi(320);
-    auto measure = std::make_shared<MyTextMeasure>();
+    auto measure = std::make_shared<FixedTestTextMeasure>();
     RootConfig rootConfig = RootConfig().measure(measure);
     auto root = RootContext::create( metrics, content, rootConfig );
     ASSERT_TRUE(root);

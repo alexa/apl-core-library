@@ -18,13 +18,12 @@
 
 #include "apl/component/component.h"
 #include "apl/engine/propdef.h"
-
-#include <yoga/YGNode.h>
+#include "apl/yoga/yoganode.h"
 
 namespace apl {
 
 using Trigger = void (*)(Component&);
-using LayoutFunc = void (*)(YGNodeRef nodeRef, const Object& object, const Context& context);
+using LayoutFunc = void (*)(YogaNode& node, const Object& object, const Context& context);
 using DefaultFunc = Object (*)(Component&, const RootConfig&);
 using GetterFunc = Object (*)(const CoreComponent&);
 using SetterFunc = void (*)(CoreComponent&, const Object&);

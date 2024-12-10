@@ -77,6 +77,7 @@ PendingImportPackage::addImport(Package& package,
                                 const rapidjson::Value& value,
                                 const std::string& name,
                                 const std::string& version,
+                                const std::string& domain,
                                 const std::set<std::string>& loadAfter,
                                 const std::string& accept)
 {
@@ -109,12 +110,14 @@ PendingImportPackage::addImport(Package& package,
         if (sIt != value.MemberEnd() && sIt->value.IsArray()) {
             // Expansion. Can use common name/version/loadAfter/accept.
             auto commonNameAndVersion = ImportRequest::extractNameAndVersion(value, mContext);
+            auto commonDomain = ImportRequest::extractDomain(value, mContext);
             auto commonLoadAfter = ImportRequest::extractLoadAfter(value, mContext);
             auto commonAccept = ImportRequest::extractAccept(value, mContext);
             for (const auto& s : sIt->value.GetArray()) {
                 if (addImport(package, s,
                               commonNameAndVersion.first.empty() ? name : commonNameAndVersion.first,
                               commonNameAndVersion.second.empty() ? version : commonNameAndVersion.second,
+                              commonDomain.empty() ? domain : commonDomain,
                               commonLoadAfter.empty() ? loadAfter : commonLoadAfter,
                               commonAccept.empty() ? accept : commonAccept))
                     return true;
@@ -129,10 +132,11 @@ PendingImportPackage::addImport(Package& package,
         if (otherwiseIt != value.MemberEnd() && otherwiseIt->value.IsArray()) {
             // Expansion. Can use common name/version/loadAfter/accept.
             auto commonNameAndVersion = ImportRequest::extractNameAndVersion(value, mContext);
+            auto commonDomain = ImportRequest::extractDomain(value, mContext);
             auto commonLoadAfter = ImportRequest::extractLoadAfter(value, mContext);
             auto commonAccept = ImportRequest::extractAccept(value, mContext);
             for (const auto& s : otherwiseIt->value.GetArray()) {
-                if (!addImport(package, s, commonNameAndVersion.first, commonNameAndVersion.second, commonLoadAfter, commonAccept)) {
+                if (!addImport(package, s, commonNameAndVersion.first, commonNameAndVersion.second, commonDomain, commonLoadAfter, commonAccept)) {
                     setError("Otherwise imports failed");
                     return false;
                 }
@@ -145,12 +149,14 @@ PendingImportPackage::addImport(Package& package,
         auto sIt = value.FindMember(PACKAGE_ITEMS);
         if (sIt != value.MemberEnd() && sIt->value.IsArray()) {
             auto commonNameAndVersion = ImportRequest::extractNameAndVersion(value, mContext);
+            auto commonDomain = ImportRequest::extractDomain(value, mContext);
             auto commonLoadAfter = ImportRequest::extractLoadAfter(value, mContext);
             auto commonAccept = ImportRequest::extractAccept(value, mContext);
             for (const auto& s : sIt->value.GetArray()) {
                 addImport(package, s,
                           commonNameAndVersion.first.empty() ? name : commonNameAndVersion.first,
                           commonNameAndVersion.second.empty() ? version : commonNameAndVersion.second,
+                          commonDomain.empty() ? domain : commonDomain,
                           commonLoadAfter.empty() ? loadAfter : commonLoadAfter,
                           commonAccept.empty() ? accept : commonAccept);
             }
@@ -162,7 +168,7 @@ PendingImportPackage::addImport(Package& package,
         return true;
     }
 
-    ImportRequest request = ImportRequest::create(value, mContext, mSession, name, version, loadAfter, accept);
+    ImportRequest request = ImportRequest::create(value, mContext, mSession, name, version, domain, loadAfter, accept);
     if (!request.isValid()) {
         setError("Malformed package import record");
         return false;

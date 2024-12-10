@@ -23,6 +23,19 @@ namespace apl {
 
 static const bool DEBUG_HOVER = false;
 
+inline ObjectMapPtr createCursorEventProperties(const Component& component, const Point &localPoint) {
+    auto eventProps = std::make_shared<ObjectMap>();
+    auto componentPropertyMap = std::make_shared<ObjectMap>();
+    componentPropertyMap->emplace("x", localPoint.getX());
+    componentPropertyMap->emplace("y", localPoint.getY());
+    auto size = component.getCalculated(kPropertyBounds).get<Rect>().getSize();
+    componentPropertyMap->emplace("width", size.getWidth());
+    componentPropertyMap->emplace("height", size.getHeight());
+    eventProps->emplace("component", componentPropertyMap);
+
+    return eventProps;
+}
+
 /**
  * Updates the cursor position. Finds the Component under the cursor and assigns
  * it as the hover Component.
@@ -36,8 +49,8 @@ static const bool DEBUG_HOVER = false;
  * @param cursorPosition The cursor position.
  */
 void
-HoverManager::setCursorPosition(const Point& cursorPosition) {
-
+HoverManager::setCursorPosition(const Point& cursorPosition)
+{
     // do nothing if the cursor hasn't moved
     if (mCursorPosition == cursorPosition)
         return;
@@ -49,9 +62,16 @@ HoverManager::setCursorPosition(const Point& cursorPosition) {
     auto target = findHoverByPosition(mCursorPosition);
     auto previous = mHover.lock();
 
-    // do nothing if the cursor is over the current hover Component
-    if (target == previous)
+    if (previous && !previous->isValid()) previous = nullptr;
+
+    // Generate move event if the cursor is over the current hover Component
+    if (target == previous) {
+        if (target) {
+            Point localPoint = target->toLocalPoint(cursorPosition);
+            target->executeOnCursorMove(createCursorEventProperties(*target, localPoint));
+        }
         return;
+    }
 
     // update the components to reflect hover status.  The previous hover
     // component sets hover=false, the new hover component sets hover = !disabled;
@@ -64,7 +84,8 @@ HoverManager::setCursorPosition(const Point& cursorPosition) {
     }
 
     if (target && !target->getState().get(kStateDisabled)) {
-        target->executeOnCursorEnter();
+        Point localPoint = target->toLocalPoint(cursorPosition);
+        target->executeOnCursorEnter(createCursorEventProperties(*target, localPoint));
         LOG_IF(DEBUG_HOVER) << "Execute OnCursorEnter: " << target->toDebugSimpleString();
     }
 
@@ -81,7 +102,8 @@ HoverManager::setCursorPosition(const Point& cursorPosition) {
  * @return The Component under the cursor, may be null.
  */
 CoreComponentPtr
-HoverManager::findHoverByPosition(const Point& position) const {
+HoverManager::findHoverByPosition(const Point& position) const
+{
     auto top = mCore.topComponent();
     if (!top)
         return nullptr;
@@ -98,8 +120,8 @@ HoverManager::findHoverByPosition(const Point& position) const {
  * executed. The state is derived from the disabled state:  hover = !disabled.
  */
 void
-HoverManager::componentToggledDisabled(const CoreComponentPtr& component) {
-
+HoverManager::componentToggledDisabled(const CoreComponentPtr& component)
+{
     assert(component);
 
     auto target = mHover.lock();
@@ -113,7 +135,8 @@ HoverManager::componentToggledDisabled(const CoreComponentPtr& component) {
             target->executeOnCursorExit();
             LOG_IF(DEBUG_HOVER) << "Execute OnCursorExit: " << target->toDebugSimpleString();
         } else {
-            target->executeOnCursorEnter();
+            Point localPoint = target->toLocalPoint(mCursorPosition);
+            target->executeOnCursorEnter(createCursorEventProperties(*target, localPoint));
             LOG_IF(DEBUG_HOVER) << "Execute OnCursorEnter: " << target->toDebugSimpleString();
         }
 
@@ -128,8 +151,8 @@ HoverManager::componentToggledDisabled(const CoreComponentPtr& component) {
  * unnecessary state changes to minimize creating dirty properties.
  */
 void
-HoverManager::update(const CoreComponentPtr& previous, const CoreComponentPtr& target) {
-
+HoverManager::update(const CoreComponentPtr& previous, const CoreComponentPtr& target)
+{
     auto targetStateOwner = target? target->findStateOwner() : nullptr;
     auto previousStateOwner = previous ? previous->findStateOwner() : nullptr;
 

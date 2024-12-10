@@ -136,9 +136,8 @@ function apl-test-core {  # Run unit tests in the core build
                -DBUILD_ALEXAEXTENSIONS=ON \
                -DENABLE_SCENEGRAPH=ON .. && \
         make -j$APL_BUILD_PROCS && \
-        aplcore/unit/unittest && \
-        tools/unit/tools-unittest && \
-        extensions/unit/alexaext-unittest
+        aplcore/unit/unittest $@ && \
+        extensions/unit/alexaext-unittest $@
     )
 }
 
@@ -148,7 +147,6 @@ function apl-memcheck-core {  # Run unit tests in the core build
         $CMAKE -DBUILD_TESTS=ON  -DCOVERAGE=OFF .. && \
         make -j$APL_BUILD_PROCS && \
         valgrind --tool=memcheck --gen-suppressions=all --track-origins=yes --leak-check=full --num-callers=50 ./aplcore/unit/unittest && \
-        valgrind --tool=memcheck --gen-suppressions=all --track-origins=yes --leak-check=full --num-callers=50 ./tools/unit/tools-unittest && \
         valgrind --tool=memcheck --gen-suppressions=all --track-origins=yes --leak-check=full --num-callers=50 ./extensions/unit/alexaext-unittest
     )
 }

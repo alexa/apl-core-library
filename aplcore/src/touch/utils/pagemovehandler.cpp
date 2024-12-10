@@ -125,11 +125,13 @@ void
 PageMoveHandler::reset()
 {
     // Reset opacity and transforms
-    if (auto currentPage = mCurrentPage.lock()) {
+    auto currentPage = mCurrentPage.lock();
+    if (currentPage && currentPage->isValid()) {
         currentPage->setProperty(kPropertyOpacity, 1.0f);
         currentPage->setProperty(kPropertyTransformAssigned, Object::EMPTY_ARRAY());
     }
-    if (auto targetPage = mTargetPage.lock()) {
+    auto targetPage = mTargetPage.lock();
+    if (targetPage && targetPage->isValid()) {
         targetPage->setProperty(kPropertyOpacity, 1.0f);
         targetPage->setProperty(kPropertyTransformAssigned, Object::EMPTY_ARRAY());
     }
@@ -212,13 +214,13 @@ PageMoveHandler::executeDefaultPagingAnimation(
     const CoreComponentPtr& currentChild,
     const CoreComponentPtr& nextChild)
 {
-    if (mCurrentPageTransform) {
+    if (mCurrentPageTransform && currentChild->isValid()) {
         mCurrentPageTransform->interpolate(amount);
         currentChild->setProperty(kPropertyTransformAssigned, Object(mCurrentPageTransform));
         currentChild->markProperty(kPropertyTransformAssigned);
     }
 
-    if (mTargetPageTransform) {
+    if (mTargetPageTransform && nextChild->isValid()) {
         mTargetPageTransform->interpolate(amount);
         nextChild->setProperty(kPropertyTransformAssigned, Object(mTargetPageTransform));
         nextChild->markProperty(kPropertyTransformAssigned);

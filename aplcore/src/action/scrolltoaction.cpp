@@ -155,6 +155,11 @@ ScrollToAction::make(const TimersPtr& timers,
 void
 ScrollToAction::start() {
     // Find a scrollable or page-able parent
+    if (mContainer->getCalculated(kPropertyBounds).empty()) {
+        LOG(LogLevel::kWarn) << "Trying to scroll a component that was never laid out. Ignoring the command.";
+        resolve();
+        return;
+    }
     mContainer->ensureChildLayout(mTarget, true);
 
     switch (mContainer->scrollType()) {

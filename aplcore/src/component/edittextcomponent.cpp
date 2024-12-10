@@ -16,7 +16,6 @@
 #include "apl/component/edittextcomponent.h"
 
 #include "apl/component/componentpropdef.h"
-#include "apl/component/yogaproperties.h"
 #include "apl/content/rootconfig.h"
 #include "apl/engine/event.h"
 #include "apl/focus/focusmanager.h"
@@ -30,6 +29,9 @@
 #include "apl/scenegraph/utilities.h"
 #include "apl/time/sequencer.h"
 #include "apl/touch/pointerevent.h"
+#include "apl/utils/tracing.h"
+#include "apl/yoga/yoganode.h"
+#include "apl/yoga/yogaproperties.h"
 #ifdef SCENEGRAPH
 #include "apl/scenegraph/builder.h"
 #include "apl/scenegraph/edittext.h"
@@ -57,37 +59,31 @@ EditTextComponent::EditTextComponent(const ContextPtr& context,
     if (context->getRootConfig().getProperty(RootProperty::kDisallowEditText).asBoolean())
         mCoreFlags.set(kCoreComponentFlagIsDisallowed);
 
-    YGNodeSetMeasureFunc(mYGNodeRef, textMeasureFunc);
-    YGNodeSetBaselineFunc(mYGNodeRef, textBaselineFunc);
+    mYogaNode.setMeasureFunc();
+    mYogaNode.setBaselineFunc();
 #ifdef SCENEGRAPH
     if (context->getRootConfig().getEditTextFactory()) {
-        YGNodeSetNodeType(mYGNodeRef, YGNodeTypeDefault);
+        mYogaNode.setNodeTypeDefault();
     } else {
 #endif // SCENEGRAPH
-        YGNodeSetNodeType(mYGNodeRef, YGNodeTypeText);
+        mYogaNode.setNodeTypeText();
 #ifdef SCENEGRAPH
     }
 #endif // SCENEGRAPH
 }
 
-YGSize
-EditTextComponent::textMeasure(float width, YGMeasureMode widthMode, float height, YGMeasureMode heightMode)
+Size
+EditTextComponent::textMeasure(float width, MeasureMode widthMode, float height, MeasureMode heightMode)
 {
-    if (mContext->measure()->layoutCompatible()) {
-        return measureEditText(MeasureRequest(width, toMeasureMode(widthMode), height, toMeasureMode(heightMode)));
-    } else {
-        return ActionableComponent::textMeasure(width, widthMode, height, heightMode);
-    }
+    APL_TRACE_BEGIN("EditTextComponent:textMeasure");
+    return measureEditText(MeasureRequest(width, widthMode, height, heightMode));
 }
 
 float
 EditTextComponent::textBaseline(float width, float height)
 {
-    if (mContext->measure()->layoutCompatible()) {
-        return baselineText(width, height);
-    } else {
-        return ActionableComponent::textBaseline(width, height);
-    }
+    APL_TRACE_BEGIN("EditTextComponent:textBaseline");
+    return baselineText(width, height);
 }
 
 /*
@@ -205,7 +201,7 @@ EditTextComponent::propDefSet() const
         self.mEditTextConfig = nullptr;
 
         if (!self.mLastMeasureRequest.isExact())
-            YGNodeMarkDirty(self.mYGNodeRef);
+            self.getNode().markDirty();
 #endif // SCENEGRAPH
     };
 
@@ -219,7 +215,7 @@ EditTextComponent::propDefSet() const
         self.mEditTextConfig = nullptr;
 
         if (!self.mLastMeasureRequest.isExact())
-            YGNodeMarkDirty(self.mYGNodeRef);
+            self.getNode().markDirty();
 #endif // SCENEGRAPH
     };
 
@@ -228,7 +224,7 @@ EditTextComponent::propDefSet() const
         self.mEditTextBox = nullptr;
 #ifdef SCENEGRAPH
         if (!self.mLastMeasureRequest.isExact())
-            YGNodeMarkDirty(self.mYGNodeRef);
+            self.getNode().markDirty();
 #endif // SCENEGRAPH
     };
 
@@ -243,14 +239,14 @@ EditTextComponent::propDefSet() const
      *   FontFamily     FontWeight    BorderWidth
      *   FontSize       FontStyle     Size
      *
-     * Note that BorderWidth directy calls yn::setBorder<YGEdgeAll>, so it will trigger a layout
+     * Note that BorderWidth directy calls yn::setBorder<Edge::All>, so it will trigger a layout
      * pass if needed.
      *
      * We'll assume that the hint never affects the global layout (it just has to fit in the box)
      */
     static ComponentPropDefSet sEditTextComponentProperties(ActionableComponent::propDefSet(), {
             {kPropertyBorderColor,              Color(),                        asColor,                        kPropInOut | kPropStyled | kPropDynamic | kPropVisualHash},
-            {kPropertyBorderWidth,              Dimension(0),                   asNonNegativeAbsoluteDimension, kPropInOut | kPropStyled | kPropDynamic,                                yn::setBorder<YGEdgeAll>, resolveDrawnBorder},
+            {kPropertyBorderWidth,              Dimension(0),                   asNonNegativeAbsoluteDimension, kPropInOut | kPropStyled | kPropDynamic,                                yn::setBorder<Edge::All>, resolveDrawnBorder},
             {kPropertyColor,                    Color(),                        asColor,                        kPropInOut | kPropStyled | kPropDynamic | kPropVisualHash,                               clearEditConfig, defaultFontColor},
             {kPropertyFontFamily,               "",                             asString,                       kPropInOut | kPropLayout | kPropStyled | kPropDynamic | kPropTextHash | kPropVisualHash, familyOrSizeChanged, defaultFontFamily},
             {kPropertyFontSize,                 Dimension(40),                  asAbsoluteDimension,            kPropInOut | kPropLayout | kPropStyled | kPropDynamic | kPropTextHash | kPropVisualHash, familyOrSizeChanged},
@@ -389,7 +385,7 @@ EditTextComponent::executeOnFocus() {
 #endif // SCENEGRAPH
 }
 
-YGSize
+Size
 EditTextComponent::measureEditText(MeasureRequest&& request)
 {
     if (request != mLastMeasureRequest) {
@@ -400,7 +396,6 @@ EditTextComponent::measureEditText(MeasureRequest&& request)
     if (!mEditTextBox) {
         ensureEditTextProperties();
 
-        assert(mContext->measure()->layoutCompatible());
         auto measure = std::static_pointer_cast<sg::TextMeasurement>(mContext->measure());
 
         mEditTextBox = measure->box(
@@ -416,8 +411,7 @@ EditTextComponent::measureEditText(MeasureRequest&& request)
     if (!mEditTextBox)   // No box, no layout
         return {0, 0};
 
-    auto size = mEditTextBox->getSize();
-    return YGSize{ size.getWidth(), size.getHeight() };
+    return mEditTextBox->getSize();
 }
 
 float
@@ -435,7 +429,6 @@ EditTextComponent::ensureEditTextBox()
 
     ensureEditTextProperties();
 
-    assert(mContext->measure()->layoutCompatible());
     auto measure = std::static_pointer_cast<sg::TextMeasurement>(mContext->measure());
 
     const auto& innerBounds = getCalculated(kPropertyInnerBounds).get<Rect>();
@@ -538,7 +531,7 @@ EditTextComponent::constructSceneGraphLayer(sg::SceneGraphUpdates& sceneGraph)
     auto outline = Rect{0, 0, size.getWidth(), size.getHeight()};
     auto strokeWidth = getCalculated(kPropertyDrawnBorderWidth).asFloat();
     auto content = sg::draw(sg::path(RoundedRect{outline, 0}, strokeWidth),
-                        sg::fill(sg::paint(getCalculated(kPropertyBorderColor))));
+                        sg::fill(sg::paint(getCalculated(kPropertyBorderColor)), sg::kFillTypeEvenOdd));
 
     // The second content node draws the hint.  The hint is transparent if the edit control
     // has text to display.
@@ -561,6 +554,8 @@ EditTextComponent::constructSceneGraphLayer(sg::SceneGraphUpdates& sceneGraph)
     innerLayer->setContent(sg::editText(mEditText.getPtr(), mEditTextBox,
                                         mEditTextConfig, getCalculated(kPropertyText).getString()));
     innerLayer->clearFlags();
+
+    innerLayer->setCharacteristic(sg::Layer::kCharacteristicHasText);
 
     layer->appendChild(innerLayer);
 
@@ -708,7 +703,6 @@ EditTextComponent::ensureHintLayout()
 
     auto borderWidth = getCalculated(kPropertyBorderWidth).asFloat();
     auto innerBounds = getCalculated(kPropertyInnerBounds).get<Rect>().inset(borderWidth);
-    assert(mContext->measure()->layoutCompatible());
     auto measure = std::static_pointer_cast<sg::TextMeasurement>(mContext->measure());
 
     mHintLayout =

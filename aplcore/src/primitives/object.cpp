@@ -462,6 +462,8 @@ double Object::asNumber() const { return mType->asNumber(mU); }
 float Object::asFloat() const { return static_cast<float>(asNumber()); }
 int Object::asInt(int base) const { return mType->asInt(mU, base); }
 std::int64_t Object::asInt64(int base) const { return mType->asInt64(mU, base); }
+std::pair<int, bool> Object::asValidInt(int base) const { return mType->asValidInt(mU, base); }
+std::pair<int64_t, bool> Object::asValidInt64(int base) const { return mType->asValidInt64(mU, base); };
 Color Object::asColor() const { return asColor(nullptr); }
 Color Object::asColor(const SessionPtr& session) const { return mType->asColor(mU, session); }
 Color Object::asColor(const Context& context) const { return asColor(context.session()); }

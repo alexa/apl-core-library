@@ -54,6 +54,45 @@ std::string utf8StringSlice(const std::string& utf8String, int start, int end = 
 std::string utf8StringCharAt(const std::string& utf8String, int index);
 
 /**
+ * Returns the index of the first occurrence of a specified substring.
+ * @param utf8String A reference to a std::string to search within
+ * @param utf8SearchString A reference to a std::string to search for
+ * @param index The offset of the code point to start the search from. If negative, count from the end.
+ * @param forwardSearch true if the search should progress forwards from the index, false if it
+ *        should progress backwards from the index.
+ * @return The offset of the code point where the substring first appears, or -1 if not found.
+ */
+int utf8StringIndexOf(const std::string& utf8String, const std::string& utf8SearchString, int index, bool forwardSearch);
+
+/**
+ * Replace first occurrence of a substring in a UTF-8 string with a replacement string.
+ * @param utf8String The original string
+ * @param utf8SearchString The substring to search for
+ * @param utf8ReplaceString The replacement string
+ * @param startIndex The position to start the search from (optional, default is 0)
+ *                   If positive or zero, search starts from the beginning towards the end.
+ *                   If negative, search starts from the end towards the beginning.
+ * @return The string with the first occurrence of searchString replaced by replaceString
+*/
+std::string utf8StringReplace(const std::string& utf8String, const std::string& utf8SearchString, const std::string& utf8ReplaceString, int startIndex = 0);
+
+/**
+ * Replace all occurrences of a substring in a UTF-8 string with a replacement string.
+ * @param utf8String The original string
+ * @param utf8SearchString The substring to search for
+ * @param utf8ReplaceString The replacement string
+ * @return The string with all occurrences of searchString replaced by replaceString
+*/
+std::string utf8StringReplaceAll(const std::string& utf8String, const std::string& utf8SearchString, const std::string& utf8ReplaceString);
+
+/**
+ * Trim leading and trailing white space from a UTF-8 string.
+ * @param utf8String A reference to a std::string holding UTF-8 data
+ * @return The trimmed string
+ */
+std::string utf8StringTrimWhiteSpace(const std::string& utf8String);
+
+/**
  * Strip invalid characters out of a UTF-8 string.  The "validCharacters" property in the EditText
  * component defines the schema for the valid character string.
  *

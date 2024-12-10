@@ -277,6 +277,93 @@ stringCharAt(const std::vector<Object>& args)
 }
 
 static Object
+stringIndexOf(const std::vector<Object>& args)
+{
+    if (args.size() < 2)
+        return -1;
+
+    std::string s = args[0].asString();
+    std::string searchString = args[1].asString();
+
+    auto startIndex = 0;
+    if (args.size() > 2)
+        startIndex = args[2].asInt();
+
+    return utf8StringIndexOf(s, searchString, startIndex, true);
+}
+
+static Object
+stringLastIndexOf(const std::vector<Object>& args)
+{
+    if (args.size() < 2)
+        return -1;
+
+    std::string s = args[0].asString();
+    std::string searchString = args[1].asString();
+
+    auto startIndex = utf8StringLength(s) - 1;
+    if (args.size() > 2)
+        startIndex = args[2].asInt();
+
+    return utf8StringIndexOf(s, searchString, startIndex, false);
+}
+
+bool
+stringIncludes(const std::vector<Object>& args)
+{
+    if (args.size() < 2)
+        return false;
+
+    std::string s = args[0].asString();
+    std::string searchString = args[1].asString();
+
+    auto startIndex = 0;
+    if (args.size() > 2)
+        startIndex = args[2].asInt();
+
+    return utf8StringIndexOf(s, searchString, startIndex, true) >= 0;
+}
+
+static Object
+stringReplace(const std::vector<Object>& args)
+{
+    if (args.size() < 3)
+        return Object::NULL_OBJECT();
+
+    std::string s = args[0].asString();
+    std::string searchString = args[1].asString();
+    std::string replaceString = args[2].asString();
+
+    int startIndex = 0;
+    if (args.size() > 3) {
+        startIndex = args[3].asInt();
+    }
+
+    return utf8StringReplace(s, searchString, replaceString, startIndex);
+}
+
+static Object
+stringReplaceAll(const std::vector<Object>& args) {
+    if (args.size() < 3)
+        return Object::NULL_OBJECT();
+
+    std::string s = args[0].asString();
+    std::string searchString = args[1].asString();
+    std::string replaceString = args[2].asString();
+
+    return utf8StringReplaceAll(s, searchString, replaceString);
+}
+
+static Object
+stringTrimWhitespace(const std::vector<Object>& args) {
+    if (args.size() < 1)
+        return Object::NULL_OBJECT();
+
+    std::string s = args[0].asString();
+    return utf8StringTrimWhiteSpace(s);
+}
+
+static Object
 stringToUpperImpl(const std::shared_ptr<LocaleMethods>& localeMethods, const std::vector<Object>& args)
 {
     // passing empty string as locale is not provided in the request
@@ -507,6 +594,12 @@ createStringMap(const std::shared_ptr<LocaleMethods>& localeMethods)
     map->emplace("slice", Function::create("slice", stringSlice));
     map->emplace("length", Function::create("length", stringLength));
     map->emplace("charAt", Function::create("charAt", stringCharAt));
+    map->emplace("indexOf", Function::create("indexOf", stringIndexOf));
+    map->emplace("lastIndexOf", Function::create("lastIndexOf", stringLastIndexOf));
+    map->emplace("includes", Function::create("includes", stringIncludes));
+    map->emplace("replace", Function::create("replace", stringReplace));
+    map->emplace("replaceAll", Function::create("replaceAll", stringReplaceAll));
+    map->emplace("trim", Function::create("trimWhiteSpace", stringTrimWhitespace));
 
     return map;
 }

@@ -64,6 +64,7 @@ public:
     void clearDirty() override;
     bool isVisualContextDirty() const override;
     void clearVisualContextDirty() override;
+    rapidjson::Value serializeDocumentState(rapidjson::Document::AllocatorType& allocator) override;
     rapidjson::Value serializeVisualContext(rapidjson::Document::AllocatorType& allocator) override;
     bool isDataSourceContextDirty() const override;
     void clearDataSourceContextDirty() override;

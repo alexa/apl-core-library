@@ -56,7 +56,7 @@ TEST_F(ContextAPLVersionTest, Basic)
     loadDocument(BASIC);
     auto context = component->getContext();
     ASSERT_EQ("1.9", context->getRequestedAPLVersion());
-    ASSERT_TRUE(IsEqual("2024.2", evaluate(*context, "${environment.aplVersion}")));
+    ASSERT_TRUE(IsEqual("2024.3", evaluate(*context, "${environment.aplVersion}")));
     ASSERT_TRUE(IsEqual("1.9", evaluate(*context, "${environment.documentAPLVersion}")));
 
     // The document background is evaluated is a special data-binding context

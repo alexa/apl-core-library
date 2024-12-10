@@ -86,12 +86,15 @@ GraphicElement::initialize(const GraphicPtr& graphic, const Object& json)
             if (p != mProperties.end()) {
                 if (p->second.isString() || (pd.flags & kPropEvaluated) != 0) {
                     auto result = parseAndEvaluate(*mContext, p->second);
-                    if (!result.symbols.empty() && mGraphic.lock())
-                        GraphicDependant::create(shared_from_this(), pd.key,
-                                                 std::move(result.expression),
-                                                 mContext, pd.getBindingFunction(),
-                                                 std::move(result.symbols));
-                    value = pd.calculate(*mContext, result.value);
+                    if (!result.value.isNaN()) {
+                        if (!result.symbols.empty() && mGraphic.lock()) {
+                            GraphicDependant::create(shared_from_this(), pd.key,
+                                                     std::move(result.expression),
+                                                     mContext, pd.getBindingFunction(),
+                                                     std::move(result.symbols));
+                        }
+                        value = pd.calculate(*mContext, result.value);
+                    }
                 }
                 else {
                     value = pd.calculate(*mContext, p->second);

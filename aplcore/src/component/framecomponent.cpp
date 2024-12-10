@@ -16,9 +16,9 @@
 #include "apl/component/framecomponent.h"
 
 #include "apl/component/componentpropdef.h"
-#include "apl/component/yogaproperties.h"
 #include "apl/primitives/color.h"
 #include "apl/primitives/radii.h"
+#include "apl/yoga/yogaproperties.h"
 #ifdef SCENEGRAPH
 #include "apl/scenegraph/builder.h"
 #include "apl/scenegraph/node.h"
@@ -51,7 +51,7 @@ FrameComponent::FrameComponent(const ContextPtr& context,
     : CoreComponent(context, std::move(properties), path)
 {
     // TODO: Auto-sized Frame just wraps the children.  Fix this for ScrollView and other containers?
-    YGNodeStyleSetAlignItems(mYGNodeRef, YGAlignFlexStart);
+    mYogaNode.setAlignItems(kFlexboxAlignStart);
 }
 
 void
@@ -107,7 +107,7 @@ FrameComponent::propDefSet() const
                                                                                                   kPropStyled |
                                                                                                   kPropDynamic |
                                                                                                   kPropVisualHash,
-                                                                                                  yn::setBorder<YGEdgeAll>, resolveDrawnBorder},
+                                                                                                  yn::setBorder<Edge::All>, resolveDrawnBorder},
 
         // These are input-only properties that trigger the calculation of the output properties
         {kPropertyBorderBottomLeftRadius,  Object::NULL_OBJECT(), asAbsoluteDimension,            kPropIn |
@@ -161,7 +161,7 @@ FrameComponent::fixBorder(bool useDirtyFlag)
     auto h = mCalculated.get(kPropertyHeight);
     if ((w.isAbsoluteDimension() && w.getAbsoluteDimension() == 0) ||
         (h.isAbsoluteDimension() && h.getAbsoluteDimension() == 0)) {
-        yn::setBorder<YGEdgeAll>(getNode(), Dimension(0), *mContext);
+        mYogaNode.setBorder(Edge::All, 0);
     }
 
     static std::vector<std::pair<PropertyKey, Radii::Corner >> BORDER_PAIRS = {
@@ -223,7 +223,7 @@ FrameComponent::constructSceneGraphLayer(sg::SceneGraphUpdates& sceneGraph)
     auto background = sg::draw(sg::path(outline.inset(strokeWidth)),
                                sg::fill(sg::paint(getCalculated(kPropertyBackground))));
     auto border = sg::draw(sg::path(outline, strokeWidth),
-                           sg::fill(sg::paint(getCalculated(kPropertyBorderColor))));
+                           sg::fill(sg::paint(getCalculated(kPropertyBorderColor)), sg::kFillTypeEvenOdd));
 
     background->setNext(border);
     layer->setContent(background);

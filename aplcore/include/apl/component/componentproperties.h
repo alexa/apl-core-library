@@ -93,6 +93,16 @@ enum FlexboxAlign {
 };
 
 /**
+ * Used by alignItems in a FlexSequenceComponent
+ * Don't change these values without checking component.cpp
+ */
+enum FlexboxAlignAxis {
+    kFlexboxAlignAxisStart = 0,
+    kFlexboxAlignAxisEnd = 1,
+    kFlexboxAlignAxisCenter = 2
+};
+
+/**
  * Layout direction of a ContainerComponent
  */
 enum ContainerDirection {
@@ -746,6 +756,8 @@ enum PropertyKey {
     kPropertyOnCursorEnter,
     /// Component handler for cursor exit
     kPropertyOnCursorExit,
+    /// Component handler for cursor move
+    kPropertyOnCursorMove,
     /// Component attached to Yoga tree and has flexbox properties calculated.
     kPropertyLaidOut,
     /// EditTextComponent restrict the characters that can be entered
@@ -771,7 +783,8 @@ enum ComponentType {
     kComponentTypeText,
     kComponentTypeTouchWrapper,
     kComponentTypeVectorGraphic,
-    kComponentTypeVideo
+    kComponentTypeVideo,
+    kComponentTypeFlexSequenceComponent
 };
 
 extern Bimap<int, std::string> sAlignMap;
@@ -783,6 +796,7 @@ extern Bimap<int, std::string> sTextAlignVerticalMap;
 extern Bimap<int, std::string> sKeyboardTypeMap;
 extern Bimap<int, std::string> sSubmitKeyTypeMap;
 extern Bimap<int, std::string> sFlexboxAlignMap;
+extern Bimap<int, std::string> sFlexboxAlignAxisMap;
 extern Bimap<int, std::string> sContainerDirectionMap;
 extern Bimap<int, std::string> sFlexboxJustifyContentMap;
 extern Bimap<int, std::string> sFlexboxWrapMap;

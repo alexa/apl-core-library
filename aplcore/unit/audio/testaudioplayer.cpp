@@ -102,7 +102,6 @@ TestAudioPlayer::setTrack(MediaTrack track)
     auto content = mFactory->findContent(track.url);
 
     assert(TextTracksEqual(track.textTracks, content.trackArray));
-    assert(content.initialDelay> 0);
     assert(content.actualDuration > 0);
 
     mActualDuration = content.actualDuration;

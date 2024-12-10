@@ -91,6 +91,7 @@ Layer::debugCharacteristicString() const
         "DO_NOT_CLIP_CHILDREN", // 1u << 0
         "RENDER_ONLY",          // 1u << 1
         "HAS_MEDIA",            // 1u << 2
+        "HAS_TEXT",             // 1u << 3
         nullptr
     };
 

@@ -26,11 +26,14 @@ target_sources_local(unittest
         unittest_dynamic_properties.cpp
         unittest_edit_text_component.cpp
         unittest_find_component_at_position.cpp
+        unittest_flex_sequence_component.cpp
         unittest_flexbox.cpp
         unittest_frame_component.cpp
         unittest_grid_sequence_component.cpp
         unittest_host_component.cpp
+        unittest_image.cpp
         unittest_layout_direction.cpp
+        unittest_legacy_clipping.cpp
         unittest_pager.cpp
         unittest_properties.cpp
         unittest_scroll.cpp

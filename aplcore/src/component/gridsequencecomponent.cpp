@@ -17,8 +17,8 @@
 #include <cmath>
 
 #include "apl/component/componentpropdef.h"
-#include "apl/component/yogaproperties.h"
 #include "apl/content/rootconfig.h"
+#include "apl/yoga/yogaproperties.h"
 
 namespace apl {
 
@@ -96,6 +96,11 @@ GridSequenceComponent::processLayoutChanges(bool useDirtyFlag, bool first)
 
     // Process any lazy layouts.
     MultiChildScrollableComponent::processLayoutChanges(useDirtyFlag, first);
+}
+
+bool
+GridSequenceComponent::isSingleChildOnCrossAxis() {
+    return getItemsPerCourse() == 1;
 }
 
 const ComponentPropDefSet&
@@ -286,14 +291,6 @@ GridSequenceComponent::applyChildSize(const CoreComponentPtr& coreChild, size_t 
     auto size = getChildSize(index);
     coreChild->setHeight(size.getHeight());
     coreChild->setWidth(size.getWidth());
-}
-
-size_t
-GridSequenceComponent::estimateChildrenToCover(float distance, size_t baseChild)
-{
-    auto size = getChildSize(baseChild);
-    auto vertical = isVertical();
-    return std::floor((std::abs(distance) / (vertical ? size.getHeight() : size.getWidth())) * static_cast<float>(mItemsPerCourse));
 }
 
 } // namespace apl

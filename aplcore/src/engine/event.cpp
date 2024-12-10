@@ -21,21 +21,16 @@
 namespace apl {
 
 Bimap<int, std::string> sEventTypeBimap = {
-    {kEventTypeControlMedia,           "controlMedia"},
     {kEventTypeDataSourceFetchRequest, "dataSourceFetchRequest"},
     {kEventTypeExtension,              "extension"},
     {kEventTypeFocus,                  "focus"},
     {kEventTypeFinish,                 "finish"},
     {kEventTypeMediaRequest,           "mediaRequest"},
     {kEventTypeOpenURL,                "openURL"},
-    {kEventTypePlayMedia,              "playMedia"},
-    {kEventTypePreroll,                "preroll"},
     {kEventTypeReinflate,              "reinflate"},
-    {kEventTypeRequestFirstLineBounds, "requestFirstLineBounds"},
     {kEventTypeRequestLineBounds,      "requestLineBounds"},
     {kEventTypeLineHighlight,          "lineHighlight"},
     {kEventTypeSendEvent,              "sendEvent"},
-    {kEventTypeSpeak,                  "speak"}
 };
 
 Bimap<int, std::string> sEventPropertyBimap = {

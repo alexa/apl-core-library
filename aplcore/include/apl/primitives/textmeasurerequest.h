@@ -18,8 +18,7 @@
 #ifndef _APL_TEXT_MEASURE_REQUEST_H
 #define _APL_TEXT_MEASURE_REQUEST_H
 
-#include <yoga/YGEnums.h>
-
+#include "apl/component/textmeasurement.h"
 #include "apl/utils/hash.h"
 #include "apl/utils/streamer.h"
 #include "apl/utils/stringfunctions.h"
@@ -31,9 +30,9 @@ namespace apl {
  */
 struct TextMeasureRequest {
     float width;
-    YGMeasureMode widthMode;
+    MeasureMode widthMode;
     float height;
-    YGMeasureMode heightMode;
+    MeasureMode heightMode;
     size_t paramHash;
 
     std::size_t hash() const {
@@ -46,19 +45,19 @@ struct TextMeasureRequest {
     }
 
     bool operator<(const TextMeasureRequest& rhs) const {
-        return (width < rhs.width ||
-                height < rhs.height ||
-                widthMode < rhs.widthMode ||
-                heightMode < rhs.heightMode ||
-                paramHash < rhs.paramHash);
+        return hash() < rhs.hash();
     }
 
     bool operator==(const TextMeasureRequest& rhs) const {
         return widthMode == rhs.widthMode &&
                heightMode == rhs.heightMode &&
                paramHash == rhs.paramHash &&
-               (widthMode == YGMeasureMode::YGMeasureModeUndefined || (width == rhs.width)) &&
-               (heightMode == YGMeasureMode::YGMeasureModeUndefined || (height == rhs.height));
+               (widthMode == MeasureMode::Undefined ||
+                    (std::isnan(width) && std::isnan(rhs.width)) ||
+                    (width == rhs.width)) &&
+               (heightMode == MeasureMode::Undefined ||
+                    (std::isnan(height) && std::isnan(rhs.height)) ||
+                    (height == rhs.height));
     }
 
     std::string toString() const {

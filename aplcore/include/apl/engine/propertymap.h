@@ -112,6 +112,13 @@ public:
         mValues[key] = value;
     }
 
+    /**
+     * Clear up the map, to avoid it being used after owner is released or cleared in any way.
+     */
+    void clear() {
+        mValues.clear();
+    }
+
     const Object& operator[](T key) const {
         return get(key);
     }

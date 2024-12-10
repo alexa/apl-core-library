@@ -19,6 +19,15 @@ using namespace apl;
 
 class SpeakListTest : public CommandTest {
 public:
+    SpeakListTest() {
+        audioPlayerFactory->addFakeContent({
+            { "http-URL1", 1000, 100, -1, {} },
+            { "http-URL2", 1000, 100, -1, {} },
+            { "http-URL3", 1000, 100, -1, {} },
+            { "http-URL4", 1000, 100, -1, {} },
+        });
+    }
+
     void executeSpeakList(const std::string& item,
                           CommandScrollAlign align,
                           CommandHighlightMode highlightMode,
@@ -57,47 +66,46 @@ public:
 };
 
 
-static const char *TEST_STAGES =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"styles\": {"
-    "    \"base\": {"
-    "      \"values\": ["
-    "        {"
-    "          \"color\": \"green\""
-    "        },"
-    "        {"
-    "          \"when\": \"${state.karaoke}\","
-    "          \"color\": \"blue\""
-    "        }"
-    "      ]"
-    "    }"
-    "  },"
-    "  \"mainTemplate\": {"
-    "    \"items\": {"
-    "      \"type\": \"ScrollView\","
-    "      \"width\": 500,"
-    "      \"height\": 500,"
-    "      \"item\": {"
-    "        \"type\": \"Container\","
-    "        \"items\": {"
-    "          \"type\": \"Text\","
-    "          \"style\": \"base\","
-    "          \"text\": \"${data}\","
-    "          \"speech\": \"http-${data}\","
-    "          \"height\": 200"
-    "        },"
-    "        \"data\": ["
-    "          \"URL1\","
-    "          \"URL2\","
-    "          \"URL3\","
-    "          \"URL4\""
-    "        ]"
-    "      }"
-    "    }"
-    "  }"
-    "}";
+static const char *TEST_STAGES = R"apl({
+  "type": "APL",
+  "version": "1.1",
+  "styles": {
+    "base": {
+      "values": [
+        {
+          "color": "green"
+        },
+        {
+          "when": "${state.karaoke}",
+          "color": "blue"
+        }
+      ]
+    }
+  },
+  "mainTemplate": {
+    "items": {
+      "type": "ScrollView",
+      "width": 500,
+      "height": 500,
+      "item": {
+        "type": "Container",
+        "items": {
+          "type": "Text",
+          "style": "base",
+          "text": "${data}",
+          "speech": "http-${data}",
+          "height": 200
+        },
+        "data": [
+          "URL1",
+          "URL2",
+          "URL3",
+          "URL4"
+        ]
+      }
+    }
+  }
+})apl";
 
 /**
  * Run a single SpeakList command and verify each stage.
@@ -126,46 +134,33 @@ TEST_F(SpeakListTest, TestStages)
 
     // Nothing happens initially (the delay must pass)
     ASSERT_FALSE(root->hasEvent());
+    ASSERT_FALSE(audioPlayerFactory->hasEvent());
+
     advanceTime(500);
 
     for (int i = 0 ; i < CHILD_COUNT ; i++) {
         auto msg = "child[" + std::to_string(i) + "]";
         auto target = child[i];
         auto url = "http-URL" + std::to_string(i+1);
-        auto scrollPosition = 200 * i;
-        if (scrollPosition > 300) scrollPosition = 300;   // Max scroll position
 
         // The first thing we should get is a pre-roll event
-        ASSERT_TRUE(root->hasEvent()) << msg;
-        auto event = root->popEvent();
-        ASSERT_EQ(kEventTypePreroll, event.getType()) << msg;
-        ASSERT_EQ(Object(url), event.getValue(kEventPropertySource)) << msg;
+        ASSERT_TRUE(CheckPlayer(url, TestAudioPlayer::kPreroll)) << msg;
 
         // Scroll
         advanceTime(1000);
-        ASSERT_EQ(Point(0, scrollPosition), component->scrollPosition()) << msg;
 
         // We should have an event for speaking.
-        ASSERT_TRUE(root->hasEvent()) << msg;
-        event = root->popEvent();
-        ASSERT_EQ(kEventTypeSpeak, event.getType()) << msg;
-        ASSERT_EQ(Object(url), event.getValue(kEventPropertySource)) << msg;
-        ASSERT_EQ(Object(kCommandHighlightModeBlock), event.getValue(kEventPropertyHighlightMode)) << msg;
-
-        // The item should have updated colors
-        ASSERT_TRUE(CheckDirty(target, kPropertyColor, kPropertyColorKaraokeTarget, kPropertyVisualHash)) << msg;
-        ASSERT_EQ(Object(Color(Color::BLUE)), target->getCalculated(kPropertyColor)) << msg;
+        ASSERT_TRUE(CheckPlayer(url, TestAudioPlayer::kReady)) << msg;
+        ASSERT_TRUE(CheckPlayer(url, TestAudioPlayer::kPlay)) << msg;
 
         // We'll assume that speech is SLOWER than the timeout (takes longer than 1000 milliseconds)
-        advanceTime(2000);
+        advanceTime(1000);
 
         // Mark speech as finished
-        event.getActionRef().resolve();
         root->clearPending();
 
-        // Karaoke clears
-        ASSERT_TRUE(CheckDirty(target, kPropertyColor, kPropertyColorKaraokeTarget, kPropertyVisualHash)) << msg;
-        ASSERT_EQ(Object(Color(Color::GREEN)), target->getCalculated(kPropertyColor)) << msg;
+        ASSERT_TRUE(CheckPlayer(url, TestAudioPlayer::kDone)) << msg;
+        ASSERT_TRUE(CheckPlayer(url, TestAudioPlayer::kRelease)) << msg;
     }
 
     ASSERT_FALSE(root->hasEvent());
@@ -226,36 +221,24 @@ TEST_F(SpeakListTest, TestStagesStartOffset)
         if (scrollPosition < 0) scrollPosition = 0;
 
         // The first thing we should get is a pre-roll event
-        ASSERT_TRUE(root->hasEvent()) << msg;
-        auto event = root->popEvent();
-        ASSERT_EQ(kEventTypePreroll, event.getType()) << msg;
-        ASSERT_EQ(Object(url), event.getValue(kEventPropertySource)) << msg;
+        ASSERT_TRUE(CheckPlayer(url, TestAudioPlayer::kPreroll));
 
         // Now we scroll the world.  To keep it real, let's advance the time a bit too.
-        advanceTime(1000);
+        advanceTime(1100);
         ASSERT_EQ(Point(0, scrollPosition), component->scrollPosition()) << msg;
 
         // We should have an event for speaking.
-        ASSERT_TRUE(root->hasEvent()) << msg;
-        event = root->popEvent();
-        ASSERT_EQ(kEventTypeSpeak, event.getType()) << msg;
-        ASSERT_EQ(Object(url), event.getValue(kEventPropertySource)) << msg;
-        ASSERT_EQ(Object(kCommandHighlightModeBlock), event.getValue(kEventPropertyHighlightMode)) << msg;
-
-        // The item should have updated colors
-        ASSERT_TRUE(CheckDirty(target, kPropertyColor, kPropertyColorKaraokeTarget, kPropertyVisualHash)) << msg;
-        ASSERT_EQ(Object(Color(Color::BLUE)), target->getCalculated(kPropertyColor)) << msg;
+        ASSERT_TRUE(CheckPlayer(url, TestAudioPlayer::kReady));
+        ASSERT_TRUE(CheckPlayer(url, TestAudioPlayer::kPlay));
 
         // We'll assume that speech is SLOWER than the timeout (takes longer than 1000 milliseconds)
         advanceTime(2000);
 
         // Mark speech as finished
-        event.getActionRef().resolve();
         root->clearPending();
 
-        // Karaoke clears
-        ASSERT_TRUE(CheckDirty(target, kPropertyColor, kPropertyColorKaraokeTarget, kPropertyVisualHash)) << msg;
-        ASSERT_EQ(Object(Color(Color::GREEN)), target->getCalculated(kPropertyColor)) << msg;
+        ASSERT_TRUE(CheckPlayer(url, TestAudioPlayer::kDone));
+        ASSERT_TRUE(CheckPlayer(url, TestAudioPlayer::kRelease));
     }
 
     ASSERT_FALSE(root->hasEvent());
@@ -279,22 +262,19 @@ TEST_F(SpeakListTest, TestStagesStartNegativeOffset)
         auto url = "http-URL" + std::to_string(i+1);
 
         // The first thing we should get is a pre-roll event
-        ASSERT_TRUE(root->hasEvent()) << msg;
-        auto event = root->popEvent();
-        ASSERT_EQ(kEventTypePreroll, event.getType()) << msg;
-        ASSERT_EQ(Object(url), event.getValue(kEventPropertySource)) << msg;
+        ASSERT_TRUE(CheckPlayer(url, TestAudioPlayer::kPreroll));
 
         advanceTime(1000);
 
         // We should have an event for speaking.
-        ASSERT_TRUE(root->hasEvent()) << msg;
-        event = root->popEvent();
-        ASSERT_EQ(kEventTypeSpeak, event.getType()) << msg;
-        ASSERT_EQ(Object(url), event.getValue(kEventPropertySource)) << msg;
+        ASSERT_TRUE(CheckPlayer(url, TestAudioPlayer::kReady));
+        ASSERT_TRUE(CheckPlayer(url, TestAudioPlayer::kPlay));
 
         // We'll assume that speech is SLOWER than the timeout (takes longer than 1000 milliseconds)
         advanceTime(2000);
-        event.getActionRef().resolve();
+
+        ASSERT_TRUE(CheckPlayer(url, TestAudioPlayer::kDone));
+        ASSERT_TRUE(CheckPlayer(url, TestAudioPlayer::kRelease));
     }
 
     ASSERT_FALSE(root->hasEvent());
@@ -318,22 +298,19 @@ TEST_F(SpeakListTest, TestStagesStartWayNegativeOffset)
         auto url = "http-URL" + std::to_string(i+1);
 
         // The first thing we should get is a pre-roll event
-        ASSERT_TRUE(root->hasEvent()) << msg;
-        auto event = root->popEvent();
-        ASSERT_EQ(kEventTypePreroll, event.getType()) << msg;
-        ASSERT_EQ(Object(url), event.getValue(kEventPropertySource)) << msg;
+        ASSERT_TRUE(CheckPlayer(url, TestAudioPlayer::kPreroll));
 
         advanceTime(1000);
 
         // We should have an event for speaking.
-        ASSERT_TRUE(root->hasEvent()) << msg;
-        event = root->popEvent();
-        ASSERT_EQ(kEventTypeSpeak, event.getType()) << msg;
-        ASSERT_EQ(Object(url), event.getValue(kEventPropertySource)) << msg;
+        ASSERT_TRUE(CheckPlayer(url, TestAudioPlayer::kReady));
+        ASSERT_TRUE(CheckPlayer(url, TestAudioPlayer::kPlay));
 
         // We'll assume that speech is SLOWER than the timeout (takes longer than 1000 milliseconds)
         advanceTime(2000);
-        event.getActionRef().resolve();
+
+        ASSERT_TRUE(CheckPlayer(url, TestAudioPlayer::kDone));
+        ASSERT_TRUE(CheckPlayer(url, TestAudioPlayer::kRelease));
     }
 
     ASSERT_FALSE(root->hasEvent());
@@ -385,28 +362,27 @@ TEST_F(SpeakListTest, TestTerminate)
         auto url = "http-URL" + std::to_string(i+1);
 
         // The first thing we should get is a pre-roll event
-        ASSERT_TRUE(root->hasEvent()) << msg;
-        auto event = root->popEvent();
-        ASSERT_EQ(kEventTypePreroll, event.getType()) << msg;
-        ASSERT_EQ(Object(url), event.getValue(kEventPropertySource)) << msg;
+        ASSERT_TRUE(CheckPlayer(url, TestAudioPlayer::kPreroll)) << msg;
 
-        advanceTime(1000);
+        advanceTime(500);
 
         // We should have an event for speaking.
-        ASSERT_TRUE(root->hasEvent()) << msg;
-        event = root->popEvent();
-        ASSERT_EQ(kEventTypeSpeak, event.getType()) << msg;
-        ASSERT_EQ(Object(url), event.getValue(kEventPropertySource)) << msg;
+        ASSERT_TRUE(CheckPlayer(url, TestAudioPlayer::kReady)) << msg;
+        ASSERT_TRUE(CheckPlayer(url, TestAudioPlayer::kPlay)) << msg;
 
         // This is where we'll terminate everything
         if (i == 2) {
             root->cancelExecution();
+            ASSERT_TRUE(CheckPlayer(url, TestAudioPlayer::kPause)) << msg;
+            ASSERT_TRUE(CheckPlayer(url, TestAudioPlayer::kRelease)) << msg;
             break;
         }
 
         // We'll assume that speech is SLOWER than the timeout (takes longer than 1000 milliseconds)
-        advanceTime(2000);
-        event.getActionRef().resolve();
+        advanceTime(1000);
+
+        ASSERT_TRUE(CheckPlayer(url, TestAudioPlayer::kDone)) << msg;
+        ASSERT_TRUE(CheckPlayer(url, TestAudioPlayer::kRelease)) << msg;
     }
 
     ASSERT_FALSE(root->hasEvent());

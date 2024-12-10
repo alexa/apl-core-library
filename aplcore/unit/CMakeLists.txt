@@ -20,7 +20,6 @@ add_executable( unittest
         test_sg_textmeasure.cpp
         testeventloop.cpp
         debugtools.cpp
-        unittest_simpletextmeasurement.cpp
         unittest_testeventloop.cpp)
 
 # Unit tests are not restricted to public headers, make sure they can find private headers as well
@@ -52,6 +51,7 @@ add_subdirectory(time)
 add_subdirectory(touch)
 add_subdirectory(utils)
 add_subdirectory(versioning)
+add_subdirectory(yoga)
 if(ENABLE_SCENEGRAPH)
 add_subdirectory(scenegraph)
 endif(ENABLE_SCENEGRAPH)

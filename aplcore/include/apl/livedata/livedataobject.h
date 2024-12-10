@@ -121,6 +121,11 @@ public:
      */
     void markDirty();
 
+    /**
+     * @return true if full replacement of the live data is pending, false otherwise.
+     */
+    bool isReplaced() const { return mReplaced; }
+
     // ObjectData overrides.
     bool operator==(const ObjectData& rhs) const override {
         // In progress of changes propagation. Considered not-equal for comparisons.

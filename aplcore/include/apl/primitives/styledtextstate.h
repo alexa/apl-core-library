@@ -106,9 +106,13 @@ public:
      */
     std::string& getText() { return mText; }
 
+    void closeAndCacheAllTags();
+    void openAllTagsFromCache();
+
 private:
     const Context& mContext;
     std::stack<StyledText::Span> mBuildStack;
+    std::stack<StyledText::SpanType> mTagsCache;
     std::map<StyledText::SpanType, size_t> mOpenedSpans;
     std::vector<StyledText::Span> mSpans;
     std::string mText;
@@ -139,6 +143,13 @@ private:
                 return false;
             }
 
+            // Same to same always false
+            if (a.start == a.end && b.start == b.end && a.start == b.start && a.type == b.type) return false;
+
+            // Single point tags always before if start at the same point
+            if (a.start == a.end && a.start <= b.start) return true;
+            if (b.start == b.end && b.start <= a.start) return false;
+
             if (a.end > b.end) {
                 return true;
             }
@@ -151,6 +162,8 @@ private:
     } spanComparator;
 
     void emplaceAttribute(const std::string& value);
+    StyledText::SpanType closeLastTag();
+    void startSpanWithType(StyledText::SpanType type);
 };
 
 } // namespace apl

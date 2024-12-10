@@ -20,6 +20,8 @@
 #include "apl/content/rootconfig.h"
 #include "apl/time/sequencer.h"
 
+#include "apl/utils/actiondata.h"
+
 namespace apl {
 
 std::shared_ptr<AnimateItemAction>
@@ -171,6 +173,16 @@ AnimateItemAction::rehydrate(const CoreDocumentContext& context)
     extractAnimators();
 
     return true;
+}
+
+ActionData
+AnimateItemAction::getActionData()
+{
+    auto actionDetail = ActionData().target(mCommand->target()).actionHint("Animating");
+    if (mCommand->base()) {
+        actionDetail.commandProvenance(mCommand->base()->provenance());
+    }
+    return actionDetail;
 }
 
 } // namespace apl

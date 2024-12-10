@@ -393,15 +393,18 @@ TestMediaPlayer::doCallback(MediaPlayerEventType eventType)
     LOG_IF(DEBUG_MP) << sMediaPlayerEventTypeMap.at(eventType)
                      << " position=" << mPlayer->getPosition() << " player=" << mPlayer.get();
 
-    mCallback(eventType,
-              MediaState(mTrackIndex,                           // Report being on the last track
+    auto ms = MediaState(mTrackIndex,                           // Report being on the last track
                          static_cast<int>(mMediaTracks.size()), // Track count
                          mPlayer->getPosition(),                // Current time
                          mPlayer->getDuration(),                // Current track duration
                          !mPlayer->isPlaying(),                 // paused
                          atEnd,                                 // ended
-                         false)                                 // muted
-                  .withTrackState(mPlayer->getTrackState()));
+                         isMuted());                            // muted
+
+    if (eventType == kMediaPlayerEventTrackFail)
+        ms.withErrorCode(99);
+
+    mCallback(eventType, ms.withTrackState(mPlayer->getTrackState()));
 }
 
 void

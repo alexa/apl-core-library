@@ -86,6 +86,18 @@ public:
 
         return false;
     }
+    
+    bool expectFlag(bool& result)
+    {
+        // Flags can either be 0 or 1.
+        if (::isdigit(*mPtr)) {
+            char character = *mPtr++;
+            advanceToToken();
+            result = character == '1';
+            return true;
+        }
+        return false;
+    }
 
 private:
     void advanceToToken()
@@ -123,6 +135,14 @@ public:
     float matchNumber() {
         float result = 0.0;
         if (!mTokenizer.expectNumber(result))
+            mError = true;
+
+        return result;
+    }
+    
+    bool matchFlag() {
+        bool result = false;
+        if (!mTokenizer.expectFlag(result))
             mError = true;
 
         return result;
@@ -191,9 +211,6 @@ void
 MutablePath::addArc(float radiusX, float radiusY, float degrees, bool largeArcFlag,
                     bool sweepFlag, float endX, float endY)
 {
-    if (mLastX == endX && mLastY == endY)
-        return;
-
     auto start = Point(mLastX, mLastY);
     auto end = Point(endX, endY);
 
@@ -316,30 +333,56 @@ MutablePath::add(const std::string& path)
         auto ch = parser.matchCharacter();
         switch (ch) {
             case 'M': // Absolute MoveTo
+            {
+                // Additional pairs are L command as per AVG spec.
+                bool additionalPair = false;
                 do {
                     mLastX = parser.matchNumber();
                     mLastY = parser.matchNumber();
-                    if (!mCommands.empty() && mCommands.back() == 'M')  // Last was move
-                        mPoints.resize(mPoints.size() - 2);  // Drop the points from the last move
-                    else
-                        mCommands.push_back('M');
+                    if (additionalPair) {
+                        mCommands.push_back('L');
+                        mIsDrawn = true;
+                    } else {
+                        if (!mCommands.empty() && mCommands.back() == 'M') { // Last was move
+                            mPoints.resize(mPoints.size() - 2);  // Drop the points from the last move
+                        } else {
+                            mCommands.push_back('M');
+                        }
+                        
+                        additionalPair = true;
+                    }
                     mPoints.emplace_back(mLastX);
                     mPoints.emplace_back(mLastY);
                 } while (parser.isNumber());
+
                 break;
+            }
 
             case 'm': // Relative MoveTo  -> convert to absolute move to
+            {
+                // Additional pairs are L commands as per AVG spec.
+                bool additionalPair = false;
                 do {
                     mLastX += parser.matchNumber();
                     mLastY += parser.matchNumber();
-                    if (!mCommands.empty() && mCommands.back() == 'M')  // Last was move
-                        mPoints.resize(mPoints.size() - 2);  // Drop the points from the last move
-                    else
-                        mCommands.push_back('M');
+                    if (additionalPair) {
+                        mCommands.push_back('L');
+                        mIsDrawn = true;
+                    } else {
+                        if (!mCommands.empty() && mCommands.back() == 'M') { // Last was move
+                            mPoints.resize(mPoints.size() - 2);  // Drop the points from the last move
+                        } else {
+                            mCommands.push_back('M');
+                        }
+                        
+                        additionalPair = true;
+                    }
                     mPoints.emplace_back(mLastX);
                     mPoints.emplace_back(mLastY);
                 } while (parser.isNumber());
+
                 break;
+            }
 
             case 'L': // Absolute LineTo
                 do {
@@ -548,8 +591,8 @@ MutablePath::add(const std::string& path)
                     float rx = parser.matchNumber();
                     float ry = parser.matchNumber();
                     float x_axis_rotation = parser.matchNumber();
-                    bool large_arc_flag = parser.matchNumber() != 0.0f;
-                    bool sweep_flag = parser.matchNumber() != 0.0f;
+                    bool large_arc_flag = parser.matchFlag();
+                    bool sweep_flag = parser.matchFlag();
                     float endX = parser.matchNumber();
                     float endY = parser.matchNumber();
                     addArc(rx, ry, x_axis_rotation, large_arc_flag, sweep_flag, endX, endY);
@@ -564,8 +607,8 @@ MutablePath::add(const std::string& path)
                     float rx = parser.matchNumber();
                     float ry = parser.matchNumber();
                     float x_axis_rotation = parser.matchNumber();
-                    bool large_arc_flag = parser.matchNumber() != 0.0f;
-                    bool sweep_flag = parser.matchNumber() != 0.0f;
+                    bool large_arc_flag = parser.matchFlag();
+                    bool sweep_flag = parser.matchFlag();
                     float endX = mLastX + parser.matchNumber();
                     float endY = mLastY + parser.matchNumber();
                     addArc(rx, ry, x_axis_rotation, large_arc_flag, sweep_flag, endX, endY);

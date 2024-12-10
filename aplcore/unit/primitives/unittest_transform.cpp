@@ -256,14 +256,14 @@ TEST_F(TransformTest, ScaleAndRotate)
 }
 
 
-struct TestCase {
+struct TransformTestCase {
     std::string data;
     Point start;
     Point end;
 };
 
 // Assuming a width=40, height=20  [delta=(20,10)]
-static const std::vector<TestCase> ARRAY_TEST_CASES = {
+static const std::vector<TransformTestCase> ARRAY_TEST_CASES = {
     {"{\"rotate\": 90}", {10,10}, {20, 0}},        // (10,10) -> (-10,0) -> (0,-10) -> (20,0)
     {"{\"scaleX\": 2}", {40,20}, {60, 20}},        // (40,20) -> (20,10) -> (40,10) -> (60,20)
     {"{\"scaleY\": 2}", {40,20}, {40, 30}},        // (40,20) -> (20,10) -> (20,20) -> (40,30)
@@ -274,8 +274,7 @@ static const std::vector<TestCase> ARRAY_TEST_CASES = {
     {"{\"translateY\": 100}", {10,10}, {10, 110}}, // (10,10) -> (-10,0) -> (-10,100) -> (10,110)
     {"[{\"translateX\":\"-50%\",\"translateY\":\"-50%\"},{\"scaleX\":2},{\"translateX\":\"50%\",\"translateY\":\"50%\"}]",
      {20,10}, {40,10}},       // Scale about the top-left corner
-
-    };
+};
 
 TEST_F(TransformTest, ManyTestCases)
 {
@@ -393,7 +392,7 @@ TEST_F(TransformTest, ComplexInterpolation)
 }
 
 // Assuming a width=40, height=20  [delta=(20,10)]
-static const std::vector<TestCase> PARSE_TEST_CASES = {
+static const std::vector<TransformTestCase> PARSE_TEST_CASES = {
         {"rotate(90 20 10)",                               {10, 10}, {20,  0}},  // (10,10) -> (-10,0) -> (0,-10) -> (20,0)
         {"rotate(90)",                                     {10, 10}, {-10, 10}},
         {"scale(2)",                                       {40, 20}, {80,  40}},

@@ -27,9 +27,10 @@ target_sources_local(unittest
         unittest_current_time.cpp
         unittest_dependant.cpp
         unittest_display_state.cpp
+        unittest_document_context.cpp
+        unittest_evaluate.cpp
         unittest_event.cpp
         unittest_event_manager.cpp
-        unittest_hover.cpp
         unittest_keyboard_manager.cpp
         unittest_layout_handler.cpp
         unittest_layouts.cpp

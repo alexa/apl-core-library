@@ -19,27 +19,14 @@
 
 namespace apl {
 
-PendingImportPackagePtr
-PackageResolver::load(const ContextPtr& evaluationContext,
-                      const SessionPtr& session,
-                      const PackagePtr& root,
-                      const std::vector<PackagePtr>& stashed,
+void
+PackageResolver::load(const PendingImportPackagePtr& pendingImportPackage,
                       SuccessCallback&& onSuccess,
                       FailureCallback&& onFailure,
                       PackageAddedCallback&& onPackageAdded)
 {
-    auto pending = std::make_shared<PendingImportPackage>(evaluationContext, session, root, stashed);
-    if (pending->isReady()) {
-        onSuccess(pending->moveOrderedDependencies());
-        return nullptr;
-    } else if (pending->isError()) {
-        onFailure(pending->getFailedRequestReference(), pending->getError(), 400);
-        return nullptr;
-    }
-
-    mPending = {pending, std::move(onSuccess), std::move(onFailure), std::move(onPackageAdded)};
-    loadRequested(*pending);
-    return pending;
+    mPending = {pendingImportPackage, std::move(onSuccess), std::move(onFailure), std::move(onPackageAdded)};
+    loadRequested(*pendingImportPackage);
 }
 
 void
@@ -133,15 +120,14 @@ PackageResolver::loadRequested(PendingImportPackage& pending)
         auto packageRequest = std::make_shared<PackageManager::PackageRequest>(
             request,
             [weakSelf](const ImportRequest& request, const SharedJsonData& jsonData) {
-                auto self = weakSelf.lock();
-
-            self->onPackageLoaded(request, jsonData);
-        },
-        [weakSelf](const ImportRequest& request, const std::string& errorMessage, int code) {
-            auto self = weakSelf.lock();
-
-            self->onPackageFailure(request, errorMessage, code);
-        });
+                if (auto self = weakSelf.lock())
+                    self->onPackageLoaded(request, jsonData);
+            },
+            [weakSelf](const ImportRequest& request, const std::string& errorMessage, int code) {
+                if (auto self = weakSelf.lock())
+                    self->onPackageFailure(request, errorMessage, code);
+            }
+        );
 
         mPackageManager->loadPackage(packageRequest);
     }

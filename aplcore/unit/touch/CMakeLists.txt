@@ -14,6 +14,7 @@
 target_sources_local(unittest
         PRIVATE
         unittest_gestures.cpp
+        unittest_hover.cpp
         unittest_pointer.cpp
         unittest_velocity_tracking.cpp
         unittest_native_gestures_scrollable.cpp

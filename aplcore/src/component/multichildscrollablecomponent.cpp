@@ -16,7 +16,6 @@
 #include "apl/component/multichildscrollablecomponent.h"
 
 #include "apl/component/componentpropdef.h"
-#include "apl/component/yogaproperties.h"
 #include "apl/content/rootconfig.h"
 #include "apl/engine/layoutmanager.h"
 #include "apl/livedata/layoutrebuilder.h"
@@ -25,6 +24,8 @@
 #include "apl/utils/constants.h"
 #include "apl/utils/session.h"
 #include "apl/utils/tracing.h"
+#include "apl/yoga/yoganode.h"
+#include "apl/yoga/yogaproperties.h"
 
 namespace apl {
 
@@ -451,8 +452,8 @@ Object
 MultiChildScrollableComponent::getValue() const
 {
     double scrollSize = isVertical()
-                        ? YGNodeLayoutGetHeight(mYGNodeRef)
-                        : YGNodeLayoutGetWidth(mYGNodeRef);
+                        ? mYogaNode.getHeight()
+                        : mYogaNode.getWidth();
     auto currentPosition = mCalculated.get(kPropertyScrollPosition).asNumber();
     return scrollSize != 0 ? currentPosition / scrollSize : 0;
 }
@@ -724,7 +725,7 @@ MultiChildScrollableComponent::attachChild(const CoreComponentPtr& child, size_t
         return false;
     }
 
-    YGNodeInsertChild(mYGNodeRef, child->getNode(), index);
+    mYogaNode.insertChild(child->getNode(), index);
     child->updateNodeProperties();
     return true;
 }
@@ -745,7 +746,7 @@ MultiChildScrollableComponent::attachYogaNode(const CoreComponentPtr& child)
         auto childIndex = mEnsuredChildren.extendTowards(index);
         auto& c = mChildren.at(childIndex);
         assert(!c->isAttached());
-        YGNodeInsertChild(mYGNodeRef, c->getNode(), childIndex - mEnsuredChildren.lowerBound());
+        mYogaNode.insertChild(c->getNode(), childIndex - mEnsuredChildren.lowerBound());
         c->updateNodeProperties();
     }
 }
@@ -757,7 +758,7 @@ MultiChildScrollableComponent::layoutChildIfRequired(const CoreComponentPtr& chi
     if (!child->isAttached() || child->getCalculated(kPropertyBounds).empty()) {
         ensureChildAttached(child, childIdx);
         if (childIdx > 0 && childrenUseSpacingProperty()) {
-            child->fixSpacing();
+            child->fixSpacing(false);
         }
         relayoutInPlace(useDirtyFlag, first);
     }
@@ -770,7 +771,7 @@ MultiChildScrollableComponent::relayoutInPlace(bool useDirtyFlag, bool first)
     auto root = getLayoutRoot();
     const auto& rootBounds = root->getCalculated(kPropertyBounds).get<Rect>();
     APL_TRACE_BEGIN("MultiChildScrollableComponent:YGNodeCalculateLayout:root");
-    YGNodeCalculateLayout(root->getNode(), rootBounds.getWidth(), rootBounds.getHeight(), root->getLayoutDirection());
+    root->getNode().calculateLayout(rootBounds.getWidth(), rootBounds.getHeight(), root->getLayoutDirection());
     APL_TRACE_END("MultiChildScrollableComponent:YGNodeCalculateLayout:root");
     auto oldBounds = getCalculated(kPropertyBounds);
     CoreComponent::processLayoutChanges(useDirtyFlag, first);
@@ -844,56 +845,6 @@ MultiChildScrollableComponent::releaseSelf()
 
     // Children are cleared during release, so clear any "ensured children" indices
     mEnsuredChildren = Range();
-}
-
-/**
- * Relatively simple heuristics: take laid-out anchor component and estimate how many components will be required to
- * cover child cache region. Precise calculation is still up to proper layout pass, but (especially for cases when
- * children are uniform) number of layouts is decreased significantly (for up to 2 instead of n where n is number of
- * required children).
- */
-void
-MultiChildScrollableComponent::runLayoutHeuristics(size_t anchorIdx, float childCache, float pageSize, bool useDirtyFlag, bool first)
-{
-    APL_TRACE_BLOCK("MultiChildScrollableComponent:runLayoutHeuristics");
-    // Estimate how many children is actually required based on available anchor dimensions.
-    // In cases when firstChild used it's main use is for padding or "headers". Size of such item is likely quite
-    // different from "normal" data-inflated items and may lead to aroximation which will layout much more items than
-    // actually required. To avoid such cases - use 2nd item as approximation reference.
-    auto coverReferenceIdx = anchorIdx;
-    if (coverReferenceIdx <= 0 && mChildren.size() >= 2) {
-        coverReferenceIdx++;
-        auto child = mChildren.at(coverReferenceIdx);
-        layoutChildIfRequired(child, coverReferenceIdx, useDirtyFlag, first);
-    }
-    auto toCover = estimateChildrenToCover(first ? pageSize : (childCache + 1) * pageSize, coverReferenceIdx);
-    auto attached = false;
-    for (int i = mEnsuredChildren.upperBound(); i < std::min(anchorIdx + toCover, mChildren.size()); i++) {
-        auto child = mChildren.at(i);
-        if (!child->isAttached() || child->getCalculated(kPropertyBounds).empty()) {
-            attached = true;
-            ensureChildAttached(child, i);
-            if (i > 0 && childrenUseSpacingProperty()) {
-                child->fixSpacing();
-            }
-        }
-    }
-
-    if (!first) {
-        toCover = estimateChildrenToCover(childCache * pageSize, coverReferenceIdx);
-        for (int i = mEnsuredChildren.lowerBound(); i >= std::max(0, static_cast<int>(anchorIdx - toCover)); i--) {
-            auto child = mChildren.at(i);
-            if (!child->isAttached() || child->getCalculated(kPropertyBounds).empty()) {
-                attached = true;
-                ensureChildAttached(child, i);
-                if (i > 0 && childrenUseSpacingProperty()) {
-                    child->fixSpacing();
-                }
-            }
-        }
-    }
-
-    if (attached) relayoutInPlace(useDirtyFlag, first);
 }
 
 Point
@@ -996,7 +947,7 @@ MultiChildScrollableComponent::processLayoutChangesInternal(bool useDirtyFlag, b
             // Reset very first child to not have spacing
             child->fixSpacing(true);
         } else {
-            child->fixSpacing();
+            child->fixSpacing(false);
         }
     }
 
@@ -1004,19 +955,6 @@ MultiChildScrollableComponent::processLayoutChangesInternal(bool useDirtyFlag, b
     float childCache = mContext->getRootConfig().getProperty(RootProperty::kSequenceChildCache).getDouble();
     float pageSize = horizontal ? sequenceBounds.getWidth() : sequenceBounds.getHeight();
 
-    // Try to figure majority of layout as a bulk
-    //
-    // TODO: Layout heuristics are good for performance but not essential. In
-    //  an earlier version, the heuristic looked at the size of the first child
-    //  to estimate how many children need to be laid out. In a later version we
-    //  looked at the second child instead, to avoid cases where a narrow first
-    //  child resulted in over-estimation of the number of children that needed
-    //  to be laid out. This change had unintended consequences for certain
-    //  layouts that counted on the original heuristic. We need to re-engineer
-    //  the heuristic and in the mean time, we can disable it.
-    //
-    // runLayoutHeuristics(anchorIdx, childCache, pageSize, useDirtyFlag, first);
-    //
     // Anchor bounds may have shifted
     Rect anchorBounds = anchor->getCalculated(kPropertyBounds).get<Rect>();
     float anchorPosition = horizontal
@@ -1034,10 +972,24 @@ MultiChildScrollableComponent::processLayoutChangesInternal(bool useDirtyFlag, b
         auto child = mChildren.at(lastLoaded);
         layoutChildIfRequired(child, lastLoaded, useDirtyFlag, first);
         const auto& childBounds = child->getCalculated(kPropertyBounds).get<Rect>();
-        float childCoveredPosition = horizontal
+        float childCoveredPosition = 0;
+        if (isSingleChildOnCrossAxis()) {
+            // For single child on cross axis, break out on the first child in order to keep
+            // first frame latency down on some low capacity environments where loading an extra
+            // child with deep hierarchy may lead to higher user perceived latency.
+            childCoveredPosition = horizontal
                                ? (layoutDirection == kLayoutDirectionLTR ? childBounds.getRight()
                                                                          : childBounds.getLeft())
                                : childBounds.getBottom();
+        } else {
+            // Break-out on a first child which is after required cover position, otherwise, in some
+            // cases (GridSequence/0 cache), we will inflate only first child cross-axis, even if more
+            // required to cover the viewport.
+            childCoveredPosition = horizontal
+                               ? (layoutDirection == kLayoutDirectionLTR ? childBounds.getLeft()
+                                                                         : childBounds.getRight())
+                               : childBounds.getTop();
+        }
         targetCovered = (layoutDirection == kLayoutDirectionRTL && horizontal)
                 ? childCoveredPosition < positionToCover : childCoveredPosition > positionToCover;
 
@@ -1065,8 +1017,20 @@ MultiChildScrollableComponent::processLayoutChangesInternal(bool useDirtyFlag, b
         layoutChildIfRequired(child, firstLoaded, useDirtyFlag, first);
         const auto& childBounds = child->getCalculated(kPropertyBounds).get<Rect>();
         anchorBounds = anchor->getCalculated(kPropertyBounds).get<Rect>();
-        float distance = (horizontal ? anchorBounds.getLeft() : anchorBounds.getTop())
-                       - (horizontal ? childBounds.getLeft() : childBounds.getTop());
+        float distance = 0;
+        if (isSingleChildOnCrossAxis()) {
+            distance = (horizontal
+                            ? (layoutDirection == kLayoutDirectionLTR
+                                   ? anchorBounds.getLeft() - childBounds.getLeft()
+                                   : anchorBounds.getRight() - childBounds.getRight())
+                            : anchorBounds.getTop() - childBounds.getTop());
+        } else {
+            distance = (horizontal
+                            ? (layoutDirection == kLayoutDirectionLTR
+                                   ? anchorBounds.getRight() - childBounds.getRight()
+                                   : anchorBounds.getLeft() - childBounds.getLeft())
+                            : anchorBounds.getBottom() - childBounds.getBottom());
+        }
         targetCovered = (layoutDirection == kLayoutDirectionRTL && horizontal)
                             ? distance < positionToCover : distance > positionToCover;
         if (targetCovered) {
@@ -1366,7 +1330,7 @@ MultiChildScrollableComponent::attachYogaNodeIfRequired(const CoreComponentPtr& 
         || (mEnsuredChildren.contains(index) && index > mEnsuredChildren.lowerBound())) {
 
         auto offset = mEnsuredChildren.insert(index);
-        YGNodeInsertChild(mYGNodeRef, coreChild->getNode(), offset);
+        mYogaNode.insertChild(coreChild->getNode(), offset);
     } else if (!mEnsuredChildren.empty() && index <= mEnsuredChildren.lowerBound()) {
         mEnsuredChildren.shift(1);
     }

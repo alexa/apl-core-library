@@ -1117,6 +1117,160 @@ TEST_F(HostComponentTest, DefaultBackgroundPropertyAppliedToEmbedded) {
     ASSERT_TRUE(IsEqual(Color(), host->getCalculated(kPropertyBackground)));
 }
 
+static const char* EMBEDDED_WITH_ANIMATEITEM_COMMAND = R"({
+  "type": "APL",
+  "version": "1.4",
+  "mainTemplate": {
+  "item":
+    {
+      "type": "Frame",
+      "id": "box",
+      "width": 100,
+      "height": 100,
+      "onMount": {
+        "type": "AnimateItem",
+        "duration": 1000,
+        "value": {
+          "property": "transform",
+          "from": {
+            "translateX": "100vw"
+          },
+          "to": {
+            "translateX": 0
+          }
+        }
+      }
+    }
+  }
+})";
+
+TEST_F(HostComponentTest, ActionOnlyInEmbeddedDocument) {
+    nominalLoadHostAndEmbedded(DEFAULT_DOC, EMBEDDED_WITH_ANIMATEITEM_COMMAND);
+    ASSERT_TRUE(embeddedDoc.lock());
+
+    // Document Context level serialization of actions
+    rapidjson::Document actions(rapidjson::kObjectType);
+    auto embeddedActions = embeddedDoc.lock()->serializeDocumentState(actions.GetAllocator());
+    ASSERT_EQ(1, embeddedActions.Size());
+    ASSERT_TRUE(embeddedActions[0].HasMember("component"));
+    ASSERT_STREQ("box", embeddedActions[0]["component"]["targetId"].GetString());
+    ASSERT_STREQ("Animating", embeddedActions[0]["actionHint"].GetString());
+
+    // Root Context level serialization of actions
+    rapidjson::Document rootDocumentActions(rapidjson::kObjectType);
+    auto rootActions = root->serializeDocumentState(rootDocumentActions.GetAllocator());
+    ASSERT_EQ(1, rootActions.Size());
+    ASSERT_TRUE(rootActions[0].HasMember("actions"));
+    ASSERT_TRUE(rootActions[0].HasMember("document"));
+    ASSERT_STREQ("embedded", rootActions[0]["document"].GetString());
+    ASSERT_EQ(1, rootActions[0]["actions"].Size());
+    ASSERT_STREQ("box", rootActions[0]["actions"][0]["component"]["targetId"].GetString());
+    ASSERT_STREQ("Animating", rootActions[0]["actions"][0]["actionHint"].GetString());
+}
+
+static const char* HOST_DOC_WITH_ANIMATEITEM_COMMAND = R"({
+  "type": "APL",
+  "version": "2022.3",
+  "mainTemplate": {
+    "item": {
+      "type": "Container",
+      "id": "top",
+      "onMount": {
+        "type": "AnimateItem",
+        "duration": 1000,
+        "value": {
+          "property": "transform",
+          "from": {
+            "translateX": "100vw"
+          },
+          "to": {
+            "translateX": 0
+          }
+        }
+      },
+      "item": {
+        "type": "Host",
+        "id": "hostComponent",
+        "source": "embeddedDocumentUrl",
+        "EmbeddedParameter": "Hello, World!",
+        "onLoad": [
+          {
+            "type": "InsertItem",
+            "componentId": "top",
+            "item": {
+              "type": "Text",
+              "id": "onLoadArtifact",
+              "value": "hostComponent::onLoad triggered"
+            }
+          }
+        ],
+        "onFail": [
+          {
+            "type": "InsertItem",
+            "componentId": "top",
+            "item": {
+              "type": "Text",
+              "id": "onFailArtifact",
+              "value": "hostComponent::onFail triggered"
+            }
+          }
+        ]
+      }
+    }
+  }
+})";
+
+TEST_F(HostComponentTest, ActionOnlyInRootDocument) {
+    nominalLoadHostAndEmbedded(HOST_DOC_WITH_ANIMATEITEM_COMMAND, EMBEDDED_DEFAULT);
+    ASSERT_TRUE(embeddedDoc.lock());
+
+    // Document Context level serialization of actions
+    rapidjson::Document actions(rapidjson::kObjectType);
+    auto embeddedActions = embeddedDoc.lock()->serializeDocumentState(actions.GetAllocator());
+    ASSERT_EQ(0, embeddedActions.Size());
+
+    // Root Context level serialization of actions
+    rapidjson::Document rootDocumentActions(rapidjson::kObjectType);
+    auto rootActions = root->serializeDocumentState(rootDocumentActions.GetAllocator());
+    ASSERT_EQ(1, rootActions.Size());
+    ASSERT_TRUE(rootActions[0].HasMember("document"));
+    ASSERT_STREQ("main", rootActions[0]["document"].GetString());
+    ASSERT_TRUE(rootActions[0].HasMember("actions"));
+    ASSERT_EQ(1, rootActions[0]["actions"].Size());
+    ASSERT_STREQ("top", rootActions[0]["actions"][0]["component"]["targetId"].GetString());
+    ASSERT_STREQ("Animating", rootActions[0]["actions"][0]["actionHint"].GetString());
+}
+
+TEST_F(HostComponentTest, ActionInEmbeddedAndRootDocument) {
+    nominalLoadHostAndEmbedded(HOST_DOC_WITH_ANIMATEITEM_COMMAND, EMBEDDED_WITH_ANIMATEITEM_COMMAND);
+    ASSERT_TRUE(embeddedDoc.lock());
+
+    // Document Context level serialization of actions
+    rapidjson::Document actions(rapidjson::kObjectType);
+    auto embeddedActions = embeddedDoc.lock()->serializeDocumentState(actions.GetAllocator());
+    ASSERT_EQ(1, embeddedActions.Size());
+    ASSERT_TRUE(embeddedActions[0].HasMember("component"));
+    ASSERT_STREQ("box", embeddedActions[0]["component"]["targetId"].GetString());
+    ASSERT_STREQ("Animating", embeddedActions[0]["actionHint"].GetString());
+
+    // Root Context level serialization of actions
+    rapidjson::Document rootDocumentActions(rapidjson::kObjectType);
+    auto rootActions = root->serializeDocumentState(rootDocumentActions.GetAllocator());
+    ASSERT_EQ(2, rootActions.Size());
+    ASSERT_TRUE(rootActions[0].HasMember("document"));
+    ASSERT_STREQ("main", rootActions[0]["document"].GetString());
+    ASSERT_TRUE(rootActions[0].HasMember("actions"));
+    ASSERT_EQ(1, rootActions[0]["actions"].Size());
+    ASSERT_STREQ("top", rootActions[0]["actions"][0]["component"]["targetId"].GetString());
+    ASSERT_STREQ("Animating", rootActions[0]["actions"][0]["actionHint"].GetString());
+    ASSERT_TRUE(rootActions[1].HasMember("document"));
+    ASSERT_STREQ("embedded", rootActions[1]["document"].GetString());
+    ASSERT_TRUE(rootActions[1].HasMember("actions"));
+    ASSERT_EQ(1, rootActions[1]["actions"].Size());
+    ASSERT_STREQ("box", rootActions[1]["actions"][0]["component"]["targetId"].GetString());
+    ASSERT_STREQ("Animating", rootActions[1]["actions"][0]["actionHint"].GetString());
+}
+
 static const char* BLUE_BACKGROUND_EMBEDDED = R"({
   "type": "APL",
   "version": "2022.3",

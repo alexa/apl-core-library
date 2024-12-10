@@ -20,6 +20,7 @@
 #include "apl/media/mediaplayer.h"
 #include "apl/media/mediautils.h"
 #include "apl/time/sequencer.h"
+#include "apl/utils/actiondata.h"
 #include "apl/utils/session.h"
 
 namespace apl {
@@ -76,16 +77,9 @@ PlayMediaAction::start()
                 mPlayer->pause();
             });
         }
-    }
-    else {
-        EventBag bag;
-        bag.emplace(kEventPropertyAudioTrack, audioTrack);
-        bag.emplace(kEventPropertySource, source);
-
-        // An ActionRef is always required.  The viewhost should resolve it immediately if it is
-        // background audio and should resolve it after playing if it is foreground audio.
-        mCommand->context()->pushEvent(
-            Event(kEventTypePlayMedia, std::move(bag), mTarget, shared_from_this()));
+    } else {
+        LOG(LogLevel::kWarn) << "Terminate PlayMedia without MediaPlayer.";
+        terminate();
     }
 }
 
@@ -147,5 +141,12 @@ PlayMediaAction::rehydrate(const CoreDocumentContext& context)
     }
     return true;
 }
+
+ActionData
+PlayMediaAction::getActionData()
+{
+    return ActionData().target(mTarget).actionHint("MediaPlayback");
+}
+
 
 } // namespace apl

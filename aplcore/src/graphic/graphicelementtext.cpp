@@ -127,6 +127,16 @@ GraphicElementText::release()
 }
 
 #ifdef SCENEGRAPH
+
+void
+GraphicElementText::assignSceneGraphLayer(const sg::LayerPtr& containingLayer)
+{
+    GraphicElement::assignSceneGraphLayer(containingLayer);
+
+    if (mContainingLayer != nullptr)
+        mContainingLayer->setCharacteristic(sg::Layer::kCharacteristicHasText);
+}
+
 sg::GraphicFragmentPtr
 GraphicElementText::buildSceneGraph(bool allowLayers, sg::SceneGraphUpdates& sceneGraph)
 {
@@ -182,7 +192,8 @@ GraphicElementText::buildSceneGraph(bool allowLayers, sg::SceneGraphUpdates& sce
     if (allowLayers && textMutable) {
         auto layer = sg::layer(getUniqueId() + "_text", Rect(), 1.0f, Transform2D());
         layer->setCharacteristic(sg::Layer::kCharacteristicRenderOnly |
-                                 sg::Layer::kCharacteristicDoNotClipChildren);
+                                 sg::Layer::kCharacteristicDoNotClipChildren |
+                                 sg::Layer::kCharacteristicHasText);
         sceneGraph.created(layer);
         layer->setContent(node);
         mContainingLayer = layer;
@@ -333,7 +344,6 @@ GraphicElementText::ensureSGTextLayout()
     if (!context)
         return;
 
-    assert(mContext->measure()->layoutCompatible());
     auto measure = std::static_pointer_cast<sg::TextMeasurement>(mContext->measure());
 
     ensureTextProperties();

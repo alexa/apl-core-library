@@ -62,22 +62,35 @@ TEST_F(AnimateItemTest, Basic)
     auto goButton = root->context().findComponentById("go");
     ASSERT_TRUE(frame);
     ASSERT_TRUE(goButton);
-
+    rapidjson::Document scrollDoc(rapidjson::kObjectType);
+    ASSERT_EQ(0, root->serializeDocumentState(scrollDoc.GetAllocator()).Size());
     ASSERT_EQ(Object(1), frame->getCalculated(kPropertyOpacity));
     ASSERT_TRUE(CheckDirty(root));
-
     performClick(1, 100);
     root->clearPending();
 
     ASSERT_EQ(Object(0.5), frame->getCalculated(kPropertyOpacity));
-
     for (int i = 1; i <= 10; i++) {
         advanceTime(100);
         ASSERT_NEAR(0.5 * (1 - i * 0.1), frame->getCalculated(kPropertyOpacity).asNumber(), 0.00001);
         ASSERT_TRUE(CheckDirty(frame, kPropertyOpacity, kPropertyVisualHash));
+        auto animationState = root->serializeDocumentState(scrollDoc.GetAllocator());
+        if (i < 10) {
+            ASSERT_EQ(1, animationState.Size());
+            ASSERT_TRUE(animationState[0].HasMember("document"));
+            ASSERT_STREQ("main", animationState[0]["document"].GetString());
+            ASSERT_TRUE(animationState[0].HasMember("actions"));
+            ASSERT_EQ(1, animationState[0]["actions"].Size());
+            ASSERT_STREQ("_main/mainTemplate/item/items/0", animationState[0]["actions"][0]["component"]["provenance"].GetString());
+            ASSERT_STREQ("box", animationState[0]["actions"][0]["component"]["targetId"].GetString());
+            ASSERT_STREQ("Frame", animationState[0]["actions"][0]["component"]["targetComponentType"].GetString());
+            ASSERT_TRUE(animationState[0]["actions"][0].HasMember("actionHint"));
+            ASSERT_STREQ("Animating", animationState[0]["actions"][0]["actionHint"].GetString());
+        }
     }
     ASSERT_TRUE(CheckDirty(root, component, frame));
 
+    ASSERT_EQ(0, root->serializeDocumentState(scrollDoc.GetAllocator()).Size());
     ASSERT_EQ(0, loop->size());
     ASSERT_TRUE(CheckDirty(root));
 }

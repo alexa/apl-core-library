@@ -26,7 +26,7 @@ namespace sg {
 
 enum FillType {
     kFillTypeEvenOdd,
-    kFillTypeWinding
+    kFillTypeNonZero
 };
 
 class PathOp;
@@ -100,7 +100,7 @@ class StrokePathOp : public PathOp {
 class FillPathOp : public PathOp {
     PATH_OP_SUBCLASS(FillPathOp, kFill);
 
-    FillType fillType = kFillTypeEvenOdd;
+    FillType fillType = kFillTypeNonZero;
 };
 
 } // namespace sg

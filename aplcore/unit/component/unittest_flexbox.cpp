@@ -14,66 +14,16 @@
  */
 
 #include <iostream>
-#include <apl/utils/log.h>
 
 #include "gtest/gtest.h"
 
-#include "apl/engine/evaluate.h"
 #include "apl/engine/builder.h"
 #include "apl/component/component.h"
-#include "apl/content/metrics.h"
 #include "apl/component/textmeasurement.h"
 
 #include "../testeventloop.h"
 
 using namespace apl;
-
-// Static method for splitting strings on <br> or the equivalent
-static std::vector<std::string>
-splitString(const std::string& text, const std::string& delimiter)
-{
-    std::vector<std::string> lines;
-    std::string::size_type offset = 0;
-    auto dlen = delimiter.size();
-    std::string::size_type nextOffset;
-    while ((nextOffset = text.find(delimiter, offset)) != std::string::npos) {
-        lines.push_back(text.substr(offset, nextOffset - offset));
-        offset = nextOffset + dlen;
-    }
-    lines.push_back(text.substr(offset));
-    return lines;
-}
-
-// Custom text measurement class.  All characters are a 10x10 block.
-class TestTextMeasurement : public TextMeasurement {
-public:
-    // We'll assign a 10x10 block for each text square.
-    virtual LayoutSize measure( Component *component,
-                            float width,
-                            MeasureMode widthMode,
-                            float height,
-                            MeasureMode heightMode ) override {
-
-        auto bold = component->getCalculated(kPropertyFontWeight).asInt() >= 700;
-        auto text = component->getCalculated(kPropertyText).asString();
-        auto lines = splitString(text, "<br>");
-
-        int lineCount = lines.size();
-        auto it = std::max_element(lines.cbegin(), lines.cend(),
-                                   [](const std::string& first, const std::string& second){ return first.size() < second.size(); });
-        int widestLine = it->size();
-
-        float w = 10 * widestLine * (bold ? 2 : 1);  // Bold fonts are twice as wide
-        float h = 10 * lineCount;
-        return { w, h };
-    }
-
-    virtual float baseline( Component *component, float width, float height ) override
-    {
-        return height;  // Align to the bottom of the text
-    }
-};
-
 
 class FlexboxTest : public DocumentWrapper {};
 
@@ -842,7 +792,6 @@ static const char *TEXT_MEASUREMENT = R"(
 
 TEST_F(FlexboxTest, TextCheck)
 {
-    config->measure(std::make_shared<TestTextMeasurement>());
     loadDocument(TEXT_MEASUREMENT);
     ASSERT_EQ(Rect(0,0,1024,800), component->getCalculated(kPropertyBounds).get<Rect>());
     ASSERT_EQ(2, component->getChildCount());
@@ -860,14 +809,14 @@ TEST_F(FlexboxTest, TextCheck)
 
     //Test for EditTextComponent
     auto childEditTextComponent = component->getChildAt(1);  // No spacing for first child
-    ASSERT_EQ(Rect(0, 10, 400, 10), childEditTextComponent->getCalculated(kPropertyBounds).get<Rect>());
+    ASSERT_EQ(Rect(0, 10, 80, 10), childEditTextComponent->getCalculated(kPropertyBounds).get<Rect>());
     clearDirty();
 
     // Now let's change the text - this should not trigger a re-layout for edit text
     CoreComponent::cast(childEditTextComponent)->setProperty(kPropertyText, "Short");
     ASSERT_TRUE(root->isDirty());
     root->clearDirty();
-    ASSERT_EQ(Rect(0, 10, 400, 10), childEditTextComponent->getCalculated(kPropertyBounds).get<Rect>());
+    ASSERT_EQ(Rect(0, 10, 80, 10), childEditTextComponent->getCalculated(kPropertyBounds).get<Rect>());
 }
 
 static const char *FONT_STYLE_CHECK =
@@ -906,8 +855,6 @@ static const char *FONT_STYLE_CHECK =
 
 TEST_F(FlexboxTest, FontStyleCheck)
 {
-    config->measure(std::make_shared<TestTextMeasurement>());
-
     loadDocument(FONT_STYLE_CHECK);
     ASSERT_EQ(Rect(0,0,1024,800), component->getCalculated(kPropertyBounds).get<Rect>());
     ASSERT_EQ(1, component->getChildCount());
@@ -921,100 +868,93 @@ TEST_F(FlexboxTest, FontStyleCheck)
     clearDirty();
 
     // The bold font is twice as wide as the normal font.
-    ASSERT_EQ(Rect(0, 0, 300, 20), child->getCalculated(kPropertyBounds).get<Rect>());
+    ASSERT_EQ(Rect(0, 0, 300, 40), child->getCalculated(kPropertyBounds).get<Rect>());
 
     root->handlePointerEvent(PointerEvent(kPointerUp, Point(1,1)));
     clearDirty();
     ASSERT_EQ(Rect(0, 0, 150, 20), child->getCalculated(kPropertyBounds).get<Rect>());
 }
 
-const static char *BASELINE_TEST =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.0\","
-    "  \"mainTemplate\": {"
-    "    \"items\": {"
-    "      \"type\": \"Container\","
-    "      \"width\": \"100%\","
-    "      \"height\": \"100%\","
-    "      \"direction\": \"row\","
-    "      \"alignItems\": \"baseline\","
-    "      \"items\": {"
-    "        \"type\": \"Text\","
-    "        \"text\": \"${data}\""
-    "      },"
-    "      \"data\": ["
-    "        \"Single line\","
-    "        \"Double line<br>Double line\","
-    "        \"Triple line<br>Triple line<br>Triple line\""
-    "      ]"
-    "    }"
-    "  }"
-    "}";
+const static char *BASELINE_TEST = R"({
+  "type": "APL",
+  "version": "1.0",
+  "mainTemplate": {
+    "items": {
+      "type": "Container",
+      "width": "100%",
+      "height": "100%",
+      "direction": "row",
+      "alignItems": "baseline",
+      "items": {
+        "type": "Text",
+        "text": "${data}"
+      },
+      "data": [
+        "Single line",
+        "Double line<br>Double line",
+        "Triple line<br>Triple line<br>Triple line"
+      ]
+    }
+  }
+})";
 
 TEST_F(FlexboxTest, BaselineTest)
 {
-    config->measure(std::make_shared<TestTextMeasurement>());
-
     loadDocument(BASELINE_TEST);
     ASSERT_EQ(Rect(0,0,1024,800), component->getCalculated(kPropertyBounds).get<Rect>());
     ASSERT_EQ(3, component->getChildCount());
 
     auto child = component->getChildAt(0);  // First child is one line
-    ASSERT_EQ(Rect(0, 20, 110, 10), child->getCalculated(kPropertyBounds).get<Rect>());
+    ASSERT_EQ(Rect(0, 0, 110, 10), child->getCalculated(kPropertyBounds).get<Rect>());
 
     child = component->getChildAt(1);  // First child is one line
-    ASSERT_EQ(Rect(110, 10, 110, 20), child->getCalculated(kPropertyBounds).get<Rect>());
+    ASSERT_EQ(Rect(110, 0, 110, 20), child->getCalculated(kPropertyBounds).get<Rect>());
 
     child = component->getChildAt(2);  // First child is one line
     ASSERT_EQ(Rect(220, 0, 110, 30), child->getCalculated(kPropertyBounds).get<Rect>());
 }
 
-const static char *BASELINE_EDITTEXT_TEST = R"(
-{
-    "type":"APL",
-    "version":"1.4",
-    "mainTemplate":{
-        "items":{
-            "type":"Container",
-            "width":"100%",
-            "height":"100%",
-            "direction":"row",
-            "alignItems":"baseline",
-            "items":{
-                "type":"EditText",
-                "text":"${data}"
-            },
-            "data":[
-                "Short",
-                "Mid size text test.",
-                "This is long text test for measure size.",
-                "This is long text test for measure size. Last test text."
-            ]
-        }
+const static char *BASELINE_EDITTEXT_TEST = R"({
+  "type":"APL",
+  "version":"1.4",
+  "mainTemplate":{
+    "items":{
+      "type":"Container",
+      "width":"100%",
+      "height":"100%",
+      "direction":"row",
+      "alignItems":"baseline",
+      "items":{
+        "type":"EditText",
+        "text":"${data}"
+      },
+      "data":[
+        "Short",
+        "Mid size text test.",
+        "This is long text test for measure size.",
+        "This is long text test for measure size. Last test text."
+      ]
     }
-}
-)";
+  }
+})";
 
 TEST_F(FlexboxTest, BaselineEditTextTest)
 {
-    config->measure(std::make_shared<TestTextMeasurement>());
-
     loadDocument(BASELINE_EDITTEXT_TEST);
     ASSERT_EQ(Rect(0,0,1024,800), component->getCalculated(kPropertyBounds).get<Rect>());
     ASSERT_EQ(4, component->getChildCount());
 
     auto child = component->getChildAt(0);  // First child is one line
-    ASSERT_EQ(Rect(0, 0, 50, 10), child->getCalculated(kPropertyBounds).get<Rect>());
+    ASSERT_EQ(Rect(0, 0, 80, 10), child->getCalculated(kPropertyBounds).get<Rect>());
 
     child = component->getChildAt(1);  // First child is one line
-    ASSERT_EQ(Rect(50, 0, 190, 10), child->getCalculated(kPropertyBounds).get<Rect>());
+    ASSERT_EQ(Rect(80, 0, 80, 10), child->getCalculated(kPropertyBounds).get<Rect>());
 
     child = component->getChildAt(2);  // First child is one line
-    ASSERT_EQ(Rect(240, 0, 400, 10), child->getCalculated(kPropertyBounds).get<Rect>());
+    ASSERT_EQ(Rect(160, 0, 80, 10), child->getCalculated(kPropertyBounds).get<Rect>());
 
     child = component->getChildAt(3);  // First child is one line
-    ASSERT_EQ(Rect(640, 0, 560, 10), child->getCalculated(kPropertyBounds).get<Rect>());
+    ASSERT_EQ(Rect(240, 0, 80, 10), child->getCalculated(kPropertyBounds).get<Rect>());
 }
 
 const static char *SCROLL_VIEW_TEST =

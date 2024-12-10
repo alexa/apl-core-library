@@ -25,6 +25,39 @@
 
 using namespace apl;
 
+class FixedTestTextLayout : public sg::TextLayout {
+public:
+    FixedTestTextLayout(Size size, float baseline): mSize(size), mBaseline(baseline) {}
+
+    bool empty() const override { return false; }
+    Size getSize() const override { return mSize; }
+    float getBaseline() const override { return mBaseline; }
+    int getLineCount() const override { return 1; }
+    std::string toDebugString() const override { return ""; }
+    unsigned int getByteLength() const override { return 1; }
+    Range getLineRangeFromByteRange(Range byteRange) const override { return {}; }
+    Rect getBoundingBoxForLines(Range lineRange) const override { return {}; }
+
+    std::string getLaidOutText() const override { return ""; }
+    bool isTruncated() const override { return false; }
+
+private:
+    Size mSize;
+    float mBaseline;
+};
+
+class FixedTestTextBox : public sg::EditTextBox {
+public:
+    FixedTestTextBox(Size size, float baseline): mSize(size), mBaseline(baseline) {}
+
+    Size getSize() const override { return mSize; }
+    float getBaseline() const override { return mBaseline; }
+
+private:
+    Size mSize;
+    float mBaseline;
+};
+
 class MyTestLayout : public sg::TextLayout {
     struct Line {
         std::string text;
@@ -186,6 +219,7 @@ private:
  */
 class MyTestMeasurement : public sg::TextMeasurement {
 public:
+    MyTestMeasurement(int fontSizeOverride = 0) { mFontSizeOverride = fontSizeOverride; }
     ~MyTestMeasurement() override = default;
 
     sg::TextLayoutPtr layout(const sg::TextChunkPtr& textChunk,
@@ -202,6 +236,7 @@ public:
 
 private:
     int mLayoutCounter = 0;
+    int mFontSizeOverride = 0;
 };
 
 /**

@@ -21,16 +21,14 @@
 #include "apl/command/corecommand.h"
 #include "apl/component/textcomponent.h"
 #include "apl/primitives/styledtext.h"
+#include "apl/scenegraph/textlayout.h"
+#include "apl/scenegraph/textmeasurement.h"
 #include "apl/time/sequencer.h"
+#include "apl/utils/actiondata.h"
 #include "apl/utils/make_unique.h"
 #include "apl/utils/principal_ptr.h"
 #include "apl/utils/session.h"
 #include "apl/media/mediatrack.h"
-
-#ifdef SCENEGRAPH
-#include "apl/scenegraph/textlayout.h"
-#include "apl/scenegraph/textmeasurement.h"
-#endif // SCENEGRAPH
 
 static const bool DEBUG_SPEAK_ITEM = false;
 
@@ -48,14 +46,10 @@ static const std::string SCROLL_TO_RECT_SEQUENCER = "__SCROLL_TO_RECT_SEQUENCE";
  * No methods from the original class are used, but the instance variables from the original class
  * are used, which requires us to pass a SpeakItemAction reference to each method.
  *
- * This class is an abstract base class.  There are two specializations of this class; one for
- * rendering karaoke by sending events to the view host and one that uses the sceen graph
  */
 class SpeakItemActionPrivate {
 public:
-    virtual ~SpeakItemActionPrivate() = default;
-
-    virtual void terminate() {
+    void terminate() {
         if (mScrollAction) {
             mScrollAction->terminate();
             mScrollAction = nullptr;
@@ -74,7 +68,30 @@ public:
         mAudioPlayer = nullptr;
     }
 
-    virtual void start(SpeakItemAction& action) {
+    static void offsetBounds(TextComponent* textComponent, Rect& bounds) {
+        auto innerBounds = textComponent->getCalculated(kPropertyInnerBounds).get<Rect>();
+        bounds.offset(innerBounds.getX(), innerBounds.getY());
+    }
+
+    void start(SpeakItemAction& action) {
+        preroll(action);
+
+        // Calculate the bounds to scroll into view.
+        Rect bounds; // Empty bounds by default
+
+        // Line-by-line highlighting only occurs when we've stored the current text
+        auto target = TextComponent::cast(action.mTarget);
+        if (target && !mText.empty()) {
+            // Check for a text layout
+            auto layout = target->getTextLayout();
+            if (layout && layout->getLineCount() > 0)
+                bounds = layout->getBoundingBoxForLines(Range{0, 0});
+            offsetBounds(target.get(), bounds);
+        }
+        initialScroll(action, bounds);
+    }
+
+    void preroll(SpeakItemAction& action) {
         auto context = action.mCommand->context();
 
         // Create a MediaTrack from Speech Property
@@ -147,10 +164,44 @@ public:
             context->sequencer().claimResource(kExecutionResourceForegroundAudio,
                                                action.shared_from_this());
 
-            // Effectively preroll
             if (mAudioPlayer) {
                 mAudioPlayer->setTrack(track);
             }
+        }
+    }
+
+    void initialScroll(SpeakItemAction& action, const Rect& bounds) {
+        LOG_IF(DEBUG_SPEAK_ITEM) << "bounds: " << bounds.toDebugString();
+        std::weak_ptr<SpeakItemAction> weak_ptr(
+            std::static_pointer_cast<SpeakItemAction>(action.shared_from_this()));
+
+        // Create a scroll action.  We'll start Karaoke and playback AFTER this scroll action terminates
+        if (bounds.empty())
+            mScrollAction = ScrollToAction::make(action.timers(), action.mCommand, action.mTarget);
+        else
+            mScrollAction = ScrollToAction::make(action.timers(), action.mCommand, bounds, action.mTarget);
+
+        if (mScrollAction) {
+            mScrollAction->then([weak_ptr](const ActionPtr& actionPtr) {
+                auto self = weak_ptr.lock();
+                if (!self)
+                    return;
+
+                // TODO: Scroll takes 1s fixed. Which is unreasonable for SpeakItem.
+                //  Need to change that.
+                auto& p = *self->mPrivate;
+                p.advance(*self);
+            });
+
+            // If scroll was killed by conflicting operation - kill whole SpeakItem.
+            mScrollAction->addTerminateCallback([weak_ptr](const TimersPtr&) {
+                auto self = weak_ptr.lock();
+                if (self)
+                    self->terminate();
+            });
+        }
+        else {
+            advance(action);
         }
     }
 
@@ -220,9 +271,6 @@ public:
         else
             action.resolve();
     }
-
-    virtual void clearKaraoke(SpeakItemAction& action) = 0;
-    virtual void updateAudioState(SpeakItemAction& action, const AudioState& state) = 0;
 
     /**
      * Note: This algorithm is not exactly the same as used by Android.  It needs to be sanity-checked
@@ -301,8 +349,6 @@ public:
         }
     }
 
-    virtual void highlight(SpeakItemAction& action, Range byteRange) = 0;
-
     void freeze() {
         mScrollAction = nullptr;
         mDwellAction = nullptr;
@@ -331,188 +377,13 @@ public:
         }
     }
 
-protected:
-    ActionPtr mScrollAction;
-    ActionPtr mSpeakAction;
-    ActionPtr mDwellAction;
-
-    principal_ptr<AudioPlayer, &AudioPlayer::release> mAudioPlayer;
-    std::vector<SpeechMark> mSpeechMarks;
-    std::string mText;
-    std::string::size_type mTextPosition = 0;
-    std::vector<SpeechMark>::size_type mNextMark = 0;
-    Object mOnSpeechMark;
-};
-
-#ifdef SCENEGRAPH
-/**************************************************************************************************
- * Implementation of SpeakItemActionPrivate that renders karaoke through the scene graph
- **************************************************************************************************/
-class SpeakItemActionPrivateSceneGraph : public SpeakItemActionPrivate {
-public:
-    void start(SpeakItemAction& action) override {
-        SpeakItemActionPrivate::start(action);
-
-        // Calculate the bounds to scroll into view.
-        Rect bounds; // Empty bounds by default
-
-        std::weak_ptr<SpeakItemAction> weak_ptr(
-            std::static_pointer_cast<SpeakItemAction>(action.shared_from_this()));
-
-        // Line-by-line highlighting only occurs when we've stored the current text
-        if (!mText.empty()) {
-            // Check for a text layout
-            auto layout = std::static_pointer_cast<TextComponent>(action.mTarget)->getTextLayout();
-            if (layout && layout->getLineCount() > 0)
-                bounds = layout->getBoundingBoxForLines(Range{0, 0});
-        }
-
-        // Create a scroll action.  We'll start Karaoke and playback AFTER this scroll action terminates
-        if (bounds.empty())
-            mScrollAction = ScrollToAction::make(action.timers(), action.mCommand, action.mTarget);
-        else
-            mScrollAction =
-                ScrollToAction::make(action.timers(), action.mCommand, bounds, action.mTarget);
-
-        if (mScrollAction) {
-            mScrollAction->then([weak_ptr](const ActionPtr& actionPtr) {
-                auto self = weak_ptr.lock();
-                if (!self)
-                    return;
-
-                auto& p = *self->mPrivate;
-                p.advance(*self);
-            });
-
-            // If scroll was killed by conflicting operation - kill whole SpeakItem.
-            mScrollAction->addTerminateCallback([weak_ptr](const TimersPtr&) {
-                auto self = weak_ptr.lock();
-                if (self)
-                    self->terminate();
-            });
-        }
-        else {
-            advance(action);
-        }
-    }
-
-    void clearKaraoke(SpeakItemAction& action) override {
+    void clearKaraoke(SpeakItemAction& action) {
         action.mTarget->setState(kStateKaraoke, false);
-        if (action.mTarget->getType() == kComponentTypeText && !mText.empty())
-            std::static_pointer_cast<TextComponent>(action.mTarget)->clearKaraokeLine();
-    }
+        auto target = TextComponent::cast(action.mTarget);
+        if (target && !mText.empty()) {
+            target->clearKaraokeLine();
 
-    void highlight(SpeakItemAction& action, Range byteRange) override {
-        auto *target = std::static_pointer_cast<TextComponent>(action.mTarget).get();
-
-        auto changed = target->setKaraokeLine(byteRange);
-        if (!changed)
-            return;
-
-        auto bounds = target->getKaraokeBounds();
-
-        // Don't scroll if there is nothing to highlight
-        if (bounds.empty())
-            return;
-
-        // Turns out that there is a SCROLL_TO_RECT_SEQUENCER (see rootcontext.cpp)
-        auto scrollToAction = ScrollToAction::make(action.timers(), action.mCommand, bounds, action.mTarget);
-        if (scrollToAction && scrollToAction->isPending())
-            action.mContext->sequencer().attachToSequencer(scrollToAction, SCROLL_TO_RECT_SEQUENCER);
-    }
-
-    void updateAudioState(SpeakItemAction& action, const AudioState& state) override {
-        updateMarks(action, state.getCurrentTime());
-    }
-};
-#endif // SCENEGRAPH
-
-/**************************************************************************************************
- * Implementation of SpeakItemActionPrivate that uses events to control the karaoke state
- **************************************************************************************************/
-class SpeakItemActionPrivateEvents : public SpeakItemActionPrivate {
-public:
-    void terminate() override {
-        if (mLineRequest) {
-            mLineRequest->terminate();
-            mLineRequest = nullptr;
-        }
-
-        SpeakItemActionPrivate::terminate();
-    }
-
-    void start(SpeakItemAction& action) override {
-        SpeakItemActionPrivate::start(action);
-
-        auto context = action.mCommand->context();
-        std::weak_ptr<SpeakItemAction> weak_ptr(
-            std::static_pointer_cast<SpeakItemAction>(action.shared_from_this()));
-
-        // Line-by-line highlighting only occurs when we've stored the current text
-        if (!mText.empty()) {
-            mLineRequest = Action::make(action.timers(), [&](ActionRef ref) {
-                EventBag bag;
-                bag.emplace(kEventPropertyRangeStart, 0);
-                bag.emplace(kEventPropertyRangeEnd, 0);
-                context->pushEvent(Event(kEventTypeRequestLineBounds, std::move(bag), action.mTarget, ref));
-            });
-            mLineRequest->then([weak_ptr, this](const ActionPtr& actionPtr){
-                auto self = weak_ptr.lock();
-                if (!self)
-                    return;
-                Rect bounds = actionPtr->getRectArgument();
-                initialScroll(*self, bounds);
-            });
-            mLineRequest->addTerminateCallback([weak_ptr](const TimersPtr&) {
-                auto self = weak_ptr.lock();
-                if (self)
-                    self->terminate();  // Kill the entire SpeakItemAction
-            });
-        } else {
-            initialScroll(action, Rect{});
-        }
-    }
-
-    void initialScroll(SpeakItemAction& action, const Rect& bounds) {
-        LOG_IF(DEBUG_SPEAK_ITEM) << "bounds: " << bounds.toDebugString();
-        std::weak_ptr<SpeakItemAction> weak_ptr(
-            std::static_pointer_cast<SpeakItemAction>(action.shared_from_this()));
-
-        // Create a scroll action.  We'll start Karaoke and playback AFTER this scroll action terminates
-        if (bounds.empty())
-            mScrollAction = ScrollToAction::make(action.timers(), action.mCommand, action.mTarget);
-        else
-            mScrollAction =
-                ScrollToAction::make(action.timers(), action.mCommand, bounds, action.mTarget);
-
-        if (mScrollAction) {
-            mScrollAction->then([weak_ptr](const ActionPtr& actionPtr) {
-                auto self = weak_ptr.lock();
-                if (!self)
-                    return;
-
-                // TODO: Scroll takes 1s fixed. Which is unreasonable for SpeakItem.
-                //  Need to change that.
-                auto& p = *self->mPrivate;
-                p.advance(*self);
-            });
-
-            // If scroll was killed by conflicting operation - kill whole SpeakItem.
-            mScrollAction->addTerminateCallback([weak_ptr](const TimersPtr&) {
-                auto self = weak_ptr.lock();
-                if (self)
-                    self->terminate();
-            });
-        }
-        else {
-            advance(action);
-        }
-    }
-
-    void clearKaraoke(SpeakItemAction& action) override
-    {
-        action.mTarget->setState(kStateKaraoke, false);
-        if (action.mTarget->getType() == kComponentTypeText && !mText.empty()) {
+            // Just send highlight event for non-SG impls. It's fire and forget.
             EventBag bag;
             bag.emplace(kEventPropertyRangeStart, -1);
             bag.emplace(kEventPropertyRangeEnd, -1);
@@ -520,7 +391,36 @@ public:
         }
     }
 
-    void updateAudioState(SpeakItemAction& action, const AudioState& state) override {
+    void highlight(SpeakItemAction& action, Range byteRange) {
+        if (mText.empty()) return;
+
+        auto *target = TextComponent::cast(action.mTarget).get();
+        auto changed = target->setKaraokeLine(byteRange);
+        if (!changed)
+            return;
+
+        EventBag bag;
+        bag.emplace(kEventPropertyRangeStart, byteRange.lowerBound());
+        bag.emplace(kEventPropertyRangeEnd, byteRange.upperBound());
+        action.mContext->pushEvent(Event(kEventTypeLineHighlight, std::move(bag), action.mTarget));
+
+        LOG_IF(DEBUG_SPEAK_ITEM) << "highlight: " << byteRange.toDebugString();
+
+        auto bounds = target->getKaraokeBounds();
+        if (bounds.empty())
+            return;
+        offsetBounds(target, bounds);
+        LOG_IF(DEBUG_SPEAK_ITEM) << "scroll: " << bounds.toDebugString();
+
+        mLastLineBounds = bounds;
+
+        // Turns out that there is a SCROLL_TO_RECT_SEQUENCER (see rootcontext.cpp)
+        mScrollAction = ScrollToAction::make(action.timers(), action.mCommand, bounds, action.mTarget);
+        if (mScrollAction && mScrollAction->isPending())
+            action.mContext->sequencer().attachToSequencer(mScrollAction, SCROLL_TO_RECT_SEQUENCER);
+    }
+
+    void updateAudioState(SpeakItemAction& action, const AudioState& state) {
         if (mLastProcessedTime != state.getCurrentTime()) {
             if (mLastLineBounds.empty() && mSpeechMarks.empty()) {
                 // Explicitly highlight first line. Speech marks may arrive after play
@@ -534,51 +434,21 @@ public:
         mLastProcessedTime = state.getCurrentTime();
     }
 
-    void highlight(SpeakItemAction& action, Range byteRange) override
-    {
-        if (mText.empty()) return;
-        if (mLineRequest) mLineRequest->terminate();
+protected:
+    ActionPtr mScrollAction;
+    ActionPtr mSpeakAction;
+    ActionPtr mDwellAction;
 
-        // Get line bounds by byte range
-        mLineRequest = Action::make(action.timers(), [&](ActionRef ref) {
-            EventBag bag;
-            bag.emplace(kEventPropertyRangeStart, byteRange.lowerBound());
-            bag.emplace(kEventPropertyRangeEnd, byteRange.upperBound());
-            action.mContext->pushEvent(Event(kEventTypeRequestLineBounds, std::move(bag), action.mTarget, ref));
+    principal_ptr<AudioPlayer, &AudioPlayer::release> mAudioPlayer;
+    std::vector<SpeechMark> mSpeechMarks;
+    std::string mText;
+    std::string::size_type mTextPosition = 0;
+    std::vector<SpeechMark>::size_type mNextMark = 0;
+    Object mOnSpeechMark;
 
-            LOG_IF(DEBUG_SPEAK_ITEM) << "requestLine: " << byteRange.toDebugString();
-        });
-        // When action resolved - scroll and highlight
-        mLineRequest->then([&, byteRange, this](const ActionPtr& actionPtr){
-            Rect bounds = actionPtr->getRectArgument();
-            if (bounds.empty())
-                return;
-
-            // Dedupe
-            if (bounds == mLastLineBounds)
-                return;
-            mLastLineBounds = bounds;
-
-            EventBag bag;
-            bag.emplace(kEventPropertyRangeStart, byteRange.lowerBound());
-            bag.emplace(kEventPropertyRangeEnd, byteRange.upperBound());
-            action.mContext->pushEvent(Event(kEventTypeLineHighlight, std::move(bag), action.mTarget));
-
-            LOG_IF(DEBUG_SPEAK_ITEM) << "highlight: " << byteRange.toDebugString()
-                                     << ", scroll: " << bounds.toDebugString();
-
-            mScrollAction = ScrollToAction::make(action.timers(), action.mCommand, bounds, action.mTarget);
-            if (mScrollAction && mScrollAction->isPending())
-                action.mContext->sequencer().attachToSequencer(mScrollAction, SCROLL_TO_RECT_SEQUENCER);
-        });
-    }
-
-private:
-    ActionPtr mLineRequest;
     Rect mLastLineBounds; // Memoize currently highlighted bounds, can't dedupe in other way for now.
     int mLastProcessedTime = -1;
 };
-
 
 /*********************** SpeakItemAction Implementation *********************/
 
@@ -589,29 +459,13 @@ SpeakItemAction::SpeakItemAction(const TimersPtr& timers, const std::shared_ptr<
           mTarget(target)
 {
     const auto& rootConfig = mCommand->context()->getRootConfig();
-    if (rootConfig.getAudioPlayerFactory()) {
-#ifdef SCENEGRAPH
-        // If a sg::TextMeasurement is installed, we use that to select the text to highlight
-        // Otherwise we use an event mechanism to set highlighted lines
-        if (rootConfig.getMeasure()->layoutCompatible())
-            mPrivate = std::make_unique<SpeakItemActionPrivateSceneGraph>();
-        else
-#endif // SCENEGRAPH
-            mPrivate = std::make_unique<SpeakItemActionPrivateEvents>();
+    assert(rootConfig.getAudioPlayerFactory());
 
-        addTerminateCallback([this](const TimersPtr&) {
-            mPrivate->terminate();
-            mPrivate->clearKaraoke(*this);
-        });
-    }
-    else {
-        addTerminateCallback([this](const TimersPtr&) {
-            if (mCurrentAction) {
-                mCurrentAction->terminate();
-                mCurrentAction = nullptr;
-            }
-        });
-    }
+    mPrivate = std::make_unique<SpeakItemActionPrivate>();
+    addTerminateCallback([this](const TimersPtr&) {
+        mPrivate->terminate();
+        mPrivate->clearKaraoke(*this);
+    });
 }
 
 std::shared_ptr<SpeakItemAction>
@@ -624,140 +478,9 @@ SpeakItemAction::make(const TimersPtr& timers,
         return nullptr;
 
     auto ptr = std::make_shared<SpeakItemAction>(timers, command, t);
-    if (ptr->mPrivate)
-        ptr->mPrivate->start(*ptr);
-    else
-        ptr->start();
+    assert(ptr->mPrivate);
+    ptr->mPrivate->start(*ptr);
     return ptr;
-}
-
-void
-SpeakItemAction::start()
-{
-    auto context = mCommand->context();
-    context->sequencer().claimResource(kExecutionResourceForegroundAudio, shared_from_this());
-
-    // Start by sending a pre-roll event
-    mSource = mTarget->getCalculated(kPropertySpeech).asString();
-    if (!mSource.empty()) {
-        EventBag bag;
-        bag.emplace(kEventPropertySource, mSource);
-        context->pushEvent(Event(kEventTypePreroll, std::move(bag), mTarget));
-    }
-
-    // If we need line bounds send an event to the viewhost. This viewhost resolves this action with
-    // the bounds of the first line of text.
-    auto scrollable = mTarget->getParent();
-    while (scrollable && scrollable->scrollType() == kScrollTypeNone)
-        scrollable = scrollable->getParent();
-    if(scrollable && mTarget->getType() == kComponentTypeText
-        && mCommand->getValue(kCommandPropertyHighlightMode) == kCommandHighlightModeLine) {
-        mCurrentAction = Action::make(timers(), [this](ActionRef ref) {
-            mCommand->context()->pushEvent(Event(kEventTypeRequestFirstLineBounds, mTarget, ref));
-        });
-        std::weak_ptr<SpeakItemAction> weak_ptr(std::static_pointer_cast<SpeakItemAction>(shared_from_this()));
-        mCurrentAction->then([weak_ptr, this](const ActionPtr& actionPtr){
-            auto self = weak_ptr.lock();
-            if (!self)
-                return;
-            Rect bounds = actionPtr->getRectArgument();
-            auto scrollAction = ScrollToAction::make(timers(), mCommand, bounds, mTarget);
-            scroll(scrollAction);
-        });
-    }
-    else {
-        auto scrollAction = ScrollToAction::make(timers(), mCommand, mTarget);
-        scroll(scrollAction);
-    }
-}
-
-
-void
-SpeakItemAction::scroll(const std::shared_ptr<ScrollToAction>& action) {
-    // Next scroll the component into view
-    mCurrentAction = action;
-    if (mCurrentAction) {
-        std::weak_ptr<SpeakItemAction> weak_ptr(std::static_pointer_cast<SpeakItemAction>(shared_from_this()));
-        mCurrentAction->then([weak_ptr](const ActionPtr& actionPtr) {
-            auto self = weak_ptr.lock();
-            if (!self)
-                return;
-
-            self->advance();
-        });
-
-        // If scroll was killed by conflicting operation - kill whole SpeakItem.
-        mCurrentAction->addTerminateCallback([weak_ptr](const TimersPtr&) {
-            auto self = weak_ptr.lock();
-            if (!self)
-                return;
-
-            self->terminate();
-        });
-    }
-    else {
-        advance();
-    }
-}
-
-void
-SpeakItemAction::advance()
-{
-    mCurrentAction = nullptr;
-
-    ActionPtr dwellAction = nullptr;
-    ActionPtr speakAction = nullptr;
-
-    // Construct the speak action
-    if (!mSource.empty()) {
-        speakAction = Action::make(timers(), [this](ActionRef ref) {
-            EventBag bag;
-            bag.emplace(kEventPropertySource, mSource);
-            bag.emplace(kEventPropertyHighlightMode, mCommand->getValue(kCommandPropertyHighlightMode).getInteger());
-            bag.emplace(kEventPropertyAlign, mCommand->getValue(kCommandPropertyAlign).getInteger());
-            mCommand->context()->pushEvent(Event(kEventTypeSpeak, std::move(bag), mTarget, ref));
-        });
-    }
-
-    // Construct the dwell action
-    auto minDwell = mCommand->getValue(kCommandPropertyMinimumDwellTime).asInt();
-    if (minDwell > 0)
-        dwellAction = Action::makeDelayed(timers(), minDwell);
-
-    // Consolidate to a single action
-    mCurrentAction = speakAction;
-    if (dwellAction)
-        mCurrentAction = mCurrentAction ? Action::makeAll(timers(), {mCurrentAction, dwellAction}) : dwellAction;
-
-    // We didn't have a speak or a dwell; resolve and return immediately (see APLSpecification::SpeakItem Command)
-    if (!mCurrentAction) {
-        resolve();
-        return;
-    }
-
-    // We have an action.  Set the karaoke state on the target
-    mTarget->setState(kStateKaraoke, true);
-
-    std::weak_ptr<SpeakItemAction> weak_ptr(std::static_pointer_cast<SpeakItemAction>(shared_from_this()));
-
-    // Wait for the action to finish and then clear karaoke
-    mCurrentAction->then([weak_ptr](const ActionPtr& actionPtr) {
-        auto self = weak_ptr.lock();
-        if (!self)
-            return;
-
-        self->mTarget->setState(kStateKaraoke, false);
-        self->resolve();
-    });
-
-    // If we are terminated early, we still need to clear the karaoke state
-    mCurrentAction->addTerminateCallback([weak_ptr](const TimersPtr&) {
-        auto self = weak_ptr.lock();
-        if (!self)
-            return;
-
-        self->mTarget->setState(kStateKaraoke, false);
-    });
 }
 
 void
@@ -804,6 +527,11 @@ SpeakItemAction::rehydrate(const CoreDocumentContext& context)
     mPrivate->rehydrate(*this);
 
     return true;
+}
+
+ActionData
+SpeakItemAction::getActionData() {
+    return ActionData().target(mTarget).actionHint("Speaking");
 }
 
 } // namespace apl

@@ -28,14 +28,16 @@ namespace apl {
  */
 class MediaComponentTrait : public ComponentTrait {
 public:
+    using SourceValidator = std::function<bool(const SessionPtr&, const URLRequest&)>;
+
     /**
      * Should be called from the media components own postProcessLayoutChanges.
      */
-    void postProcessLayoutChanges();
+    void postProcessLayoutChanges(SourceValidator&& validator = [](const SessionPtr&, const URLRequest&) { return true; });
 
     /// Internal media fetching utilities
-    void resetMediaFetchState();
-    void ensureMediaRequested();
+    void resetMediaFetchState(SourceValidator&& validator = [](const SessionPtr&, const URLRequest&) { return true; });
+    void ensureMediaRequested(SourceValidator&& validator);
 
     /**
      * @return The list of media properties to add to the component.

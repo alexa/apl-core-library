@@ -279,6 +279,34 @@ std::string GetWithDefault<std::string>(const rapidjson::Pointer& path,
                                         std::string defaultValue);
 
 /**
+* Get a numeric value from JSON (supports int, string) or return the provided default.
+*/
+int GetAsIntWithDefault(const rapidjson::Pointer& path,
+                            const rapidjson::Value& root,
+                            int defaultValue);
+
+inline int GetAsIntWithDefault(const rapidjson::Pointer& path,
+                                   const rapidjson::Value* root,
+                                   int defaultValue) {
+    return GetAsIntWithDefault(path, *root, defaultValue);
+}
+
+inline int GetAsIntWithDefault(const std::string& path,
+                                   const rapidjson::Value& root,
+                                   int defaultValue) {
+    auto localPath = "/" + path;
+    rapidjson::Pointer ptr(localPath.c_str());
+    return GetAsIntWithDefault(ptr, root, defaultValue);
+}
+
+inline int GetAsIntWithDefault(const std::string& path,
+                                   const rapidjson::Value* root,
+                                   int defaultValue) {
+    if (!root) return defaultValue;
+    return GetAsIntWithDefault(path, *root, defaultValue);
+}
+
+/**
  * Get a value of type T, or return the provided default. Supports primitive types:
  * @tparam T Either bool, int, unsigned, int64_t, uint64_t, double, float, const char*
 */

@@ -67,7 +67,7 @@ static const char *PLAY_MEDIA_FOREGROUND = R"([
   {
     "type": "PlayMedia",
     "componentId": "video",
-    "source": "http://music.amazon.com/s3/MAGIC_TRACK_HERE",
+    "source": "https://music.amazon.com/s3/MAGIC_TRACK_HERE",
     "audioTrack": "foreground",
     "sequencer": "tertiary"
   }
@@ -77,6 +77,10 @@ TEST_F(SequencerAudioTest, SpeakItemAndPlayMediaForeground)
 {
     factory->addFakeContent({
         {"URL3", 2000, 100, -1, {}}, // 2000 ms duration, 100 ms initial delay
+    });
+
+    mediaPlayerFactory->addFakeContent({
+        { "https://music.amazon.com/s3/MAGIC_TRACK_HERE", 1000, 0, -1 }
     });
 
     loadDocument(SPEAK_ITEM_AND_VIDEO);
@@ -101,14 +105,12 @@ TEST_F(SequencerAudioTest, SpeakItemAndPlayMediaForeground)
     ASSERT_TRUE(CheckPlayer("URL3", TestAudioPlayer::kRelease));
     ASSERT_FALSE(factory->hasEvent());
 
-    ASSERT_TRUE(root->hasEvent());
-    auto event = root->popEvent();
-    ASSERT_EQ(kEventTypePlayMedia, event.getType());
-    auto playMedia = event.getActionRef();
-
-    loop->advanceToEnd();
-
-    ASSERT_TRUE(playMedia.isPending());
+    ASSERT_TRUE(CheckPlayerEvents(eventCounts, {
+       {TestMediaPlayer::EventType::kPlayerEventSetTrackList, 2},
+       {TestMediaPlayer::EventType::kPlayerEventSetAudioTrack, 2},
+       {TestMediaPlayer::EventType::kPlayerEventPlay, 1},
+    }));
+    mediaPlayerFactory->advanceTime(1000);
 }
 
 

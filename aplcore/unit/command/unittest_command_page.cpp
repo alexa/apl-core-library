@@ -349,7 +349,9 @@ static const char *AUTO_PAGE_BASIC = R"({
 TEST_F(CommandPageTest, AutoPage)
 {
     loadDocument(AUTO_PAGE_BASIC);
+    rapidjson::Document pagerDoc(rapidjson::kObjectType);
 
+    ASSERT_EQ(0, root->serializeDocumentState(pagerDoc.GetAllocator()).Size());
     executeAutoPage("myPager", 100000, 1000);  // Play all, pausing for 1000 milliseconds between them
     advanceTime(600);
 
@@ -357,11 +359,25 @@ TEST_F(CommandPageTest, AutoPage)
         std::string msg = "Auto(" + std::to_string(index) + ")";
         ASSERT_TRUE(CheckDirty(component, kPropertyCurrentPage, kPropertyNotifyChildrenChanged)) << msg;
         ASSERT_EQ(index, component->pagePosition()) << msg;
-
+        auto animationState = root->serializeDocumentState(pagerDoc.GetAllocator());
+        if (index < 4) {
+            ASSERT_EQ(1, animationState.Size());
+            ASSERT_TRUE(animationState[0].HasMember("actions"));
+            ASSERT_TRUE(animationState[0].HasMember("document"));
+            ASSERT_STREQ("main", animationState[0]["document"].GetString());
+            ASSERT_EQ(1, animationState[0]["actions"].Size());
+            ASSERT_TRUE(animationState[0]["actions"][0].HasMember("component"));
+            ASSERT_STREQ("_main/mainTemplate/items", animationState[0]["actions"][0]["component"]["provenance"].GetString());
+            ASSERT_STREQ("Pager", animationState[0]["actions"][0]["component"]["targetComponentType"].GetString());
+            ASSERT_STREQ("myPager", animationState[0]["actions"][0]["component"]["targetId"].GetString());
+            ASSERT_TRUE(animationState[0]["actions"][0].HasMember("actionHint"));
+            ASSERT_STREQ("Paging", animationState[0]["actions"][0]["actionHint"].GetString());
+        }
         advanceTime(1600);
     }
 
     ASSERT_EQ(0, loop->size());
+    ASSERT_EQ(0, root->serializeDocumentState(pagerDoc.GetAllocator()).Size());
 }
 
 TEST_F(CommandPageTest, AutoPageNoDelay)
@@ -630,6 +646,11 @@ static const char *COMBINATION_COMMANDS = R"([{
 
 TEST_F(CommandPageTest, SpeakItemCombination)
 {
+    audioPlayerFactory->addFakeContent({
+        { "https://iamspeech.com/1.mp3", 1000, 100, -1, {} }, // 1000 ms long, 1000 ms buffer delay
+        { "https://iamspeech.com/2.mp3", 1000, 100, -1, {} }  // 1000 ms long, 1000 ms buffer delay
+    });
+
     loadDocument(COMBINATION, COMBINATION_DATA);
     advanceTime(10);
     clearDirty();
@@ -639,31 +660,37 @@ TEST_F(CommandPageTest, SpeakItemCombination)
     auto action = executeCommands(apl::Object(doc), false);
 
     // Should have preroll for first speech
-    ASSERT_TRUE(root->hasEvent());
-    auto event = root->popEvent();
-    ASSERT_EQ(kEventTypePreroll, event.getType());
-    if (!event.getActionRef().empty() && event.getActionRef().isPending()) event.getActionRef().resolve();
+    ASSERT_TRUE(CheckPlayer("https://iamspeech.com/2.mp3", TestAudioPlayer::kPreroll));
 
     // And page should have switched - command is in parallel
     ASSERT_EQ(1, component->pagePosition());
 
-    ASSERT_TRUE(root->hasEvent());
-    event = root->popEvent();
-    ASSERT_EQ(kEventTypeSpeak, event.getType());
-    if (!event.getActionRef().empty() && event.getActionRef().isPending()) event.getActionRef().resolve();
+    advanceTime(100);
+
+    ASSERT_TRUE(CheckPlayer("https://iamspeech.com/2.mp3", TestAudioPlayer::kReady));
+    ASSERT_TRUE(CheckPlayer("https://iamspeech.com/2.mp3", TestAudioPlayer::kPlay));
+
+    // Finish the initial speech
+    advanceTime(1000);
+
+    ASSERT_TRUE(CheckPlayer("https://iamspeech.com/2.mp3", TestAudioPlayer::kDone));
+    ASSERT_TRUE(CheckPlayer("https://iamspeech.com/2.mp3", TestAudioPlayer::kRelease));
 
     root->clearPending();
 
     // Should start next karaoke here
-    ASSERT_TRUE(root->hasEvent());
-    event = root->popEvent();
-    ASSERT_EQ(kEventTypePreroll, event.getType());
-    if (!event.getActionRef().empty() && event.getActionRef().isPending()) event.getActionRef().resolve();
+    ASSERT_TRUE(CheckPlayer("https://iamspeech.com/1.mp3", TestAudioPlayer::kPreroll));
 
-    ASSERT_TRUE(root->hasEvent());
-    event = root->popEvent();
-    ASSERT_EQ(kEventTypeSpeak, event.getType());
-    if (!event.getActionRef().empty() && event.getActionRef().isPending()) event.getActionRef().resolve();
+    advanceTime(100);
+
+    ASSERT_TRUE(CheckPlayer("https://iamspeech.com/1.mp3", TestAudioPlayer::kReady));
+    ASSERT_TRUE(CheckPlayer("https://iamspeech.com/1.mp3", TestAudioPlayer::kPlay));
+
+    // Finish the next speech
+    advanceTime(1000);
+
+    ASSERT_TRUE(CheckPlayer("https://iamspeech.com/1.mp3", TestAudioPlayer::kDone));
+    ASSERT_TRUE(CheckPlayer("https://iamspeech.com/1.mp3", TestAudioPlayer::kRelease));
 }
 
 static const char *AUTO_PAGER_ON_MOUNT_WITH_DELAY = R"apl(
@@ -770,7 +797,19 @@ TEST_F(CommandPageTest, SetPageTransitionRelativeDuration)
 
     executeSetPage("myPager", "relative", 1, 300);
 
-    advanceTime(300);
+    advanceTime(100);
+    rapidjson::Document document(rapidjson::kObjectType);
+    auto animationState = root->serializeDocumentState(document.GetAllocator());
+    ASSERT_TRUE(animationState[0].HasMember("actions"));
+    ASSERT_EQ(1, animationState[0]["actions"].Size());
+    ASSERT_TRUE(animationState[0]["actions"][0].HasMember("component"));
+    ASSERT_STREQ("_main/mainTemplate/item", animationState[0]["actions"][0]["component"]["provenance"].GetString());
+    ASSERT_STREQ("myPager", animationState[0]["actions"][0]["component"]["targetId"].GetString());
+    ASSERT_STREQ("Pager", animationState[0]["actions"][0]["component"]["targetComponentType"].GetString());
+    ASSERT_TRUE(animationState[0]["actions"][0].HasMember("actionHint"));
+    ASSERT_STREQ("Paging", animationState[0]["actions"][0]["actionHint"].GetString());
+
+    advanceTime(200);
     ASSERT_EQ(1, component->pagePosition());
 }
 

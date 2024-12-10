@@ -13,6 +13,8 @@
 
 target_sources_local(unittest
         PRIVATE
+        unittest_actiondata.cpp
+        unittest_dataurlgrammar.cpp
         unittest_encoding.cpp
         unittest_flags.cpp
         unittest_hash.cpp

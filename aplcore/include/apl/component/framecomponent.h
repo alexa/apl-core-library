@@ -45,6 +45,7 @@ protected:
 #endif // SCENEGRAPH
 
 private:
+    bool doesLegacyClipping() const override { return true; }
     bool singleChild() const override { return true; }
 };
 

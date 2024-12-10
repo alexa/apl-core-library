@@ -23,6 +23,7 @@ namespace apl {
 static const char *IMPORT_NAME = "name";
 static const char *IMPORT_VERSION = "version";
 static const char *IMPORT_SOURCE = "source";
+static const char *IMPORT_DOMAIN = "domain";
 static const char *IMPORT_LOAD_AFTER = "loadAfter";
 static const char *IMPORT_ACCEPT = "accept";
 
@@ -32,6 +33,7 @@ ImportRequest::create(const rapidjson::Value& value,
                       const SessionPtr& session,
                       const std::string& commonName,
                       const std::string& commonVersion,
+                      const std::string& commonDomain,
                       const std::set<std::string>& commonLoadAfter,
                       const std::string& commonAccept)
 {
@@ -53,6 +55,10 @@ ImportRequest::create(const rapidjson::Value& value,
             if (!source.empty() && context) source = evaluate(*context, source).asString();
         }
 
+        // Domain can be common
+        std::string domain = extractDomain(value, context);
+        domain = domain.empty() ? commonDomain : domain;
+
         // Load after can also be common
         auto loadAfter = extractLoadAfter(value, context);
         loadAfter = loadAfter.empty() ? commonLoadAfter : loadAfter;
@@ -68,7 +74,7 @@ ImportRequest::create(const rapidjson::Value& value,
         auto semanticVersion = SemanticVersion::create(session, version);
         auto acceptPattern = accept.empty() ? nullptr : SemanticPattern::create(session, accept);
 
-        return ImportRequest(name, version, source, loadAfter, semanticVersion, acceptPattern);
+        return {name, version, source, domain, loadAfter, semanticVersion, acceptPattern};
     }
 
     return {};
@@ -82,7 +88,20 @@ ImportRequest::ImportRequest(const std::string& name,
                              const std::set<std::string>& loadAfter,
                              const SemanticVersionPtr& semanticVersion,
                              const SemanticPatternPtr& acceptPattern)
-    : mReference(name, version, source, loadAfter, semanticVersion, acceptPattern), mValid(true), mUniqueId(ImportRequest::sNextId++)
+    : ImportRequest(name, version, source, "", loadAfter, semanticVersion, acceptPattern)
+{
+}
+
+ImportRequest::ImportRequest(const std::string& name,
+                             const std::string& version,
+                             const std::string& source,
+                             const std::string& domain,
+                             const std::set<std::string>& loadAfter,
+                             const SemanticVersionPtr& semanticVersion,
+                             const SemanticPatternPtr& acceptPattern)
+    : mReference(name, version, source, domain, loadAfter, semanticVersion, acceptPattern),
+      mValid(true),
+      mUniqueId(ImportRequest::sNextId++)
 {
 }
 
@@ -90,6 +109,12 @@ std::pair<std::string, std::string>
 ImportRequest::extractNameAndVersion(const rapidjson::Value& value, const ContextPtr& context)
 {
     return std::make_pair(extractString(IMPORT_NAME, value, context), extractString(IMPORT_VERSION, value, context));
+}
+
+std::string
+ImportRequest::extractDomain(const rapidjson::Value& value, const ContextPtr& context)
+{
+    return extractString(IMPORT_DOMAIN, value, context);
 }
 
 std::set<std::string>

@@ -15,11 +15,17 @@
 
 #include "../testeventloop.h"
 
-#include "../test_sg_textmeasure.h"
-
 using namespace apl;
 
-class TextLayoutTest : public DocumentWrapper {};
+class TextLayoutTest : public DocumentWrapper {
+public:
+    TextLayoutTest() {
+        measure = std::make_shared<MyTestMeasurement>();
+        config->measure(measure);
+    }
+
+    std::shared_ptr<MyTestMeasurement> measure;
+};
 
 static const char* TEXT_MEASURE_LAYOUT = R"({
   "type": "APL",
@@ -42,20 +48,8 @@ static const char* TEXT_MEASURE_LAYOUT = R"({
   }
 })";
 
-TEST_F(TextLayoutTest, OldMeasure) {
-    config->measure(std::make_shared<SimpleTextMeasurement>(40, 40));
-
-    loadDocument(TEXT_MEASURE_LAYOUT);
-
-    auto t = root->findComponentById("AutoHeight");
-    auto s = t->getCalculated(apl::kPropertyBounds).get<Rect>().getSize();
-    ASSERT_EQ(500, s.getWidth());
-    ASSERT_EQ(360, s.getHeight());
-}
-
-TEST_F(TextLayoutTest, LayoutMeasure) {
-    config->measure(std::make_shared<MyTestMeasurement>());
-
+TEST_F(TextLayoutTest, LayoutMeasure)
+{
     loadDocument(TEXT_MEASURE_LAYOUT);
 
     auto t = root->findComponentById("AutoHeight");
@@ -88,7 +82,8 @@ static const char* TEXT_LAYOUT_TEST_END = R"(
   }
 })";
 
-TEST_F(TextLayoutTest, TextLayoutNoEventWhenNoLayout) {
+TEST_F(TextLayoutTest, TextLayoutNoEventWhenNoLayout)
+{
     const char* TEST = R"({
         "type": "ScrollView",
         "width": "100%",
@@ -122,9 +117,8 @@ TEST_F(TextLayoutTest, TextLayoutNoEventWhenNoLayout) {
     ASSERT_FALSE(CheckSendEvent(root));
 }
 
-TEST_F(TextLayoutTest, TextLayoutFixed) {
-    config->measure(std::make_shared<MyTestMeasurement>());
-
+TEST_F(TextLayoutTest, TextLayoutFixed)
+{
     const char* TEST = R"({
         "type": "Text",
         "text": "${LongText}",
@@ -153,10 +147,8 @@ TEST_F(TextLayoutTest, TextLayoutFixed) {
     ASSERT_TRUE(CheckSendEvent(root, "Lorem ipsum dolor sit amet, consectetuer adipiscin", true, 400, 200));
 }
 
-TEST_F(TextLayoutTest, TextLayoutFixedNoLayoutWhenNoEvent) {
-    auto measure = std::make_shared<MyTestMeasurement>();
-    config->measure(measure);
-
+TEST_F(TextLayoutTest, TextLayoutFixedNoLayoutWhenNoEvent)
+{
     const char* TEST = R"({
         "type": "Text",
         "text": "${LongText}",
@@ -175,9 +167,8 @@ TEST_F(TextLayoutTest, TextLayoutFixedNoLayoutWhenNoEvent) {
     ASSERT_EQ(0, measure->getLayoutCount());
 }
 
-TEST_F(TextLayoutTest, TextLayoutAtMax) {
-    config->measure(std::make_shared<MyTestMeasurement>());
-
+TEST_F(TextLayoutTest, TextLayoutAtMax)
+{
     const char* TEST = R"({
         "type": "Text",
         "text": "${LongText}",
@@ -207,9 +198,8 @@ TEST_F(TextLayoutTest, TextLayoutAtMax) {
     ASSERT_TRUE(CheckSendEvent(root, "Lorem ipsu", true, 400, 50));
 }
 
-TEST_F(TextLayoutTest, TextLayoutUndefined) {
-    config->measure(std::make_shared<MyTestMeasurement>());
-
+TEST_F(TextLayoutTest, TextLayoutUndefined)
+{
     const char* TEST = R"({
         "type": "ScrollView",
         "width": "100%",
@@ -243,9 +233,8 @@ TEST_F(TextLayoutTest, TextLayoutUndefined) {
     ASSERT_TRUE(CheckSendEvent(root, "Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Aenean commodo ligula eget dolor. Aenean massa.", false, 400, 440));
 }
 
-TEST_F(TextLayoutTest, TextLayoutAutosize) {
-    config->measure(std::make_shared<MyTestMeasurement>());
-
+TEST_F(TextLayoutTest, TextLayoutAutosize)
+{
     const char* TEST = R"({
         "bind": [
           {
@@ -292,9 +281,8 @@ TEST_F(TextLayoutTest, TextLayoutAutosize) {
     ASSERT_TRUE(CheckSendEvent(root, "Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Aenean commodo ligula eget dolor. Aenean massa.", false, 400, 120));
 }
 
-TEST_F(TextLayoutTest, TextLayoutAutosizeFixed) {
-    config->measure(std::make_shared<MyTestMeasurement>());
-
+TEST_F(TextLayoutTest, TextLayoutAutosizeFixed)
+{
     const char* TEST = R"({
         "bind": [
           {
@@ -366,8 +354,6 @@ const static char *BASELINE_TEST = R"({
 
 TEST_F(TextLayoutTest, BaselineTest)
 {
-    config->measure(std::make_shared<MyTestMeasurement>());
-
     loadDocument(BASELINE_TEST);
     ASSERT_EQ(Rect(0,0,1024,800), component->getCalculated(kPropertyBounds).get<Rect>());
     ASSERT_EQ(3, component->getChildCount());
@@ -379,11 +365,11 @@ TEST_F(TextLayoutTest, BaselineTest)
 
     child = component->getChildAt(1);
     LOG(LogLevel::kError) << child->getCalculated(kPropertyBounds).get<Rect>();
-    ASSERT_EQ(Rect(110, 0, 260, 10), child->getCalculated(kPropertyBounds).get<Rect>());
+    ASSERT_EQ(Rect(110, 0, 110, 20), child->getCalculated(kPropertyBounds).get<Rect>());
 
     child = component->getChildAt(2);
     LOG(LogLevel::kError) << child->getCalculated(kPropertyBounds).get<Rect>();
-    ASSERT_EQ(Rect(370, 0, 410, 10), child->getCalculated(kPropertyBounds).get<Rect>());
+    ASSERT_EQ(Rect(220, 0, 110, 30), child->getCalculated(kPropertyBounds).get<Rect>());
 }
 
 static const char* EDITTEXT_LAYOUT = R"({
@@ -410,9 +396,9 @@ static const char* EDITTEXT_LAYOUT = R"({
 /**
  * Test text measurement for EditText component
  */
-TEST_F(TextLayoutTest, EditTextMeasurement) {
+TEST_F(TextLayoutTest, EditTextMeasurement)
+{
     metrics.size(400, 400);
-    config->measure(std::make_shared<MyTestMeasurement>());
 
     loadDocument(EDITTEXT_LAYOUT);
     ASSERT_TRUE(root);
@@ -444,9 +430,9 @@ static const char* EDIT_TEXT_AUTOSIZED = R"({
   }
 })";
 
-TEST_F(TextLayoutTest, EditTextAutosize) {
+TEST_F(TextLayoutTest, EditTextAutosize)
+{
     metrics.size(600, 600);
-    config->measure(std::make_shared<MyTestMeasurement>());
 
     loadDocument(EDIT_TEXT_AUTOSIZED);
 
@@ -489,8 +475,6 @@ const static char *BASELINE_EDITTEXT_TEST = R"(
 
 TEST_F(TextLayoutTest, BaselineEditTextTest)
 {
-    config->measure(std::make_shared<MyTestMeasurement>());
-
     loadDocument(BASELINE_EDITTEXT_TEST);
     ASSERT_EQ(Rect(0,0,1024,800), component->getCalculated(kPropertyBounds).get<Rect>());
     ASSERT_EQ(4, component->getChildCount());
@@ -508,7 +492,8 @@ TEST_F(TextLayoutTest, BaselineEditTextTest)
     ASSERT_EQ(Rect(240, 0, 80, 10), child->getCalculated(kPropertyBounds).get<Rect>());
 }
 
-TEST_F(TextLayoutTest, LayoutReusePossible) {
+TEST_F(TextLayoutTest, LayoutReusePossible)
+{
     config->measure(std::make_shared<LayoutReuseMeasurement>());
 
     loadDocument(TEXT_MEASURE_LAYOUT);
@@ -523,7 +508,8 @@ TEST_F(TextLayoutTest, LayoutReusePossible) {
 
 }
 
-TEST_F(TextLayoutTest, BoxReusePossible) {
+TEST_F(TextLayoutTest, BoxReusePossible)
+{
     config->measure(std::make_shared<LayoutReuseMeasurement>());
 
     loadDocument(EDITTEXT_LAYOUT);

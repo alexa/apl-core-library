@@ -16,8 +16,6 @@
 #ifndef _APL_GRIDSEQUENCE_COMPONENT_H
 #define _APL_GRIDSEQUENCE_COMPONENT_H
 
-#include <yoga/YGNode.h>
-
 #include "apl/component/multichildscrollablecomponent.h"
 
 namespace apl {
@@ -36,6 +34,7 @@ public:
     ComponentType getType() const override { return kComponentTypeGridSequence; };
     void initialize() override;
     void processLayoutChanges(bool useDirtyFlag, bool first) override;
+    bool isSingleChildOnCrossAxis() override;
 
 protected:
     const ComponentPropDefSet& propDefSet() const override;
@@ -52,8 +51,6 @@ protected:
     bool childrenUseSpacingProperty() const override { return false; }
 
     size_t getItemsPerCourse() const override { return mItemsPerCourse; }
-
-    size_t estimateChildrenToCover(float distance, size_t baseChild) override;
 
 private:
     std::pair<float, std::vector<float>> adjustChildDimensions(

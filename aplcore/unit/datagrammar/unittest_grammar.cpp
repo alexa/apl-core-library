@@ -496,6 +496,69 @@ TEST_F(GrammarTest, Functions)
     ASSERT_TRUE(IsEqual("y", eval("${String.charAt('berry', -1)}")));
     ASSERT_TRUE(IsEqual("ü", eval("${String.charAt('küssen', 1)}")));
     ASSERT_TRUE(IsEqual(u8"خ", eval(u8"${String.charAt('محمد بن موسی خوارزمی‎', 13)}")));
+    ASSERT_TRUE(IsEqual(1, eval("${String.indexOf('berry', 'e')}")));
+    ASSERT_TRUE(IsEqual(1, eval("${String.indexOf('123', 2)}")));
+    ASSERT_TRUE(IsEqual(2, eval("${String.indexOf('berry', 'rry')}")));
+    ASSERT_TRUE(IsEqual(-1, eval("${String.indexOf('berry', 'no')}")));
+    ASSERT_TRUE(IsEqual(-1, eval("${String.indexOf('not enough params')}")));
+    ASSERT_TRUE(IsEqual(4, eval("${String.indexOf('something with spaces', 'th')}")));
+    ASSERT_TRUE(IsEqual(3, eval("${String.indexOf('abcabc', 'a', -5)}")));
+    ASSERT_TRUE(IsEqual(-1, eval("${String.indexOf('abcabc', 'bc', 5)}")));
+    ASSERT_TRUE(IsEqual(4, eval("${String.indexOf('schön', 'n')}")));
+    ASSERT_TRUE(IsEqual(3, eval("${String.indexOf('schön', 'ö')}")));
+    ASSERT_TRUE(IsEqual(1, eval("${String.lastIndexOf('berry', 'e')}")));
+    ASSERT_TRUE(IsEqual(8, eval("${String.lastIndexOf('berry pie', 'e')}")));
+    ASSERT_TRUE(IsEqual(23, eval("${String.lastIndexOf('strawberry pie blueberry pie', 'y pie')}")));
+    ASSERT_TRUE(IsEqual(3, eval("${String.lastIndexOf('1232', 2)}")));
+    ASSERT_TRUE(IsEqual(-1, eval("${String.lastIndexOf('not enough params')}")));
+    ASSERT_TRUE(IsEqual(3, eval("${String.lastIndexOf('abcabc', 'abc', 4)}")));
+    ASSERT_TRUE(IsEqual(0, eval("${String.lastIndexOf('abcabc', 'a', -4)}")));
+    ASSERT_TRUE(IsEqual(1, eval("${String.lastIndexOf('schön', 'c')}")));
+    ASSERT_TRUE(IsEqual(3, eval("${String.lastIndexOf('schön', 'ön')}")));
+    ASSERT_TRUE(IsEqual(1, eval("${String.lastIndexOf('hello', 'ello')}")));
+    ASSERT_EQ(o(true), eval("${String.includes('this contains it', 'it')}"));
+    ASSERT_EQ(o(false), eval("${String.includes('this doesnt contain', 'it')}"));
+    ASSERT_EQ(o(true), eval("${String.includes('it contains it a lot in it', 'i')}"));
+    ASSERT_EQ(o(false), eval("${String.includes('not enough params')}"));
+    ASSERT_EQ(o(true), eval("${String.includes('the false the', false)}"));
+    ASSERT_EQ(o(false), eval("${String.includes('abcabc', 'abc', 4)}"));
+    ASSERT_EQ(o(false), eval("${String.includes('abcabc', 'a', -1)}"));
+    ASSERT_EQ(o(true), eval("${String.includes('abcabc', 'c', -1)}"));
+    ASSERT_EQ(o(true), eval("${String.includes('küssen', 'ss')}"));
+    ASSERT_TRUE(IsEqual("hello c++", eval("${String.replace('hello world', 'world', 'c++')}")));
+    ASSERT_TRUE(IsEqual("ABcd abc ab", eval("${String.replace('abcd abc ab', 'ab', 'AB')}")));
+    ASSERT_TRUE(IsEqual("abcD", eval("${String.replace('abcd', 'd', 'D', 2)}")));
+    ASSERT_TRUE(IsEqual("abcd", eval("${String.replace('abcd', 'xy', 'XY')}")));
+    ASSERT_TRUE(IsEqual("abcd", eval("${String.replace('abcd', 'bc', 'bc')}")));
+    ASSERT_TRUE(IsEqual("", eval("${String.replace('', 'ab', 'AB')}")));
+    ASSERT_TRUE(IsEqual("abcd", eval("${String.replace('abcd', '', 'X')}")));
+    ASSERT_TRUE(IsEqual("cd", eval("${String.replace('abcd', 'ab', '')}")));
+    ASSERT_TRUE(IsEqual("abcd", eval("${String.replace('abcd', '', '')}")));
+    ASSERT_TRUE(IsEqual("abcX", eval("${String.replace('abcd', 'd', 'X', -2)}")));
+    ASSERT_TRUE(IsEqual("abcdabcdABcd", eval("${String.replace('abcdabcdabcd', 'ab', 'AB', -5)}")));
+    ASSERT_TRUE(IsEqual("résumé cafe", eval("${String.replace('résumé café', 'fé', 'fe', -3)}")));
+    ASSERT_TRUE(IsEqual(Object::NULL_OBJECT(), eval("${String.replace('not enough params')}")));
+    ASSERT_TRUE(IsEqual(Object::NULL_OBJECT(), eval("${String.replace('not enough', 'params')}")));
+    ASSERT_TRUE(IsEqual("XYZ def XYZ ghi", eval("${String.replaceAll('abc def abc ghi', 'abc', 'XYZ')}")));
+    ASSERT_TRUE(IsEqual("XYZ XYZ", eval("${String.replaceAll('ab ab', 'ab', 'XYZ')}")));
+    ASSERT_TRUE(IsEqual("X X X", eval("${String.replaceAll('abc abc abc', 'abc', 'X')}")));
+    ASSERT_TRUE(IsEqual("XX", eval("${String.replaceAll('aaaa', 'aa', 'X')}")));
+    ASSERT_TRUE(IsEqual("abcdef", eval("${String.replaceAll('abcdef', 'xy', 'XYZ')}")));
+    ASSERT_TRUE(IsEqual("", eval("${String.replaceAll('', 'ab', 'AB')}")));
+    ASSERT_TRUE(IsEqual("abcd", eval("${String.replaceAll('abcd', '', 'X')}")));
+    ASSERT_TRUE(IsEqual("", eval("${String.replaceAll('ababab', 'ab', '')}")));
+    ASSERT_TRUE(IsEqual("abcd", eval("${String.replaceAll('abcd', '', '')}")));
+    ASSERT_TRUE(IsEqual(Object::NULL_OBJECT(), eval("${String.replaceAll('not enough params')}")));
+    ASSERT_TRUE(IsEqual(Object::NULL_OBJECT(), eval("${String.replaceAll('not enough', 'params')}")));
+    ASSERT_TRUE(IsEqual("abcdefg", eval("${String.trim(' abcdefg ')}")));
+    ASSERT_TRUE(IsEqual("abcdefg", eval("${String.trim(' abcdefg')}")));
+    ASSERT_TRUE(IsEqual("abcdefg", eval("${String.trim('abcdefg ')}")));
+    ASSERT_TRUE(IsEqual("abcdefg", eval("${String.trim('abcdefg')}")));
+    ASSERT_TRUE(IsEqual("abc def ghi", eval("${String.trim(' abc def ghi ')}")));
+    ASSERT_TRUE(IsEqual("", eval("${String.trim('     ')}")));
+    ASSERT_TRUE(IsEqual("", eval("${String.trim('')}")));
+    ASSERT_TRUE(IsEqual("abc", eval("${String.trim('\t\n\r abc \t\n\r')}")));
+    ASSERT_TRUE(IsEqual(Object::NULL_OBJECT(), eval("${String.trim()}")));
 
     // TODO: TEST_F LISTS OF 0, 1, and N arguments
 }
@@ -1211,7 +1274,8 @@ TEST_F(GrammarTest, LocaleMethodsDefault) {
 
     // Inflate the document
     auto metrics = Metrics().size(800,800).dpi(320);
-    RootConfig rootConfig = RootConfig();
+    RootConfig rootConfig = RootConfig().measure(std::make_shared<MyTestMeasurement>());
+
     auto root = std::static_pointer_cast<CoreRootContext>(RootContext::create( metrics, content, rootConfig ));
     ASSERT_TRUE(root);
 
@@ -1236,7 +1300,7 @@ TEST_F(GrammarTest, LocaleMethodsIntegration) {
     // Inflate the document
     auto metrics = Metrics().size(800,800).dpi(320);
     auto dummyMethods = std::make_shared<DummyLocaleMethods>();
-    RootConfig rootConfig = RootConfig().localeMethods(dummyMethods);
+    RootConfig rootConfig = RootConfig().localeMethods(dummyMethods).measure(std::make_shared<MyTestMeasurement>());
     auto root = std::static_pointer_cast<CoreRootContext>(RootContext::create( metrics, content, rootConfig));
     ASSERT_TRUE(root);
 

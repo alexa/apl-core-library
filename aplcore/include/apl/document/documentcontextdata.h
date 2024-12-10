@@ -19,7 +19,6 @@
 #include "apl/document/contextdata.h"
 
 #include <queue>
-#include <yoga/Yoga.h>
 
 #include "apl/common.h"
 #include "apl/content/extensionrequest.h"
@@ -27,6 +26,7 @@
 #include "apl/engine/jsonresource.h"
 #include "apl/primitives/textmeasurerequest.h"
 #include "apl/utils/lrucache.h"
+#include "apl/yoga/yogaconfig.h"
 
 namespace apl {
 
@@ -111,7 +111,7 @@ public:
     DependantManager& dependantManager() const;
     VisibilityManager& visibilityManager() const;
 
-    const YGConfigRef& ygconfig() const;
+    const YogaConfig& ygconfig() const;
     const SessionPtr& session() const override { return mSession; }
 
     /**
@@ -130,16 +130,6 @@ public:
      * Release the screen lock
      */
     void releaseScreenLock();
-
-    /**
-     * @return internal text measurement cache.
-     */
-    LruCache<TextMeasureRequest, YGSize>& cachedMeasures();
-
-    /**
-     * @return internal text measurement baseline cache.
-     */
-    LruCache<TextMeasureRequest, float>& cachedBaselines();
 
     /**
      * @return List of pending onMount handlers for recently inflated components.

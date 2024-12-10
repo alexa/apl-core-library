@@ -33,16 +33,6 @@ class EventData;
  */
 enum EventType {
     /**
-     * Control media
-     *
-     * kEventPropertyCommand: The command to execute
-     * kEventPropertyValue: The integer value associated with that command
-     *
-     * Does not have an ActionRef.
-     */
-    kEventTypeControlMedia,
-
-    /**
      * Change the focus
      *
      * Does not have an ActionRef.
@@ -70,39 +60,13 @@ enum EventType {
     kEventTypeOpenURL,
 
     /**
-     * Play media
-     *
-     * kEventPropertyAudioTrack: The audio track we should play this media on.
-     * kEventPropertySource: An array of media sources
-     *
-     * The server must resolve the ActionRef when the audio track is set to foreground.
-     * If the audio track is background or none, the ActionRef is not provided.
-     */
-    kEventTypePlayMedia,
-
-    /**
-     * Warn the view host that a speak event is coming.
-     *
-     * kEventPropertySource: The speech URI.
-     *
-     * Does not have an ActionRef.
-     */
-    kEventTypePreroll,
-
-    /**
-     * Requests the bounds information for a text component
-     *
-     * The component is a TextComponent that needs the first line bounds measured
-     */
-    kEventTypeRequestFirstLineBounds,
-
-    /**
      * Requests the bounds information for a text component
      *
      * kEventPropertyRangeStart byte range start
      * kEventPropertyRangeEnd byte range end
      *
      * The component is a TextComponent that needs the line bounds measured
+     * @deprecated Should not be used.
      */
     kEventTypeRequestLineBounds,
 
@@ -129,16 +93,6 @@ enum EventType {
      * Does not have an ActionRef
      */
     kEventTypeSendEvent,
-
-    /**
-     * Speak a single component.
-     *
-     * kEventPropertyHighlightMode: Highlight mode. kEventHighlightModeLine or kEventHighlightModeBlock
-     * kEventPropertySource: The speech URI.
-     *
-     * The server must resolve the ActionRef when the scroll is completed.
-     */
-    kEventTypeSpeak,
 
     /**
      * Send a finish command.
@@ -233,32 +187,6 @@ enum EventProperty {
     kEventPropertyValue,
 };
 
-enum EventDirection {
-    kEventDirectionForward = 0,
-    kEventDirectionBackward = 1,
-};
-
-enum EventHighlightMode {
-    kEventHighlightModeLine = CommandHighlightMode::kCommandHighlightModeLine,
-    kEventHighlightModeBlock = CommandHighlightMode::kCommandHighlightModeBlock
-};
-
-enum EventAudioTrack {
-    kEventAudioTrackBackground = AudioTrack::kAudioTrackBackground,
-    kEventAudioTrackForeground = AudioTrack::kAudioTrackForeground,
-    kEventAudioTrackNone = AudioTrack::kAudioTrackNone
-};
-
-enum EventControlMediaCommand {
-    kEventControlMediaPlay = CommandControlMedia::kCommandControlMediaPlay,
-    kEventControlMediaPause = CommandControlMedia::kCommandControlMediaPause,
-    kEventControlMediaNext = CommandControlMedia::kCommandControlMediaNext,
-    kEventControlMediaPrevious = CommandControlMedia::kCommandControlMediaPrevious,
-    kEventControlMediaRewind = CommandControlMedia::kCommandControlMediaRewind,
-    kEventControlMediaSeek = CommandControlMedia::kCommandControlMediaSeek,
-    kEventControlMediaSetTrack = CommandControlMedia::kCommandControlMediaSetTrack
-};
-
 enum EventScrollAlign {
     kEventScrollAlignFirst = CommandScrollAlign::kCommandScrollAlignFirst,
     kEventScrollAlignCenter = CommandScrollAlign::kCommandScrollAlignCenter,
@@ -273,7 +201,6 @@ enum EventReason {
 
 enum EventMediaType {
     kEventMediaTypeImage,
-    kEventMediaTypeVideo,
     kEventMediaTypeVectorGraphic
 };
 

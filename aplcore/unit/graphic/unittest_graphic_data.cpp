@@ -373,7 +373,7 @@ static std::map<std::string, Object> BAD_NAME_TESTS = {
     { "234_foo", "${234_foo}" },
     { "åbc", "${åbc}" },
     { "abç", "${abç}" },
-    { "a-b", "nan" },
+    { "a-b", "" },
     { "0", "0" },
     { "", "" },
 };
@@ -391,4 +391,54 @@ TEST_F(GraphicDataTest, BadNameCheck)
         ASSERT_TRUE(IsEqual(it.second, text->getValue(apl::kGraphicPropertyText)));
         ASSERT_TRUE(ConsoleMessage());
     }
+}
+
+static const char *BIND_INVALID_NUMBER = R"apl(
+{
+  "type": "APL",
+  "version": "2022.2",
+  "graphics": {
+    "BOX": {
+      "type": "AVG",
+      "version": "1.2",
+      "width": 100,
+      "height": 100,
+      "parameters": [ { "name": "missingValue", "type": "number" } ],
+      "items": {
+        "type": "path",
+        "pathData": "M0,0",
+        "pathLength": "${missingValue}",
+        "fillOpacity": "${missingValue}",
+        "strokeDashOffset": "${missingValue}",
+        "strokeMiterLimit": "${missingValue}",
+        "strokeWidth": "${missingValue}",
+        "strokeOpacity": "${missingValue}"
+      }
+    }
+  },
+  "mainTemplate": {
+    "item": {
+      "type": "VectorGraphic",
+      "source": "BOX"
+    }
+  }
+}
+)apl";
+
+TEST_F(GraphicDataTest, InvalidNumberCheck)
+{
+    loadDocument(BIND_INVALID_NUMBER);
+    auto graphic = component->getCalculated(apl::kPropertyGraphic).get<Graphic>();
+    auto container = graphic->getRoot();
+    ASSERT_EQ(kGraphicElementTypeContainer, container->getType());
+    ASSERT_EQ(1, container->getChildCount());
+    auto path = container->getChildAt(0);
+    ASSERT_EQ(kGraphicElementTypePath, path->getType());
+    ASSERT_EQ(Object("M0,0"), path->getValue(kGraphicPropertyPathData));
+    ASSERT_EQ(Object(0), path->getValue(kGraphicPropertyPathLength));
+    ASSERT_EQ(Object(1.0), path->getValue(kGraphicPropertyFillOpacity));
+    ASSERT_EQ(Object(0), path->getValue(kGraphicPropertyStrokeDashOffset));
+    ASSERT_EQ(Object(4), path->getValue(kGraphicPropertyStrokeMiterLimit));
+    ASSERT_EQ(Object(1.0), path->getValue(kGraphicPropertyStrokeWidth));
+    ASSERT_EQ(Object(1.0), path->getValue(kGraphicPropertyStrokeOpacity));
 }

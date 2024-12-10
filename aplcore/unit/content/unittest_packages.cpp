@@ -2605,6 +2605,110 @@ TEST_F(PackagesTest, AcceptAlreadyLoaded)
     ASSERT_TRUE(content->isReady());
 }
 
+static const char *MAIN_WITH_DOMAIN = R"apl({
+  "type": "APL",
+  "version": "2024.3",
+  "import": [
+    {
+      "name": "basic",
+      "version": "1.2",
+      "domain": "https://helloworld.com"
+    }
+  ],
+  "mainTemplate": {
+    "item": {
+      "type": "Frame",
+      "width": "100%",
+      "height": "100%",
+      "backgroundColor": "@MyRed"
+    }
+  }
+})apl";
+
+TEST_F(PackagesTest, PackageWithDomain)
+{
+    content = Content::create(MAIN_WITH_DOMAIN, session);
+    ASSERT_TRUE(content);
+
+    // The document has one import it is waiting for
+    ASSERT_TRUE(content->isWaiting());
+    auto requested = content->getRequestedPackages();
+    ASSERT_EQ(1, requested.size());
+
+    auto request = *requested.begin();
+    ASSERT_STREQ("basic", request.reference().name().c_str());
+    ASSERT_STREQ("1.2", request.reference().version().c_str());
+    ASSERT_STREQ("https://helloworld.com", request.reference().domain().c_str());
+    content->addPackage(request, BASIC);
+    ASSERT_FALSE(content->isWaiting());
+    ASSERT_TRUE(content->isReady());
+
+    auto root = RootContext::create(metrics, content, *config);
+    ASSERT_TRUE(root);
+
+    rootDocument = root->topDocument();
+    component = CoreComponent::cast(root->topComponent());
+
+    ASSERT_EQ(0xff0101ff, component->getCalculated(apl::kPropertyBackgroundColor).getColor());
+}
+
+const char* MAIN_WITH_COMMON_DOMAIN = R"apl({
+  "type": "APL",
+  "version": "2024.3",
+  "import": [
+      {
+        "type": "allOf",
+        "domain": "https://helloworld.com",
+        "items": [
+          {
+            "name": "basic",
+            "version": "1.2"
+          },
+          {
+            "name": "not-basic",
+            "version": "1.2"
+          }
+        ]
+      }
+    ],
+    "mainTemplate": {
+    "item": {
+      "type": "Frame",
+      "width": "100%",
+      "height": "100%",
+      "backgroundColor": "@MyRed"
+    }
+  }
+})apl";
+
+TEST_F(PackagesTest, PackageWithCommonDomain)
+{
+    content = Content::create(MAIN_WITH_COMMON_DOMAIN, session);
+    ASSERT_TRUE(content);
+
+    // The document has one import it is waiting for
+    ASSERT_TRUE(content->isWaiting());
+    auto requested = content->getRequestedPackages();
+    ASSERT_EQ(2, requested.size());
+
+    for (const auto& request : requested) {
+        ASSERT_STREQ("1.2", request.reference().version().c_str());
+        ASSERT_STREQ("https://helloworld.com", request.reference().domain().c_str());
+        content->addPackage(request, BASIC);
+    }
+
+    ASSERT_FALSE(content->isWaiting());
+    ASSERT_TRUE(content->isReady());
+
+    auto root = RootContext::create(metrics, content, *config);
+    ASSERT_TRUE(root);
+
+    rootDocument = root->topDocument();
+    component = CoreComponent::cast(root->topComponent());
+
+    ASSERT_EQ(0xff0101ff, component->getCalculated(apl::kPropertyBackgroundColor).getColor());
+}
+
 #ifdef ALEXAEXTENSIONS
 // Extensions support
 

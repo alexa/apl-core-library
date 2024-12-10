@@ -53,7 +53,7 @@ TEST_F(SGNodeTest, DrawNode)
                         "color": "#0000ffff"
                     },
                     "type": "fill",
-                    "fillType": "even-odd"
+                    "fillType": "non-zero"
                 }
             ]
         }
@@ -104,7 +104,7 @@ TEST_F(SGNodeTest, TextNode)
                         "color": "#ff0000ff"
                     },
                     "type": "fill",
-                    "fillType": "even-odd"}
+                    "fillType": "non-zero"}
             ],
             "range":{
                 "lowerBound":0,
@@ -257,7 +257,7 @@ TEST_F(SGNodeTest, ImageNode)
 
     ASSERT_FALSE(image->setImage(filter));
     ASSERT_TRUE(image->setImage(sg::solid(sg::paint(Color(Color::TRANSPARENT)))));
-    ASSERT_FALSE(node->visible());
+    ASSERT_TRUE(node->visible()); // The node still has an image, even if it's transparent.
 }
 
 

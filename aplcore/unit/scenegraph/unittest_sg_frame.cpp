@@ -77,7 +77,7 @@ TEST_F(SGFrameTest, FrameWithBorder)
                                 .childClip(IsRoundRectPath(10, 10, 180, 280, 0))
                                 .content(IsDrawNode()
                                              .path(IsFramePath(RoundedRect({0, 0, 200, 300}, 0), 4))
-                                             .pathOp(IsFillOp(IsColorPaint(Color::BLUE))))));
+                                             .pathOp(IsFillOp(IsColorPaint(Color::BLUE), apl::sg::kFillTypeEvenOdd)))));
 }
 
 
@@ -114,7 +114,7 @@ TEST_F(SGFrameTest, FrameWithBorderAndFill)
                              .pathOp(IsFillOp(IsColorPaint(Color::WHITE)))
                              .next(IsDrawNode()
                                        .path(IsFramePath(RoundedRect({0, 0, 200, 300}, 0), 10))
-                                       .pathOp(IsFillOp(IsColorPaint(Color::BLUE)))))));
+                                       .pathOp(IsFillOp(IsColorPaint(Color::BLUE), apl::sg::kFillTypeEvenOdd))))));
 }
 
 
@@ -156,7 +156,7 @@ TEST_F(SGFrameTest, NestedFrames)
                 .outline(IsRoundRectPath(0, 0, 200, 400, 4))
                 .content(IsDrawNode()
                              .path(IsFramePath(RoundedRect({0, 0, 200, 400}, 4), 10))
-                             .pathOp(IsFillOp(IsColorPaint(Color::BLUE))))
+                             .pathOp(IsFillOp(IsColorPaint(Color::BLUE), apl::sg::kFillTypeEvenOdd)))
                 .childClip(IsRoundRectPath(10, 10, 180, 380, 0))
                 .child(IsLayer(Rect{20, 20, 160, 360}, " inner frame")
                            .outline(IsRoundRectPath(0, 0, 160, 360, 15))
@@ -359,7 +359,7 @@ TEST_F(SGFrameTest, ModifyGradientFrames) {
                              .pathOp(IsFillOp(IsLinearGradientPaint({0, 1},
                                                                     {Color::RED, Color::WHITE},
                                                                     Gradient::GradientSpreadMethod::PAD,
-                                                                    true, {0.5, 0}, {0.5, 1}, 1,
+                                                                    true, {0.5, 1}, {0.5, 0}, 1,
                                                                     Transform2D())))),
             IsLayer(Rect{0, 50, 40, 50}, "..frame2")
                 .content(IsDrawNode()
@@ -436,7 +436,7 @@ TEST_F(SGFrameTest, Resize) {
             .childClip(IsRoundRectPath(RoundedRect(Rect{1,1,298,298}, 0)))
             .content(IsDrawNode()
                          .path(IsFramePath(RoundedRect(Rect{0, 0, 300, 300}, 0), 1))
-                         .pathOp(IsFillOp(IsColorPaint(Color::RED))))));
+                         .pathOp(IsFillOp(IsColorPaint(Color::RED), apl::sg::kFillTypeEvenOdd)))));
 
     // Resize the screen
     configChange(ConfigurationChange(200,200));
@@ -449,5 +449,5 @@ TEST_F(SGFrameTest, Resize) {
             .childClip(IsRoundRectPath(RoundedRect(Rect{1,1,198,198}, 0)))
             .content(IsDrawNode()
                          .path(IsFramePath(RoundedRect(Rect{0, 0, 200, 200}, 0), 1))
-                         .pathOp(IsFillOp(IsColorPaint(Color::RED))))));
+                         .pathOp(IsFillOp(IsColorPaint(Color::RED), apl::sg::kFillTypeEvenOdd)))));
 }

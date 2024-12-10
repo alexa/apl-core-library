@@ -424,7 +424,7 @@ TEST_F(HoverTest, Basic)
 // Test hover state with frame inherits parent state
 TEST_F(HoverTest, FrameInherit)
 {
-    std::string frameProperties = ",\"inheritParentState\": \"true\"";
+    std::string frameProperties = R"(, "inheritParentState": "true")";
     std::string textProperties = ON_CURSOR;
     init(frameProperties.c_str(), textProperties.c_str());
 
@@ -541,7 +541,7 @@ TEST_F(HoverTest, FrameDisabled)
 TEST_F(HoverTest, FrameDisabledTextInherit)
 {
     std::string frameProperties = "";
-    std::string textProperties = ",\"inheritParentState\": \"true\"" + ON_CURSOR;
+    std::string textProperties = R"(, "inheritParentState": "true")" + ON_CURSOR;
     init(frameProperties.c_str(), textProperties.c_str());
 
     // Simulate cursor entering in the touch wrapper
@@ -592,48 +592,47 @@ TEST_F(HoverTest, FrameDisabledTextInherit)
     root->clearDirty();
 }
 
-static const char *SCROLL_TEST =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"mainTemplate\": {"
-    "    \"items\": {"
-    "      \"type\": \"Container\","
-    "      \"id\": \"myContainer\","
-    "      \"paddingTop\": 75,"
-    "      \"paddingBottom\": 75,"
-    "      \"width\": 200,"
-    "      \"height\": 300,"
-    "      \"items\": ["
-    "        {"
-    "          \"type\": \"ScrollView\","
-    "          \"id\": \"myScrollView\","
-    "          \"paddingTop\": 50,"
-    "          \"paddingBottom\": 50,"
-    "          \"width\": \"200\","
-    "          \"height\": \"200\","
-    "          \"items\": {"
-    "            \"type\": \"Frame\","
-    "            \"id\": \"myFrame\","
-    "            \"paddingTop\": 25,"
-    "            \"paddingBottom\": 25,"
-    "            \"width\": 200,"
-    "            \"height\": 1000"
-    "          }"
-    "        },"
-    "        {"
-    "          \"type\": \"TouchWrapper\","
-    "          \"id\": \"myTouch\","
-    "          \"onPress\": {"
-    "            \"type\": \"Scroll\","
-    "            \"componentId\": \"myScrollView\","
-    "            \"distance\": 0.5"
-    "          }"
-    "        }"
-    "      ]"
-    "    }"
-    "  }"
-    "}";
+static const char *SCROLL_TEST = R"({
+  "type": "APL",
+  "version": "1.1",
+  "mainTemplate": {
+    "items": {
+      "type": "Container",
+      "id": "myContainer",
+      "paddingTop": 75,
+      "paddingBottom": 75,
+      "width": 200,
+      "height": 300,
+      "items": [
+        {
+          "type": "ScrollView",
+          "id": "myScrollView",
+          "paddingTop": 50,
+          "paddingBottom": 50,
+          "width": "200",
+          "height": "200",
+          "items": {
+            "type": "Frame",
+            "id": "myFrame",
+            "paddingTop": 25,
+            "paddingBottom": 25,
+            "width": 200,
+            "height": 1000
+          }
+        },
+        {
+          "type": "TouchWrapper",
+          "id": "myTouch",
+          "onPress": {
+            "type": "Scroll",
+            "componentId": "myScrollView",
+            "distance": 0.5
+          }
+        }
+      ]
+    }
+  }
+})";
 
 TEST_F(HoverTest, ScrollView) {
     loadDocument(SCROLL_TEST);
@@ -655,45 +654,38 @@ TEST_F(HoverTest, ScrollView) {
     ASSERT_EQ(top->getContext()->hoverManager().findHoverByPosition(Point(1,156)), frame);
 }
 
-static const char *SCROLL_CONTAINER_TEST =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"mainTemplate\": {"
-    "    \"items\": {"
-    "      \"type\": \"Container\","
-    "      \"id\": \"myContainer\","
-    "      \"width\": 200,"
-    "      \"height\": 300,"
-    "      \"item\": ["
-    "        {"
-    "          \"type\": \"ScrollView\","
-    "          \"id\": \"myScrollView\","
-    "          \"width\": \"200\","
-    "          \"height\": \"200\","
-    "          \"item\": {"
-    "            \"type\": \"Container\","
-    "            \"direction\": \"column\","
-    "            \"id\": \"myScrollViewContainer\","
-    "            \"data\": ["
-    "              1,"
-    "              2,"
-    "              3,"
-    "              4,"
-    "              5"
-    "            ],"
-    "            \"item\": {"
-    "              \"type\": \"Frame\","
-    "              \"id\": \"id${data}\","
-    "              \"width\": 100,"
-    "              \"height\": 100"
-    "            }"
-    "          }"
-    "        }"
-    "      ]"
-    "    }"
-    "  }"
-    "}";
+static const char *SCROLL_CONTAINER_TEST = R"({
+  "type": "APL",
+  "version": "1.1",
+  "mainTemplate": {
+    "items": {
+      "type": "Container",
+      "id": "myContainer",
+      "width": 200,
+      "height": 300,
+      "item": [
+        {
+          "type": "ScrollView",
+          "id": "myScrollView",
+          "width": "200",
+          "height": "200",
+          "item": {
+            "type": "Container",
+            "direction": "column",
+            "id": "myScrollViewContainer",
+            "data": [1, 2, 3, 4, 5],
+            "item": {
+              "type": "Frame",
+              "id": "id${data}",
+              "width": 100,
+              "height": 100
+            }
+          }
+        }
+      ]
+    }
+  }
+})";
 
 TEST_F(HoverTest, ScrollViewContainer) {
     loadDocument(SCROLL_CONTAINER_TEST);
@@ -718,32 +710,25 @@ TEST_F(HoverTest, ScrollViewContainer) {
     ASSERT_EQ(top->getContext()->hoverManager().findHoverByPosition(Point(1,101)), frames[3]);
 }
 
-static const char *PAGER_TEST =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"mainTemplate\": {"
-    "    \"items\": {"
-    "      \"type\": \"Pager\","
-    "      \"id\": \"myPager\","
-    "      \"width\": 100,"
-    "      \"height\": 100,"
-    "      \"items\": {"
-    "        \"type\": \"Text\","
-    "        \"id\": \"id${data}\","
-    "        \"text\": \"TEXT${data}\","
-    "        \"speech\": \"URL${data}\""
-    "      },"
-    "      \"data\": ["
-    "        1,"
-    "        2,"
-    "        3,"
-    "        4,"
-    "        5"
-    "      ]"
-    "    }"
-    "  }"
-    "}";
+static const char *PAGER_TEST = R"({
+  "type": "APL",
+  "version": "1.1",
+  "mainTemplate": {
+    "items": {
+      "type": "Pager",
+      "id": "myPager",
+      "width": 100,
+      "height": 100,
+      "items": {
+        "type": "Text",
+        "id": "id${data}",
+        "text": "TEXT${data}",
+        "speech": "URL${data}"
+      },
+      "data": [1, 2, 3, 4, 5]
+    }
+  }
+})";
 
 TEST_F(HoverTest, Pager) {
     loadDocument(PAGER_TEST);
@@ -763,38 +748,31 @@ TEST_F(HoverTest, Pager) {
     ASSERT_EQ(context->hoverManager().findHoverByPosition(Point(1,1)), frames[1]);
 }
 
-static const char *PAGER_TEST_FRAME =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"mainTemplate\": {"
-    "    \"items\": {"
-    "      \"type\": \"Pager\","
-    "      \"id\": \"myPager\","
-    "      \"width\": 300,"
-    "      \"height\": 100,"
-    "      \"item\": {"
-    "        \"type\": \"Frame\","
-    "        \"id\": \"frame${data}\","
-    "        \"width\": 100,"
-    "        \"height\": 100,"
-    "        \"items\": {"
-    "          \"type\": \"Text\","
-    "          \"id\": \"text${data}\","
-    "          \"text\": \"TEXT${data}\","
-    "          \"speech\": \"URL${data}\""
-    "        }"
-    "      },"
-    "      \"data\": ["
-    "        1,"
-    "        2,"
-    "        3,"
-    "        4,"
-    "        5"
-    "      ]"
-    "    }"
-    "  }"
-    "}";
+static const char *PAGER_TEST_FRAME = R"({
+  "type": "APL",
+  "version": "1.1",
+  "mainTemplate": {
+    "items": {
+      "type": "Pager",
+      "id": "myPager",
+      "width": 300,
+      "height": 100,
+      "item": {
+        "type": "Frame",
+        "id": "frame${data}",
+        "width": 100,
+        "height": 100,
+        "items": {
+          "type": "Text",
+          "id": "text${data}",
+          "text": "TEXT${data}",
+          "speech": "URL${data}"
+        }
+      },
+      "data": [1, 2, 3, 4, 5]
+    }
+  }
+})";
 
 TEST_F(HoverTest, PagerFrame) {
     loadDocument(PAGER_TEST_FRAME);
@@ -819,40 +797,28 @@ TEST_F(HoverTest, PagerFrame) {
     ASSERT_EQ(context->hoverManager().findHoverByPosition(Point(1,1)), texts[1]);
 }
 
-static const char *SEQUENCE_HORIZONTAL =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"mainTemplate\": {"
-    "    \"items\": {"
-    "      \"type\": \"Sequence\","
-    "      \"scrollDirection\": \"horizontal\","
-    "      \"id\": \"mySequence\","
-    "      \"width\": 200,"
-    "      \"height\": 300,"
-    "      \"paddingLeft\": 50,"
-    "      \"paddingRight\": 50,"
-    "      \"items\": {"
-    "        \"type\": \"Frame\","
-    "        \"id\": \"id${data}\","
-    "        \"width\": 100,"
-    "        \"height\": 100"
-    "      },"
-    "      \"data\": ["
-    "        1,"
-    "        2,"
-    "        3,"
-    "        4,"
-    "        5,"
-    "        6,"
-    "        7,"
-    "        8,"
-    "        9,"
-    "        10"
-    "      ]"
-    "    }"
-    "  }"
-    "}";
+static const char *SEQUENCE_HORIZONTAL = R"({
+  "type": "APL",
+  "version": "1.1",
+  "mainTemplate": {
+    "items": {
+      "type": "Sequence",
+      "scrollDirection": "horizontal",
+      "id": "mySequence",
+      "width": 200,
+      "height": 300,
+      "paddingLeft": 50,
+      "paddingRight": 50,
+      "items": {
+        "type": "Frame",
+        "id": "id${data}",
+        "width": 100,
+        "height": 100
+      },
+      "data": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+    }
+  }
+})";
 
 TEST_F(HoverTest, SequenceHorizontal) {
     loadDocument(SEQUENCE_HORIZONTAL);
@@ -878,41 +844,29 @@ TEST_F(HoverTest, SequenceHorizontal) {
     ASSERT_EQ(context->hoverManager().findHoverByPosition(Point(51,1)), frames[5]);
 }
 
-static const char *SEQUENCE_VERTICAL_PADDING =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"mainTemplate\": {"
-    "    \"items\": {"
-    "      \"type\": \"Sequence\","
-    "      \"scrollDirection\": \"vertical\","
-    "      \"id\": \"mySequence\","
-    "      \"width\": 200,"
-    "      \"height\": 300,"
-    "      \"paddingTop\": 50,"
-    "      \"paddingBottom\": 50,"
-    "      \"items\": {"
-    "        \"type\": \"Frame\","
-    "        \"id\": \"id${data}\","
-    "        \"spacing\": 10,"
-    "        \"width\": 100,"
-    "        \"height\": 100"
-    "      },"
-    "      \"data\": ["
-    "        1,"
-    "        2,"
-    "        3,"
-    "        4,"
-    "        5,"
-    "        6,"
-    "        7,"
-    "        8,"
-    "        9,"
-    "        10"
-    "      ]"
-    "    }"
-    "  }"
-    "}";
+static const char *SEQUENCE_VERTICAL_PADDING = R"({
+  "type": "APL",
+  "version": "1.1",
+  "mainTemplate": {
+    "items": {
+      "type": "Sequence",
+      "scrollDirection": "vertical",
+      "id": "mySequence",
+      "width": 200,
+      "height": 300,
+      "paddingTop": 50,
+      "paddingBottom": 50,
+      "items": {
+        "type": "Frame",
+        "id": "id${data}",
+        "spacing": 10,
+        "width": 100,
+        "height": 100
+      },
+      "data": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+    }
+  }
+})";
 
 TEST_F(HoverTest, SequenceVerticalPadding) {
     loadDocument(SEQUENCE_VERTICAL_PADDING);
@@ -946,43 +900,31 @@ TEST_F(HoverTest, SequenceVerticalPadding) {
     ASSERT_EQ(context->hoverManager().findHoverByPosition(Point(1,251)), frames[9]);
 }
 
-static const char *SEQUENCE_VERTICAL =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"mainTemplate\": {"
-    "    \"items\": {"
-    "      \"type\": \"Sequence\","
-    "      \"scrollDirection\": \"vertical\","
-    "      \"id\": \"mySequence\","
-    "      \"width\": 200,"
-    "      \"height\": 300,"
-    "      \"items\": {"
-    "        \"type\": \"Frame\","
-    "        \"id\": \"id${data}\","
-    "        \"width\": 100,"
-    "        \"height\": 100,"
-    "        \"item\": {"
-    "          \"type\": \"Text\","
-    "          \"id\": \"text${data}\","
-    "          \"text\": \"Number ${data}\""
-    "        }"
-    "      },"
-    "      \"data\": ["
-    "        1,"
-    "        2,"
-    "        3,"
-    "        4,"
-    "        5,"
-    "        6,"
-    "        7,"
-    "        8,"
-    "        9,"
-    "        10"
-    "      ]"
-    "    }"
-    "  }"
-    "}";
+static const char *SEQUENCE_VERTICAL = R"({
+  "type": "APL",
+  "version": "1.1",
+  "mainTemplate": {
+    "items": {
+      "type": "Sequence",
+      "scrollDirection": "vertical",
+      "id": "mySequence",
+      "width": 200,
+      "height": 300,
+      "items": {
+        "type": "Frame",
+        "id": "id${data}",
+        "width": 100,
+        "height": 100,
+        "item": {
+          "type": "Text",
+          "id": "text${data}",
+          "text": "Number ${data}"
+        }
+      },
+      "data": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+    }
+  }
+})";
 
 TEST_F(HoverTest, SequenceVertical) {
     loadDocument(SEQUENCE_VERTICAL);
@@ -1015,46 +957,35 @@ TEST_F(HoverTest, SequenceVertical) {
     ASSERT_EQ(context->hoverManager().findHoverByPosition(Point(1,111)), frames[7]);
 }
 
-static const char *SEQUENCE_VERTICAL_PADDING_TEXT =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"mainTemplate\": {"
-    "    \"items\": {"
-    "      \"type\": \"Sequence\","
-    "      \"scrollDirection\": \"vertical\","
-    "      \"id\": \"mySequence\","
-    "      \"width\": 200,"
-    "      \"height\": 300,"
-    "      \"paddingTop\": 50,"
-    "      \"paddingBottom\": 50,"
-    "      \"items\": {"
-    "        \"type\": \"Frame\","
-    "        \"id\": \"id${data}\","
-    "        \"spacing\": 10,"
-    "        \"width\": 100,"
-    "        \"height\": 100,"
-    "        \"item\": {"
-    "          \"type\": \"Text\","
-    "          \"id\": \"text${data}\","
-    "          \"text\": \"Number ${data}\""
-    "        }"
-    "      },"
-    "      \"data\": ["
-    "        1,"
-    "        2,"
-    "        3,"
-    "        4,"
-    "        5,"
-    "        6,"
-    "        7,"
-    "        8,"
-    "        9,"
-    "        10"
-    "      ]"
-    "    }"
-    "  }"
-    "}";
+static const char *SEQUENCE_VERTICAL_PADDING_TEXT = R"(
+{
+  "type": "APL",
+  "version": "1.1",
+  "mainTemplate": {
+    "items": {
+      "type": "Sequence",
+      "scrollDirection": "vertical",
+      "id": "mySequence",
+      "width": 200,
+      "height": 300,
+      "paddingTop": 50,
+      "paddingBottom": 50,
+      "items": {
+        "type": "Frame",
+        "id": "id${data}",
+        "spacing": 10,
+        "width": 100,
+        "height": 100,
+        "item": {
+          "type": "Text",
+          "id": "text${data}",
+          "text": "Number ${data}"
+        }
+      },
+      "data": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+    }
+  }
+})";
 
 TEST_F(HoverTest, SequenceVerticalPaddingText) {
     loadDocument(SEQUENCE_VERTICAL_PADDING_TEXT);
@@ -1093,51 +1024,47 @@ TEST_F(HoverTest, SequenceVerticalPaddingText) {
     ASSERT_EQ(context->hoverManager().findHoverByPosition(Point(1,251)), context->findComponentById("id10")); // y=1001
 }
 
-static const char *LOCAL_TEST =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"mainTemplate\": {"
-    "    \"items\": {"
-    "      \"type\": \"Container\","
-    "      \"items\": {"
-    "        \"type\": \"Text\","
-    "        \"text\": \"Text ${data}\","
-    "        \"color\": \"red\","
-    "        \"width\": 100,"
-    "        \"height\": 100,"
-    "        \"onCursorEnter\": ["
-    "          {"
-    "            \"type\": \"SetValue\","
-    "            \"property\": \"color\","
-    "            \"value\": \"blue\""
-    "          },"
-    "          {"
-    "            \"type\": \"SetValue\","
-    "            \"property\": \"text\","
-    "            \"value\": \"Blue Text ${data}\""
-    "          }"
-    "        ],"
-    "        \"onCursorExit\": ["
-    "          {"
-    "            \"type\": \"SetValue\","
-    "            \"property\": \"color\","
-    "            \"value\": \"green\""
-    "          },"
-    "          {"
-    "            \"type\": \"SetValue\","
-    "            \"property\": \"text\","
-    "            \"value\": \"Green Text ${data}\""
-    "          }"
-    "        ]"
-    "      },"
-    "      \"data\": ["
-    "        1,"
-    "        2"
-    "      ]"
-    "    }"
-    "  }"
-    "}";
+static const char *LOCAL_TEST = R"({
+  "type": "APL",
+  "version": "1.1",
+  "mainTemplate": {
+    "items": {
+      "type": "Container",
+      "items": {
+        "type": "Text",
+        "text": "Text ${data}",
+        "color": "red",
+        "width": 100,
+        "height": 100,
+        "onCursorEnter": [
+          {
+            "type": "SetValue",
+            "property": "color",
+            "value": "blue"
+          },
+          {
+            "type": "SetValue",
+            "property": "text",
+            "value": "Blue Text ${data}"
+          }
+        ],
+        "onCursorExit": [
+          {
+            "type": "SetValue",
+            "property": "color",
+            "value": "green"
+          },
+          {
+            "type": "SetValue",
+            "property": "text",
+            "value": "Green Text ${data}"
+          }
+        ]
+      },
+      "data": [1, 2]
+    }
+  }
+})";
 
 TEST_F(HoverTest, LOCAL_TEST)
 {
@@ -1292,54 +1219,52 @@ TEST_F(HoverTest, CursorMove_DisabledComponent)
 
 
 
-static const char *STYLE_TEST =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.2\","
-    "  \"styles\": {"
-    "    \"frameStyle\": {"
-    "      \"values\": ["
-    "        {"
-    "          \"backgroundColor\": \"blue\""
-    "        },"
-    "        {"
-    "          \"when\": \"${state.hover}\","
-    "          \"backgroundColor\": \"red\""
-    "        }"
-    "      ]"
-    "    },"
-    "    \"textStyle\": {"
-    "      \"values\": ["
-    "        {"
-    "          \"color\": \"white\""
-    "        },"
-    "        {"
-    "          \"when\": \"${state.hover}\","
-    "          \"color\": \"black\""
-    "        }"
-    "      ]"
-    ""
-    "    }"
-    "  },"
-    "  \"mainTemplate\": {"
-    "    \"item\": {"
-    "      \"type\": \"Frame\","
-    "      \"id\": \"testFrame\","
-    "      \"style\": \"frameStyle\","
-    "      \"paddingTop\": 50,"
-    "      \"paddingLeft\": 50,"
-    "      \"width\": 100,"
-    "      \"height\": 100,"
-    "      \"item\": {"
-    "        \"type\": \"Text\","
-    "        \"id\": \"textComp\","
-    "        \"text\": \"Text\","
-    "        \"style\": \"textStyle\","
-    "        \"inheritParentState\": \"true\""
-    "      }"
-    "    }"
-    "  }"
-    "}";
+static const char *STYLE_TEST = R"({
+  "type": "APL",
+  "version": "1.2",
+  "styles": {
+    "frameStyle": {
+      "values": [
+        {
+          "backgroundColor": "blue"
+        },
+        {
+          "when": "${state.hover}",
+          "backgroundColor": "red"
+        }
+      ]
+    },
+    "textStyle": {
+      "values": [
+        {
+          "color": "white"
+        },
+        {
+          "when": "${state.hover}",
+          "color": "black"
+        }
+      ]
+    }
+  },
+  "mainTemplate": {
+    "item": {
+      "type": "Frame",
+      "id": "testFrame",
+      "style": "frameStyle",
+      "paddingTop": 50,
+      "paddingLeft": 50,
+      "width": 100,
+      "height": 100,
+      "item": {
+        "type": "Text",
+        "id": "textComp",
+        "text": "Text",
+        "style": "textStyle",
+        "inheritParentState": "true"
+      }
+    }
+  }
+})";
 
 /*
  * Test style changes based on inherited state.  Verify unnecessary changes don't happen.
@@ -1426,3 +1351,73 @@ TEST_F(HoverTest, PointerCancelWithNoActivePointer)
     root->handlePointerEvent(PointerEvent(PointerEventType::kPointerCancel, {1030,190}));
 }
 
+static const char *CURSOR_EVENTS = R"({
+  "type": "APL",
+  "version": "1.1",
+  "mainTemplate": {
+    "items": {
+      "type": "Container",
+      "items": {
+        "type": "Text",
+        "text": "Text ${data}",
+        "width": 100,
+        "height": 100,
+        "onCursorEnter": [
+          {
+            "type": "SendEvent",
+            "sequencer": "SEND_EVENTER",
+            "arguments": [ "ENTER", "${event.source.handler}", "${event.component.width}:${event.component.height}:${event.component.x}:${event.component.y}" ]
+          }
+        ],
+        "onCursorExit": [
+          {
+            "type": "SendEvent",
+            "sequencer": "SEND_EVENTER",
+            "arguments": [ "EXIT", "${event.source.handler}" ]
+          }
+        ],
+        "onCursorMove": [
+          {
+            "type": "SendEvent",
+            "sequencer": "SEND_EVENTER",
+            "arguments": [ "MOVE", "${event.source.handler}", "${event.component.width}:${event.component.height}:${event.component.x}:${event.component.y}" ]
+          }
+        ]
+      },
+      "data": [1, 2]
+    }
+  }
+})";
+
+TEST_F(HoverTest, CursorEvents)
+{
+    loadDocument(CURSOR_EVENTS);
+    ASSERT_TRUE(component);
+    ASSERT_EQ(2, component->getChildCount());
+
+    // Hover over the first component
+    root->handlePointerEvent(PointerEvent(PointerEventType::kPointerMove, {25,25}));
+    advanceTime(16);
+    ASSERT_TRUE(CheckSendEvent(root, "ENTER", "CursorEnter", "100:100:25:25"));
+
+    // Move Hover
+    root->handlePointerEvent(PointerEvent(PointerEventType::kPointerMove, {50,50}));
+    advanceTime(16);
+    ASSERT_TRUE(CheckSendEvent(root, "MOVE", "CursorMove", "100:100:50:50"));
+
+    // Hover over the second component
+    root->handlePointerEvent(PointerEvent(PointerEventType::kPointerMove, {50,125}));
+    advanceTime(16);
+    ASSERT_TRUE(CheckSendEvent(root, "EXIT", "CursorExit"));
+    ASSERT_TRUE(CheckSendEvent(root, "ENTER", "CursorEnter", "100:100:50:25"));
+
+    // Move Hover
+    root->handlePointerEvent(PointerEvent(PointerEventType::kPointerMove, {50,150}));
+    advanceTime(16);
+    ASSERT_TRUE(CheckSendEvent(root, "MOVE", "CursorMove", "100:100:50:50"));
+
+    // Clear away from all components
+    root->handlePointerEvent(PointerEvent(PointerEventType::kPointerMove, {300, 300}));
+    advanceTime(16);
+    ASSERT_TRUE(CheckSendEvent(root, "EXIT", "CursorExit"));
+}

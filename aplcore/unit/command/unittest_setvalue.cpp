@@ -81,7 +81,7 @@ TEST_F(SetValueTest, NonDynamicProperty)
     component->setProperty("foo", "Dummy");
     ASSERT_TRUE(ConsoleMessage());
 
-    component->setProperty(kPropertyLetterSpacing, "2dp");
+    component->setProperty(kPropertyOnTextLayout, "left");
     ASSERT_TRUE(ConsoleMessage());
 
     // Nothing should be dirty
@@ -213,6 +213,65 @@ TEST_F(SetValueTest, SimulatePressEvent)
     ASSERT_EQ(1, root->getDirty().size());
     ASSERT_EQ("Two", text->getCalculated(kPropertyText).asString());
 
+}
+
+const char *ON_PRESS_HANDLER_INVALID_TARGET = R"({
+    "type": "APL",
+    "version": "1.0",
+    "styles": {
+      "base": {
+        "values": [
+          {
+            "color": "red"
+          },
+          {
+            "when": "${state.pressed}",
+            "color": "blue"
+          }
+        ]
+      }
+    },
+    "mainTemplate": {
+        "parameters": [
+            "payload"
+        ],
+        "items": {
+          "type": "TouchWrapper",
+          "onPress": {
+            "type": "SetValue",
+            "componentId": "InvalidId",
+            "property": "text",
+            "value": "Two"
+          },
+          "items": {
+            "type": "Text",
+            "id": "abc",
+            "style": "base",
+            "text": "One",
+            "inheritParentState": true
+          }
+        }
+      }
+    })";
+
+TEST_F(SetValueTest, SimulatePressEventInvalidTarget)
+{
+    loadDocument(ON_PRESS_HANDLER_INVALID_TARGET, DATA);
+
+    // First, tap down
+    root->handlePointerEvent(PointerEvent(kPointerDown, Point(1,1)));
+    root->clearDirty();
+
+    // Next, release the tap
+    root->handlePointerEvent(PointerEvent(kPointerUp, Point(1,1)));
+    loop->advanceToEnd();
+
+    ASSERT_TRUE(session->checkAndClear("Illegal command SetValue: Could not resolve target 'InvalidId'. Need to specify a valid target componentId",
+                               "Command provenance: _main/mainTemplate/items",
+                               "Dumping all properties for SetValue",
+                               "   property: 'componentId', value: 'InvalidId'",
+                               "   property: 'property', value: 'text'",
+                               "   property: 'value', value: 'Two'"));
 }
 
 const char *ON_PRESS_HANDLER_CHECKED =

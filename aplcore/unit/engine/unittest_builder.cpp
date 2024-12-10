@@ -382,7 +382,7 @@ TEST_F(BuilderTest, SimpleText)
     ASSERT_EQ(1.25, component->getCalculated(kPropertyLineHeight).getDouble());
     ASSERT_EQ(0, component->getCalculated(kPropertyMaxLines).getInteger());
     ASSERT_EQ("", component->getCalculated(kPropertyText).asString());
-    ASSERT_EQ(kTextAlignAuto, component->getCalculated(kPropertyTextAlign).getInteger());
+    ASSERT_EQ(kTextAlignLeft, component->getCalculated(kPropertyTextAlign).getInteger());
     ASSERT_EQ(kTextAlignVerticalAuto, component->getCalculated(kPropertyTextAlignVertical).getInteger());
 }
 
@@ -1462,7 +1462,7 @@ static const char *FULL_VIDEO = R"(
                                          "id": "abc",
                                          "type": "Video",
                                          "audioTrack": "background",
-                                         "autoplay": "true",
+                                         "autoplay": "false",
                                          "muted": "true",
                                          "scale": "best-fill",
                                          "source": [ 
@@ -1559,6 +1559,12 @@ static const char *FULL_VIDEO = R"(
 
 TEST_F(BuilderTest, FullVideo)
 {
+    mediaPlayerFactory->addFakeContent({
+        {"URL1", 1000, 0, -1},
+        {"URL2", 1000, 0, -1},
+        {"URL3", 1000, 0, -1},
+    });
+
     loadDocument(FULL_VIDEO, DATA);
     auto map = component->getCalculated();
 
@@ -1597,7 +1603,7 @@ TEST_F(BuilderTest, FullVideo)
     ASSERT_EQ(4, map.get(kPropertyOnTrackUpdate).size());
     ASSERT_EQ(5, map.get(kPropertyOnTrackFail).size());
     ASSERT_EQ(6, map.get(kPropertyOnTrackReady).size());
-    ASSERT_EQ(true, map.get(kPropertyAutoplay).getBoolean());
+    ASSERT_EQ(false, map.get(kPropertyAutoplay).getBoolean());
     ASSERT_EQ(true, map.get(kPropertyMuted).getBoolean());
 
     ASSERT_EQ(3, map.get(kPropertySource).size());

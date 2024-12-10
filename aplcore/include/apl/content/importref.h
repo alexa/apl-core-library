@@ -35,17 +35,19 @@ public:
     ImportRef(
         const std::string& name,
         const std::string& version)
-        : ImportRef(name, version, "", std::set<std::string>(), nullptr, nullptr)
+        : ImportRef(name, version, "", "", std::set<std::string>(), nullptr, nullptr)
     {}
 
     ImportRef(
         const std::string& name,
         const std::string& version,
         const std::string& source,
+        const std::string& domain,
         const std::set<std::string>& loadAfter,
         const SemanticVersionPtr& semanticVersion,
         const SemanticPatternPtr& acceptPattern)
-        : mName(name), mVersion(version), mSource(source), mLoadAfter(loadAfter), mSemanticVersion(semanticVersion), mAcceptPattern(acceptPattern)
+        : mName(name), mVersion(version), mSource(source), mDomain(domain), mLoadAfter(loadAfter),
+          mSemanticVersion(semanticVersion), mAcceptPattern(acceptPattern)
     {}
 
     ImportRef(const ImportRef&) = default;
@@ -56,6 +58,7 @@ public:
     const std::string& name() const { return mName; }
     const std::string& version() const { return mVersion; }
     const std::string& source() const { return mSource; }
+    const std::string& domain() const { return mDomain; }
     const std::set<std::string>& loadAfter() const { return mLoadAfter; }
     const SemanticVersionPtr& semanticVersion() const { return mSemanticVersion; }
     const SemanticPatternPtr& acceptPattern() const { return mAcceptPattern; }
@@ -91,6 +94,7 @@ private:
     std::string mName;
     std::string mVersion;
     std::string mSource;
+    std::string mDomain;
     std::set<std::string> mLoadAfter;
     SemanticVersionPtr mSemanticVersion;
     SemanticPatternPtr mAcceptPattern;

@@ -432,7 +432,7 @@ TEST_F(StylesTest, ComponentStyling)
     ASSERT_EQ(0, text->getCalculated(kPropertyLetterSpacing).asDimension(*context).getValue());
     ASSERT_EQ(1.25, text->getCalculated(kPropertyLineHeight).asNumber());
     ASSERT_EQ(0, text->getCalculated(kPropertyMaxLines).asInt());
-    ASSERT_EQ(kTextAlignAuto, text->getCalculated(kPropertyTextAlign).asInt());
+    ASSERT_EQ(kTextAlignLeft, text->getCalculated(kPropertyTextAlign).asInt());
     ASSERT_EQ(kTextAlignVerticalAuto, text->getCalculated(kPropertyTextAlignVertical).asInt());
 
     auto frame = container->getCoreChildAt(2);

@@ -88,6 +88,7 @@ add_subdirectory(src/touch)
 add_subdirectory(src/utils)
 add_subdirectory(src/versioning)
 add_subdirectory(src/scenegraph)
+add_subdirectory(src/yoga)
 
 set(
     PUBLIC_HEADER_LIST

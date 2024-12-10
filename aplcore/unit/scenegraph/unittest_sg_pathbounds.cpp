@@ -37,7 +37,7 @@ CheckScaleExpansion(Point expected, Transform2D transform, float epsilon=1e-6)
 
 const std::vector<PathBoundsTest> BOUNDS_TESTS = {
     {"", {}},               // Null set
-    {"M20,20 10,10", {}},   // Still a null set
+    {"M20,20 10,10", {10, 10, 10, 10}},   // Implicit L
     {"h20", {0, 0, 20, 0}}, // Simple horizontal line
     {"h20 v20", {0, 0, 20, 20}}, // Simple vertical
     {"M10,10 h20", {10, 10, 20, 0}},  // Offset horizontal line

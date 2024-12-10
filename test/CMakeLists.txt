@@ -39,6 +39,9 @@ target_link_libraries(parseLayout apl ${OTHER_LIBS})
 add_executable(parseDirective parseDirective.cpp)
 target_link_libraries(parseDirective apl ${OTHER_LIBS})
 
+add_executable(fuzzAccept fuzzAccept.cpp)
+target_link_libraries(fuzzAccept apl ${OTHER_LIBS})
+
 add_executable(fuzzColor fuzzColor.cpp)
 target_link_libraries(fuzzColor apl ${OTHER_LIBS})
 
@@ -47,6 +50,9 @@ target_link_libraries(fuzzExpression apl ${OTHER_LIBS})
 
 add_executable(fuzzEasing fuzzEasing.cpp)
 target_link_libraries(fuzzEasing apl ${OTHER_LIBS})
+
+add_executable(fuzzVersion fuzzVersion.cpp)
+target_link_libraries(fuzzVersion apl ${OTHER_LIBS})
 
 add_executable(parseTransform parseTransform.cpp)
 target_link_libraries(parseTransform apl ${OTHER_LIBS})

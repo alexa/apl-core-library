@@ -111,21 +111,14 @@ Content::load(SuccessCallback&& onSuccess, FailureCallback&& onFailure)
     }
 
     // If we're already loaded, then invoke the success callback right away.
-    if (mState == READY && !mOrderedDependencies.empty()) {
+    if (!isWaiting()) {
         onSuccess();
         return;
     }
 
-    if (mContentPackageManager != nullptr) {
-        mContentPackageManager->mRequested.clear();
-    }
-
     auto weakSelf = std::weak_ptr<Content>(shared_from_this());
-    mCurrentPendingImports = mPackageResolver->load(
-        mEvaluationContext,
-        mSession,
-        mMainPackage,
-        mOrderedDependencies,
+    mPackageResolver->load(
+        mCurrentPendingImports,
         [weakSelf, onSuccess](std::vector<PackagePtr>&& ordered) {
             auto self = weakSelf.lock();
             if (!self) return;
@@ -169,16 +162,10 @@ Content::refresh(const Metrics& metrics, const RootConfig& config)
     mState = LOADING;
 
     // Update the package manager in our package resolver. It may be new.
-    if (isManual()) {
-        mPackageResolver->setPackageManager(mContentPackageManager);
-    } else {
-        mPackageResolver->setPackageManager(mConfig.getPackageManager());
-    }
+    mPackageResolver->setPackageManager(mConfig.getPackageManager() == nullptr ? mContentPackageManager : mConfig.getPackageManager());
 
     addExtensions(*mMainPackage);
-    if (isManual()) {
-        load([] {}, [] {});
-    }
+    preloadPackages();
 }
 
 void
@@ -196,7 +183,7 @@ Content::init(bool supportsEvaluation)
         mEvaluationContext = Context::createContentEvaluationContext(
             mMetrics, mConfig, mMainPackage->version(), extractTheme(mMetrics), getSession());
 
-    if (isManual()) {
+    if (mConfig.getPackageManager() == nullptr) {
         mContentPackageManager = std::make_shared<ContentPackageManager>();
         mPackageResolver = PackageResolver::create(mContentPackageManager, mSession);
     } else {
@@ -227,9 +214,35 @@ Content::init(bool supportsEvaluation)
             mAllParameters.emplace_back(m);
 
     addExtensions(*mMainPackage);
-    // Start loading in manual mode
-    if (isManual()) {
-        load([]{}, []{});
+    preloadPackages();
+}
+
+void Content::preloadPackages() {
+    if (mState == ERROR) {
+        return;
+    }
+
+    if (mContentPackageManager != nullptr) {
+        mContentPackageManager->mRequested.clear();
+    }
+
+    mCurrentPendingImports = nullptr;
+
+    auto pendingImports = std::make_shared<PendingImportPackage>(mEvaluationContext, mSession, mMainPackage, mOrderedDependencies); 
+    
+    if (pendingImports->isReady()) {
+        mOrderedDependencies = std::move(pendingImports->moveOrderedDependencies());
+        updateStatus();
+    } else if (pendingImports->isError()) {
+        mState = ERROR;
+        CONSOLE(mSession) << "Content could not load requested packages.";
+    } else {
+        mCurrentPendingImports = pendingImports;
+        // Force a load if we're using mContentPackageManager to ensure 
+        // backwards compatible behaviour.
+        if (mContentPackageManager != nullptr) {
+            load([] {}, [] {}); 
+        }
     }
 }
 
@@ -249,11 +262,16 @@ Content::getPackage(const std::string& name) const
 std::set<ImportRequest>
 Content::getRequestedPackages()
 {
-    if (!isManual()) return {};
-
-    auto requested = mContentPackageManager->mRequested;
-    mContentPackageManager->mRequested.clear();
-    return requested;
+    // This should now be done via a injected package manager, but we need to 
+    // enable backwards compatible behaviour if a package manager is not 
+    // supplied by the runtime. 
+    if (mContentPackageManager != nullptr) {
+        auto requested = mContentPackageManager->mRequested;
+        mContentPackageManager->mRequested.clear();
+        return requested;
+    } else {
+        return {};
+    }
 }
 
 bool
@@ -265,9 +283,12 @@ Content::isWaiting() const
 void
 Content::addPackage(const ImportRequest& request, JsonData&& raw)
 {
-    if (!isManual()) return;
-
-    mPackageResolver->onPackageLoaded(request, std::move(raw));
+    // This should now be done via a injected package manager, but we need to 
+    // enable backwards compatible behaviour if a package manager is not 
+    // supplied by the runtime. 
+    if (mContentPackageManager != nullptr) {
+        mPackageResolver->onPackageLoaded(request, std::move(raw));
+    }
 }
 
 void Content::addData(const std::string& name, JsonData&& raw)

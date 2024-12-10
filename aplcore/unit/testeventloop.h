@@ -39,46 +39,11 @@
 #include "apl/utils/make_unique.h"
 #include "apl/utils/searchvisitor.h"
 
+#include "./test_sg_textmeasure.h"
+#include "./media/testmediaplayerfactory.h"
+#include "./audio/testaudioplayerfactory.h"
+
 namespace apl {
-
-class SimpleTextMeasurement : public TextMeasurement {
-public:
-    SimpleTextMeasurement(int symbolWidth = 10, int symbolHeight = 10)
-        : mSymbolSize(symbolWidth, symbolHeight) {}
-
-    LayoutSize measure(Component *component, float width, MeasureMode widthMode,
-                       float height, MeasureMode heightMode) override;
-    float baseline(Component *component, float width, float height) override;
-private:
-    Size mSymbolSize;
-};
-
-class SpyTextMeasure : public TextMeasurement {
-public:
-    LayoutSize measure(Component *component, float width, MeasureMode widthMode,
-                       float height, MeasureMode heightMode) override;
-    float baseline(Component *component, float width, float height) override;
-    std::vector<Object> visualHashes;
-};
-
-class CountingTextMeasurement : public SimpleTextMeasurement {
-public:
-    LayoutSize measure(Component *component, float width, MeasureMode widthMode,
-                       float height, MeasureMode heightMode) override {
-        auto ls = SimpleTextMeasurement::measure(component, width, widthMode, height, heightMode);
-        measures++;
-        return ls;
-    }
-
-    float baseline(Component *component, float width, float height) override {
-        auto bl = SimpleTextMeasurement::baseline(component, width, height);
-        baselines++;
-        return bl;
-    }
-
-    int measures = 0;
-    int baselines = 0;
-};
 
 inline ::testing::AssertionResult
 MemoryMatch(const CounterPair& atStart, const CounterPair& atEnd)
@@ -131,10 +96,10 @@ public:
 
     // Check for the existing of message.  To simplify testing, we
     // strip all whitespace.
-    bool checkAndClear(const std::string& messages...) {
-        //auto result = check(msg);
+    template<class... Args>
+    bool checkAndClear(Args... messages) {
         auto result = false;
-        for (const std::string& msg : { messages }) {
+        for (const std::string& msg : { messages... }) {
             result = check(msg);
             if (!result){
                 break;
@@ -153,6 +118,13 @@ public:
             return std::string();
 
         return mMessages.back();
+    }
+
+    void dumpAndClear() {
+        for(const auto& m : mMessages)
+            LOG(LogLevel::kInfo) << m;
+
+        mMessages.clear();
     }
 
 protected:
@@ -359,9 +331,23 @@ public:
     {
         config = RootConfig::create();
         metrics.size(1024,800).dpi(160).theme("dark");
+        eventCounts.clear();
+        mediaPlayerFactory = std::make_shared<TestMediaPlayerFactory>();
         config->set(RootProperty::kAgentName, "Unit tests")
             .timeManager(loop)
-            .measure(std::make_shared<SimpleTextMeasurement>());
+            .measure(std::make_shared<MyTestMeasurement>(10))
+            .mediaPlayerFactory(mediaPlayerFactory);
+
+        mediaPlayerFactory->setEventCallback([&](TestMediaPlayer::EventType event) {
+            if (eventCounts.count(event) == 0) {
+                eventCounts[event] = 1;
+            } else {
+                eventCounts[event] = eventCounts.at(event) + 1;
+            }
+        });
+
+        audioPlayerFactory = std::make_shared<TestAudioPlayerFactory>(config->getTimeManager());
+        config->audioPlayerFactory(audioPlayerFactory);
     }
 
     void loadDocument(const char *docName, const char *dataName = nullptr) {
@@ -430,6 +416,27 @@ public:
         rootDocument = root->topDocument();
     }
 
+    void clearEvents() {
+        root->clearPending();
+        while (root->hasEvent())
+            root->popEvent();
+    }
+
+    ::testing::AssertionResult
+    CheckPlayer(std::string url, TestAudioPlayer::EventType eventType) {
+        if (!audioPlayerFactory->hasEvent())
+            return ::testing::AssertionFailure() << "No player event";
+
+        auto event = audioPlayerFactory->popEvent();
+        if (event.eventType != eventType || event.url != url)
+            return ::testing::AssertionFailure()
+                   << "Expected='" << url << "':" << TestAudioPlayer::toString(eventType)
+                   << " Received='" << event.url
+                   << "':" << TestAudioPlayer::toString(event.eventType);
+
+        return ::testing::AssertionSuccess();
+    }
+
     /*
      * Release the component, context, and command.
      * This allows the ActionWrapper to verify that these objects will be correctly
@@ -470,6 +477,15 @@ public:
 
         // Call this last - it checks if all of the components, commands, and actions are released
         ActionWrapper::TearDown();
+
+        bool hasAudioEvents = false;
+        while (audioPlayerFactory->hasEvent()) {
+            hasAudioEvents = true;
+            auto e = audioPlayerFactory->popEvent();
+            LOG(LogLevel::kWarn) << "AudioEvent pending: " << e.eventType << ", url: " << e.url;
+        }
+        ASSERT_FALSE(hasAudioEvents);
+        ASSERT_EQ(0, audioPlayerFactory->playerCount());
     }
 
     // Clear any dirty events.  Fail if there are any other type of event
@@ -616,6 +632,9 @@ public:
     std::function<void(const RootContextPtr&)> createCallback;
     ContentPtr content;
     std::unique_ptr<JsonData> rawData;
+    std::shared_ptr<TestMediaPlayerFactory> mediaPlayerFactory;
+    std::shared_ptr<TestAudioPlayerFactory> audioPlayerFactory;
+    std::map<TestMediaPlayer::EventType, int> eventCounts;
 };
 
 
@@ -1405,6 +1424,17 @@ CheckTransformApprox(const Transform2D& expected, const ComponentPtr& component,
 
 inline
 ::testing::AssertionResult
+CheckProperties(const ComponentPtr& component, std::map<PropertyKey, Object> values) {
+    for (const auto& m : values) {
+        auto result = IsEqual(m.second, component->getCalculated(m.first));
+        if (!result)
+            return result << " on property " << sComponentPropertyBimap.at(m.first);
+    }
+    return ::testing::AssertionSuccess();
+}
+
+inline
+::testing::AssertionResult
 expectBounds(ComponentPtr comp, float top, float left, float bottom, float right) {
     auto bounds = comp->getCalculated(kPropertyBounds).get<Rect>();
     if (bounds.getTop() != top)
@@ -1447,6 +1477,35 @@ StringToMapObject(const std::string& payload) {
     rapidjson::Document doc;
     doc.Parse(payload.c_str());
     return Object(std::move(doc));
+}
+
+using EventExpectation = std::pair<TestMediaPlayer::EventType, int>;
+
+inline
+::testing::AssertionResult
+CheckPlayerEvents(const std::map<TestMediaPlayer::EventType, int> &events, std::vector<EventExpectation> &&expectations)
+{
+    if (expectations.size() != events.size()) {
+        return ::testing::AssertionFailure() << "Expected " << events.size() << " events but found " << expectations.size();
+    }
+
+    for (const EventExpectation &expectation : expectations) {
+        const auto &it = events.find(expectation.first);
+        int actual;
+        if (it == events.end()) {
+            actual = 0;
+        } else {
+            actual = it->second;
+        }
+
+        if (actual != expectation.second) {
+            return ::testing::AssertionFailure() << "Expected " << expectation.second
+                                                 << " but found " << actual
+                                                 << " for event type " << TestMediaPlayer::sEventTypeMap.get(expectation.first, "???");
+        }
+    }
+
+    return ::testing::AssertionSuccess();
 }
 
 extern std::ostream& operator<<(std::ostream& os, const Point& point);

@@ -20,6 +20,8 @@
 #include "apl/component/pagercomponent.h"
 #include "apl/time/sequencer.h"
 
+#include "apl/utils/actiondata.h"
+
 namespace apl {
 
 AutoPageAction::AutoPageAction(const TimersPtr& timers,
@@ -147,6 +149,12 @@ AutoPageAction::rehydrate(const CoreDocumentContext& context)
     mCurrentAction->resolve();
 
     return true;
+}
+
+ActionData
+AutoPageAction::getActionData()
+{
+    return ActionData().target(mContainer).actionHint("Paging");
 }
 
 } // namespace apl

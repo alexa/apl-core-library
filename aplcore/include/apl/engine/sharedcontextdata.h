@@ -16,8 +16,6 @@
 #ifndef _APL_SHARED_CONTEXT_DATA_H
 #define _APL_SHARED_CONTEXT_DATA_H
 
-#include <yoga/Yoga.h>
-
 #include "apl/common.h"
 #include "apl/content/metrics.h"
 #include "apl/content/settings.h"
@@ -31,6 +29,7 @@
 #include "apl/utils/counter.h"
 #include "apl/utils/lrucache.h"
 #include "apl/utils/scopedset.h"
+#include "apl/yoga/yogaconfig.h"
 
 namespace apl {
 
@@ -128,7 +127,7 @@ public:
     DependantManager& dependantManager() const { return deref(mDependantManager); }
     VisibilityManager& visibilityManager() const { return deref(mVisibilityManager); }
 
-    const YGConfigRef& ygconfig() const { return mYGConfigRef; }
+    const YogaConfig& ygconfig() const { return mYogaConfig; }
 
     /**
      * @return The installed text measurement for this context.
@@ -149,16 +148,6 @@ public:
      * Release the screen lock
      */
     void releaseScreenLock() { mScreenLockCount--; }
-
-    /**
-     * @return internal text measurement cache.
-     */
-    LruCache<TextMeasureRequest, YGSize>& cachedMeasures() { return mCachedMeasures; }
-
-    /**
-     * @return internal text measurement baseline cache.
-     */
-    LruCache<TextMeasureRequest, float>& cachedBaselines() { return mCachedBaselines; }
 
     /**
      * @return A cache of TextLayout
@@ -190,11 +179,9 @@ private:
     MediaManagerPtr mMediaManager;
     MediaPlayerFactoryPtr mMediaPlayerFactory;
 
-    YGConfigRef mYGConfigRef;
+    YogaConfig mYogaConfig;
     TextMeasurementPtr mTextMeasurement;
     int mScreenLockCount = 0;
-    LruCache<TextMeasureRequest, YGSize> mCachedMeasures;
-    LruCache<TextMeasureRequest, float> mCachedBaselines;
 
     std::unique_ptr<sg::TextLayoutCache> mTextLayoutCache;
     std::unique_ptr<sg::TextPropertiesCache> mTextPropertiesCache;

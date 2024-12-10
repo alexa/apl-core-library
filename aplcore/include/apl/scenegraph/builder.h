@@ -78,7 +78,7 @@ PaintPtr paint(const Gradient& gradient, float opacity=1.0f, Transform2D transfo
 PaintPtr paint(const GraphicPatternPtr& pattern, float opacity=1.0f, Transform2D transform=Transform2D());
 PaintPtr paint(const Object& object, float opacity=1.0f, Transform2D transform=Transform2D());
 
-PathOpPtr fill(PaintPtr paint, FillType fillType = kFillTypeEvenOdd);
+PathOpPtr fill(PaintPtr paint, FillType fillType = kFillTypeNonZero);
 
 AccessibilityPtr accessibility(CoreComponent& component);
 

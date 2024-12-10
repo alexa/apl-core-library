@@ -34,13 +34,13 @@ public:
     Object getValue() const override;
     void preLayoutProcessing(bool useDirtyFlag) override;
 
-#ifdef SCENEGRAPH
     sg::TextLayoutPtr getTextLayout() const { return mLayout; }
 
     bool setKaraokeLine(Range byteRange);
     void clearKaraokeLine() { setKaraokeLine(Range{}); }
     Rect getKaraokeBounds();
-#endif // SCENEGRAPH
+
+    static std::shared_ptr<TextComponent> cast(const ComponentPtr& component);
 
 private:
     void updateTextAlign(bool useDirtyFlag);
@@ -58,7 +58,7 @@ protected:
 
     std::string getVisualContextType() const override;
 
-    YGSize textMeasure(float width, YGMeasureMode widthMode, float height, YGMeasureMode heightMode) override;
+    Size textMeasure(float width, MeasureMode widthMode, float height, MeasureMode heightMode) override;
     float textBaseline(float width, float height) override;
 
 private:

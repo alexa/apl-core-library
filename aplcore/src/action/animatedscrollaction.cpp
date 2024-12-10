@@ -20,6 +20,8 @@
 #include "apl/time/sequencer.h"
 #include "apl/touch/utils/autoscroller.h"
 
+#include "apl/utils/actiondata.h"
+
 namespace apl {
 
 AnimatedScrollAction::AnimatedScrollAction(const TimersPtr& timers,
@@ -111,6 +113,12 @@ AnimatedScrollAction::rehydrate(const CoreDocumentContext& context)
     mScroller->replaceTarget(scrollable);
 
     return mCurrentAction->rehydrate(context);
+}
+
+ActionData
+AnimatedScrollAction::getActionData()
+{
+    return ActionData().target(mContainer).actionHint("Scrolling");
 }
 
 } // namespace apl

@@ -180,6 +180,146 @@ TEST_F(UnicodeTest, StringCharAt)
         ASSERT_EQ(m.expected, utf8StringCharAt(m.original, m.index));
 }
 
+struct StringIndexOfTest {
+    std::string s;
+    std::string searchString;
+    int index;
+    bool forward;
+    int expected;
+
+    std::string toString() const {
+        auto result = " targetString=" + s;
+        result += " searchString=" + searchString;
+        result += " index=" + std::to_string(index);
+        result += " forwardSearch=" + std::to_string(forward);
+        return result;
+    }
+};
+
+static auto STRING_INDEX_OF_TESTS = std::vector<StringIndexOfTest> {
+    { u8"", u8"", 0, true, 0 },
+    { u8"hello", u8"ello", 0, true, 1 },
+    { u8"abcabc", u8"bc", 0, true, 1 },
+    { u8"abcabc", u8"bc", 2, true, 4 },
+    { u8"bbbbb", u8"b", 1, true, 1 },
+    { u8"hémidécérébellé", u8"é", -1, true, 14 },
+    { u8"abcabc", u8"b", 8, true, -1 },
+    { u8"abcabc", u8"b", -8, true, -1 },
+    { u8"abc", u8"abcabc", 0, true, -1 },
+    { u8"abc", u8"abc", 0, true, 0 },
+    { u8"", u8"", 0, false, 0 },
+    { u8"hello", u8"ello", 4, false, 1 },
+    { u8"abcabc", u8"bc", 5, false, 4 },
+    { u8"abcabc", u8"bc", -1, false, 4 },
+    { u8"abcabc", u8"b", 8, false, -1 },
+    { u8"abcabc", u8"b", -8, false, -1 },
+    { u8"abc", u8"abcabc", 2, false, -1 },
+    { u8"abc", u8"abc", -1, false, 0 },
+    { "\x80", "\x80", 0, true, -1 } // invalid utf string
+};
+
+TEST_F(UnicodeTest, StringIndexOf)
+{
+    for (const auto& m : STRING_INDEX_OF_TESTS)
+        ASSERT_EQ(m.expected, utf8StringIndexOf(m.s, m.searchString, m.index, m.forward)) << m.toString();
+}
+
+struct StringReplaceTest {
+    std::string s;
+    std::string searchString;
+    std::string replaceString;
+    std::string expected;
+    int startIndex;
+
+    std::string toString() const {
+        auto result = " originalString=" + s;
+        result += " searchString=" + searchString;
+        result += " replaceString=" + replaceString;
+        return result;
+    }
+};
+
+static auto STRING_REPLACE_TESTS = std::vector<StringReplaceTest> {
+    { u8"abcdefg", u8"ab", u8"XY", u8"XYcdefg" },
+    { u8"abcdefg", u8"", u8"XYZ", u8"abcdefg" },
+    { u8"abcdefg", u8"bcd", u8"", u8"aefg" },
+    { u8"abcdefg", u8"abcdefg", u8"", u8"" },
+    { u8"abcdefg", u8"xyz", u8"123", u8"abcdefg" },
+    { u8"", u8"abc", u8"XYZ", u8"" },
+    { u8"مرحبا بالعالم", u8"العالم", u8"الكون", u8"مرحبا بالكون" },
+    { u8"résumé café", u8"é", u8"e", u8"resumé café" },
+    { u8"مرحبا بالعالم الجميل", u8"العالم", u8"الكون", u8"مرحبا بالكون الجميل", -7 },
+    { u8"résumé café", u8"fé", u8"fe", u8"résumé cafe", -3 },
+};
+
+TEST_F(UnicodeTest, StringReplace)
+{
+    for (const auto& m : STRING_REPLACE_TESTS)
+        ASSERT_EQ(m.expected, utf8StringReplace(m.s, m.searchString, m.replaceString)) << m.toString();
+}
+
+struct StringReplaceAllTest {
+    std::string s;
+    std::string searchString;
+    std::string replaceString;
+    std::string expected;
+
+    std::string toString() const {
+        auto result = " originalString=" + s;
+        result += " searchString=" + searchString;
+        result += " replaceString=" + replaceString;
+        return result;
+    }
+};
+
+static auto STRING_REPLACE_ALL_TESTS = std::vector<StringReplaceAllTest> {
+        { u8"abc def abc ghi", u8"abc", u8"XYZ", u8"XYZ def XYZ ghi" },
+        { u8"ab ab", u8"ab", u8"XYZ", u8"XYZ XYZ" },
+        { u8"abc abc abc", u8"abc", u8"X", u8"X X X" },
+        { u8"aaaa", u8"aa", u8"X", u8"XX" },
+        { u8"abcdef", u8"xy", u8"XYZ", u8"abcdef" },
+        { u8"", u8"ab", u8"AB", u8"" },
+        { u8"abcd", u8"", u8"X", u8"abcd" },
+        { u8"ababab", u8"ab", u8"", u8"" },
+        { u8"abcd", u8"", u8"", u8"abcd" },
+        { u8"مرحبا بالعالم", u8"م", u8"ن", u8"نرحبا بالعالن" },
+        { u8"résumé café", u8"é", u8"e", u8"resume cafe" }
+    };
+
+TEST_F(UnicodeTest, StringReplaceAll)
+{
+    for (const auto& m : STRING_REPLACE_ALL_TESTS)
+        ASSERT_EQ(m.expected, utf8StringReplaceAll(m.s, m.searchString, m.replaceString)) << m.toString();
+}
+
+struct TrimWhitespaceTest {
+    std::string original;
+    std::string expected;
+
+    std::string toString() const {
+        return "Original: '" + original + "', Expected: '" + expected + "'";
+    }
+};
+
+static auto TRIM_WHITESPACE_TEST = std::vector<TrimWhitespaceTest> {
+        { u8" 1234567890 ", u8"1234567890"},
+        { u8"1234567890", u8"1234567890"},
+        { u8"", u8""},
+        { u8"   ", u8""},
+        { u8" \t\n\r1234567890\t\n\r ", u8"1234567890"},
+        { u8" Stühle ", u8"Stühle"},
+        { u8"\u2028\u202917,23\u261ac\u2028", u8"17,23\u261ac"},
+        { u8"\u3000こんにちは\u3000", u8"こんにちは"}, // Ideographic space (U+3000) with Japanese text
+        { u8"\uFEFF Hello \u00A0 World \u2003", u8"Hello \u00A0 World"}, // Zero-width no-break space and other spaces
+    };
+
+TEST_F(UnicodeTest, TrimWhitespaceTest)
+{
+    for (const auto& m : TRIM_WHITESPACE_TEST) {
+        std::string result = utf8StringTrimWhiteSpace(m.original);
+        ASSERT_EQ(m.expected, result) << m.toString();
+    }
+}
 
 struct StripTest {
     std::string original;

@@ -568,11 +568,18 @@ PathOpTest IsStrokeOp( PaintTest paintTest,
 
 PathOpTest
 IsFillOp( PaintTest paintTest, const std::string& msg ) {
+    return IsFillOp(paintTest, sg::kFillTypeNonZero, msg);
+}
+
+PathOpTest
+IsFillOp( PaintTest paintTest, sg::FillType fillType, const std::string& msg ) {
     return [=](sg::PathOpPtr op) {
         SGASSERT(CheckNotNull(op, "Missing path op"), msg);
         SGASSERT(CheckTrue(sg::FillPathOp::is_type(op), "fill pathop"), msg);
         auto ptr = sg::FillPathOp::cast(op);
         SGASSERT(paintTest(ptr->paint), msg);
+        SGASSERT(CompareBasic(ptr->fillType, fillType, "fillType"), msg);
+
         return ::testing::AssertionSuccess();
     };
 }

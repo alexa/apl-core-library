@@ -37,6 +37,8 @@ public:
                        const std::shared_ptr<CoreCommand>& command,
                        const ComponentPtr& target);
 
+    ActionData getActionData() override;
+
 private:
     void start();
 

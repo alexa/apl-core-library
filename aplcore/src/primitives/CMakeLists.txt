@@ -36,6 +36,7 @@ target_sources_local(apl
     timegrammar.cpp
     transform.cpp
     transform2d.cpp
+    transformgrammar.cpp
     unicode.cpp
     urlrequest.cpp
 )

@@ -181,6 +181,13 @@ public:
      */
     bool reattachSequencer(const std::string& sequencerName, const ActionPtr& action, const CoreDocumentContext& context);
 
+    /**
+     * Serialize the actions being executed on this sequencer into a rapidjson object
+     * @param allocator
+     * @return rapidjson object containing the details of the actions
+     */
+    rapidjson::Value serialize(rapidjson::Document::AllocatorType& allocator) const;
+
 private:
     friend class ReinflateCommand;
     void setPreservedSequencers(const std::set<std::string>& sequencers);

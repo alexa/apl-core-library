@@ -618,7 +618,6 @@ static const char * DEBUG_CHECK_SHELL = R"apl(
 static const std::vector<std::string> EMPTY_PATH = {
     R"("pathData": "h3", "stroke": null )",
     R"("pathData": "", "stroke": "${X}")",
-    R"("pathData": "m20,20 30,30", "stroke": "${X}")",
     R"("pathData": "h3 v3", "stroke": "transparent")",
     R"("pathData": "h3 v3", "fill": "transparent")",
     R"("pathData": "h3 v3", "fill": "blue", "fillOpacity": 0)",

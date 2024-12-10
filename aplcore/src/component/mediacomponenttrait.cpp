@@ -32,25 +32,43 @@ MediaComponentTrait::propDefList()
 }
 
 void
-MediaComponentTrait::resetMediaFetchState()
+MediaComponentTrait::resetMediaFetchState(SourceValidator&& validator)
 {
     auto component = getComponent();
     component->setCalculated(kPropertyMediaState, kMediaStateNotRequested);
     mMediaObjectHolders.clear();
 
     if (component->getCalculated(kPropertyLaidOut).truthy())
-        ensureMediaRequested();
+        ensureMediaRequested(std::move(validator));
 }
 
 void
-MediaComponentTrait::postProcessLayoutChanges() {
+MediaComponentTrait::postProcessLayoutChanges(SourceValidator&& validator) {
     // Component was laid out, so likely needs media loaded
-    ensureMediaRequested();
+    ensureMediaRequested(std::move(validator));
 }
 
+class FailedDataUrlMediaObject : public MediaObject {
+public:
+    FailedDataUrlMediaObject(const std::string& url) : mUrl(url) {}
+
+    virtual std::string url() const override { return mUrl; }
+    virtual State state() const override { return kError; }
+    virtual EventMediaType type() const override { return kEventMediaTypeImage; }
+    virtual Size size() const override { return Size(0, 0); }
+    virtual int errorCode() const override { return 415; }
+    virtual std::string errorDescription() const override { return "Failed to parse data URL"; }
+    virtual const HeaderArray& headers() const override { return mHA; }
+    virtual CallbackID addCallback(MediaObjectCallback callback) override { return -1; }
+    virtual void removeCallback(CallbackID callbackToken) override {}
+
+private:
+    std::string mUrl;
+    HeaderArray mHA;
+};
 
 void
-MediaComponentTrait::ensureMediaRequested()
+MediaComponentTrait::ensureMediaRequested(SourceValidator&& validator)
 {
     auto component = getComponent();
     auto state = static_cast<ComponentMediaState>(component->getCalculated(kPropertyMediaState).getInteger());
@@ -69,6 +87,13 @@ MediaComponentTrait::ensureMediaRequested()
     component->setDirty(kPropertyMediaState);
 
     for (const auto& m : sources) {
+        if (!validator(getComponent()->getContext()->session(), m)) {
+            // Don't even request it. Add as failed MediaObject so onFail fired.
+            auto mo = std::make_shared<FailedDataUrlMediaObject>(m.getUrl());
+            mMediaObjectHolders.emplace_back(mo, -1);
+            continue;
+        }
+
         auto mediaObject = context->mediaManager().request(m.getUrl(), mediaType(), m.getHeaders());
         MediaObject::CallbackID callbackToken = 0;
         if (mediaObject->state() == MediaObject::kPending) {
@@ -76,7 +101,7 @@ MediaComponentTrait::ensureMediaRequested()
                 pendingMediaReturned(mediaObjectPtr);
             });
         }
-        mMediaObjectHolders.emplace_back(MediaObjectHolder{mediaObject, callbackToken});
+        mMediaObjectHolders.emplace_back(mediaObject, callbackToken);
     }
 
     // Some media objects may have been ready or in error state

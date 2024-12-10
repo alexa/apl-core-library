@@ -17,7 +17,6 @@
 
 #include "apl/action/scrollaction.h"
 #include "apl/component/componentpropdef.h"
-#include "apl/component/yogaproperties.h"
 #include "apl/content/rootconfig.h"
 #include "apl/focus/focusmanager.h"
 #include "apl/primitives/accessibilityaction.h"
@@ -25,6 +24,7 @@
 #include "apl/time/timemanager.h"
 #include "apl/touch/gestures/scrollgesture.h"
 #include "apl/utils/stickychildrentree.h"
+#include "apl/yoga/yogaproperties.h"
 #ifdef SCENEGRAPH
 #include "apl/scenegraph/builder.h"
 #include "apl/scenegraph/scenegraph.h"
@@ -36,7 +36,7 @@ ScrollableComponent::ScrollableComponent(const ContextPtr& context, Properties&&
                                          const Path& path) :
     ActionableComponent(context, std::move(properties), path),
     mStickyTree(std::make_shared<StickyChildrenTree>(*this)) {
-    YGNodeStyleSetOverflow(mYGNodeRef, YGOverflowScroll);
+    getNode().setOverflowScroll();
 }
 
 std::shared_ptr<ScrollableComponent>
@@ -136,9 +136,9 @@ ScrollableComponent::propDefSet() const
     static auto setScrollPercent = [](CoreComponent& component, const Object& value) -> void {
         float scrollSize;
         if (component.scrollType() == kScrollTypeHorizontal) {
-            scrollSize = YGNodeLayoutGetWidth(component.getNode());
+            scrollSize = component.getNode().getWidth();
         } else {
-            scrollSize = YGNodeLayoutGetHeight(component.getNode());
+            scrollSize = component.getNode().getHeight();
         }
         ((ScrollableComponent&)component).setScrollPositionDirectly(scrollSize * (float)value.asNumber());
     };

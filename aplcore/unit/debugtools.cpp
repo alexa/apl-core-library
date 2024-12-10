@@ -14,7 +14,9 @@
  */
 
 #include "debugtools.h"
+
 #include "apl/component/corecomponent.h"
+#include "apl/yoga/yoganode.h"
 
 namespace apl {
 
@@ -135,59 +137,11 @@ dumpContext(const ContextPtr& context, int indent)
         dumpContext(parent, indent + 4);
 }
 
-streamer& operator<<(streamer& os, YGValue&& value) {
-    switch (value.unit) {
-        case YGUnitUndefined:
-            os << "undefined";
-            break;
-        case YGUnitAuto:
-            os << "auto";
-            break;
-        case YGUnitPercent:
-            os << value.value<< "%";
-            break;
-        case YGUnitPoint:
-            os << value.value;
-            break;
-    }
-    return os;
-}
-
-void
-dumpYogaInternal(YGNodeRef node, int indent=0) {
-    auto i = std::string(indent, ' ');
-    LOG(LogLevel::kDebug) << i << "##### Type #### " << YGNodeTypeToString(YGNodeGetNodeType(node));
-    LOG(LogLevel::kDebug) << i << "Is Dirty........" << YGNodeIsDirty(node);
-    LOG(LogLevel::kDebug) << i << "Direction......." << YGDirectionToString(YGNodeStyleGetDirection(node));
-    LOG(LogLevel::kDebug) << i << "Flex Direction.." << YGFlexDirectionToString(YGNodeStyleGetFlexDirection(node));
-    LOG(LogLevel::kDebug) << i << "Justify Content." << YGJustifyToString(YGNodeStyleGetJustifyContent(node));
-    LOG(LogLevel::kDebug) << i << "Align Content..." << YGAlignToString(YGNodeStyleGetAlignContent(node));
-    LOG(LogLevel::kDebug) << i << "Align Items....." << YGAlignToString(YGNodeStyleGetAlignItems(node));
-    LOG(LogLevel::kDebug) << i << "Align Self......" << YGAlignToString(YGNodeStyleGetAlignSelf(node));
-    LOG(LogLevel::kDebug) << i << "Position Type..." << YGPositionTypeToString(YGNodeStyleGetPositionType(node));
-    LOG(LogLevel::kDebug) << i << "Flex Wrap......." << YGWrapToString(YGNodeStyleGetFlexWrap(node));
-    LOG(LogLevel::kDebug) << i << "Overflow........" << YGOverflowToString(YGNodeStyleGetOverflow(node));
-    LOG(LogLevel::kDebug) << i << "Display........." << YGDisplayToString(YGNodeStyleGetDisplay(node));
-    LOG(LogLevel::kDebug) << i << "Flex............" << YGNodeStyleGetFlex(node);
-    LOG(LogLevel::kDebug) << i << "Flex Grow......." << YGNodeStyleGetFlexGrow(node);
-    LOG(LogLevel::kDebug) << i << "Flex Shrink....." << YGNodeStyleGetFlexShrink(node);
-    LOG(LogLevel::kDebug) << i << "Width..........." << YGNodeStyleGetWidth(node);
-    LOG(LogLevel::kDebug) << i << "Height.........." << YGNodeStyleGetHeight(node);
-    LOG(LogLevel::kDebug) << i << "MaxWidth........" << YGNodeStyleGetMaxWidth(node);
-    LOG(LogLevel::kDebug) << i << "MaxHeight......." << YGNodeStyleGetMaxHeight(node);
-    LOG(LogLevel::kDebug) << i << "MinWidth........" << YGNodeStyleGetMinWidth(node);
-    LOG(LogLevel::kDebug) << i << "MinHeight......." << YGNodeStyleGetMinHeight(node);
-
-    auto child_count = YGNodeGetChildCount(node);
-    for (size_t index = 0; index < child_count; index++)
-        dumpYogaInternal(YGNodeGetChild(node, index), indent + 4);
-}
-
 void
 dumpYoga(const ComponentPtr& component)
 {
-    auto node = CoreComponent::cast(component)->getNode();
-    dumpYogaInternal(node);
+    auto& node = CoreComponent::cast(component)->getNode();
+    LOG(LogLevel::kDebug) << node.toDebugString();
 }
 
 void
@@ -201,7 +155,7 @@ dumpLayoutInternal(const CoreComponentPtr& component, int indent, int childIndex
                         << " innerBounds=" << component->getCalculated(kPropertyInnerBounds)
                         << " transform=" << component->getCalculated(kPropertyTransform);
 
-    if (YGNodeGetDirtiedFunc(component->getNode()))
+    if (component->getNode().hasDirtiedFunc())
         s << " LAYOUT_SIZE=" << component->getLayoutSize();
 
     LOG(LogLevel::kDebug) << std::string(indent, ' ') << s.str();

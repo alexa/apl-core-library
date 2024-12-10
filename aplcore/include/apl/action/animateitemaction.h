@@ -39,6 +39,7 @@ public:
 
     void freeze() override;
     bool rehydrate(const CoreDocumentContext& context) override;
+    ActionData getActionData() override;
 
 private:
     void start();

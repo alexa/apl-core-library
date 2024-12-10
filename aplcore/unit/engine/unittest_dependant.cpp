@@ -452,10 +452,10 @@ static const char *STATIC_PROPERTY = R"({
       "bind": [
         {
           "name": "a",
-          "value": 5
+          "value": "menu"
         }
       ],
-      "letterSpacing": "${a}"
+      "role": "${a}"
     }
   }
 })";
@@ -464,11 +464,11 @@ TEST_F(DependantTest, StaticProperty)
 {
     loadDocument(STATIC_PROPERTY);
     ASSERT_TRUE(component);
-    ASSERT_TRUE(IsEqual(Dimension(5), component->getCalculated(kPropertyLetterSpacing)));
+    ASSERT_EQ(kRoleMenu, component->getCalculated(kPropertyRole).asInt());
 
     // letterSpacing is not dynamic.  It can't be changed through propagation
-    ASSERT_TRUE(component->getContext()->userUpdateAndRecalculate("a", 10, false));
-    ASSERT_FALSE(IsEqual(Dimension(10), component->getCalculated(kPropertyLetterSpacing)));
+    ASSERT_TRUE(component->getContext()->userUpdateAndRecalculate("a", "list", false));
+    ASSERT_NE(kRoleList, component->getCalculated(kPropertyRole).asInt());
 }
 
 static const char *MUTABLE = R"({
@@ -1423,19 +1423,19 @@ TEST_F(DependantTest, LayoutLiveArrayFromEmptyReplace)
 
     notify = component->getCalculated(kPropertyNotifyChildrenChanged).getArray();
     ASSERT_EQ(4, notify.size());
-    ASSERT_EQ(Object("insert"), notify.at(0).getMap().at("action"));
+    ASSERT_EQ(Object("remove"), notify.at(0).getMap().at("action"));
     ASSERT_EQ(Object(0), notify.at(0).getMap().at("index"));
-    ASSERT_EQ(Object(component->getChildAt(0)->getUniqueId()), notify.at(0).getMap().at("uid"));
-    ASSERT_EQ(Object("insert"), notify.at(1).getMap().at("action"));
-    ASSERT_EQ(Object(1), notify.at(1).getMap().at("index"));
-    ASSERT_EQ(Object(component->getChildAt(1)->getUniqueId()), notify.at(1).getMap().at("uid"));
-    ASSERT_EQ(Object("remove"), notify.at(2).getMap().at("action"));
-    ASSERT_EQ(Object(2), notify.at(2).getMap().at("index"));
-    ASSERT_EQ(Object(cachedUid0), notify.at(2).getMap().at("uid"));
-    ASSERT_EQ(Object("remove"), notify.at(3).getMap().at("action"));
-    ASSERT_EQ(Object(2), notify.at(3).getMap().at("index"));
-    ASSERT_EQ(Object(cachedUid1), notify.at(3).getMap().at("uid"));
-    ASSERT_TRUE(CheckDirty(component, kPropertyNotifyChildrenChanged, kPropertyScrollPosition));
+    ASSERT_EQ(Object(cachedUid0), notify.at(0).getMap().at("uid"));
+    ASSERT_EQ(Object("remove"), notify.at(1).getMap().at("action"));
+    ASSERT_EQ(Object(0), notify.at(1).getMap().at("index"));
+    ASSERT_EQ(Object(cachedUid1), notify.at(1).getMap().at("uid"));
+    ASSERT_EQ(Object("insert"), notify.at(2).getMap().at("action"));
+    ASSERT_EQ(Object(0), notify.at(2).getMap().at("index"));
+    ASSERT_EQ(Object(component->getChildAt(0)->getUniqueId()), notify.at(2).getMap().at("uid"));
+    ASSERT_EQ(Object("insert"), notify.at(3).getMap().at("action"));
+    ASSERT_EQ(Object(1), notify.at(3).getMap().at("index"));
+    ASSERT_EQ(Object(component->getChildAt(1)->getUniqueId()), notify.at(3).getMap().at("uid"));
+    ASSERT_TRUE(CheckDirty(component, kPropertyNotifyChildrenChanged));
 
     ASSERT_EQ(sp, component->scrollPosition());
 

@@ -61,6 +61,7 @@ TEST_F(SGEditTextTest, Basic)
     ASSERT_TRUE(CheckSceneGraph(
         sg, IsLayer(Rect{0, 0, 600, 700})
                 .child(IsLayer(Rect{0, 0, 600, 700})
+                           .characteristic(sg::Layer::kCharacteristicHasText)
                            .content(IsEditNode("edit node")
                                         .text("Hello")
                                         .color(Color::BLUE)))));
@@ -103,6 +104,7 @@ TEST_F(SGEditTextTest, Nested)
         sg, IsLayer(Rect{0, 0, 600, 700})
                 .child(IsLayer(Rect{0, 330, 400, 40})
                            .child(IsLayer(Rect{0, 0, 400, 40})
+                                      .characteristic(sg::Layer::kCharacteristicHasText)
                                       .content(IsEditNode("edit node")
                                                    .text("Hello")
                                                    .color(Color::RED))))));
@@ -139,8 +141,9 @@ TEST_F(SGEditTextTest, Border)
         sg, IsLayer(Rect{0, 0, 600, 700})
                 .content(IsDrawNode()
                              .path(IsFramePath(RoundedRect{Rect{0, 0, 600, 700}, 0}, 4))
-                             .pathOp(IsFillOp(IsColorPaint(Color::RED))))
+                             .pathOp(IsFillOp(IsColorPaint(Color::RED),  apl::sg::kFillTypeEvenOdd)))
                 .child(IsLayer(Rect{10, 10, 580, 680})
+                           .characteristic(sg::Layer::kCharacteristicHasText)
                            .content(IsEditNode("edit node")
                                         .text("Hello")
                                         .color(Color::BLUE)))));
@@ -200,8 +203,9 @@ TEST_F(SGEditTextTest, Everything)
         sg, IsLayer(Rect{0, 0, 1000, 1000})
                 .content(IsDrawNode()
                              .path(IsFramePath(RoundedRect{Rect{0, 0, 1000, 1000}, 0}, 4))
-                             .pathOp(IsFillOp(IsColorPaint(Color::RED))))
+                             .pathOp(IsFillOp(IsColorPaint(Color::RED), apl::sg::kFillTypeEvenOdd)))
                 .child(IsLayer(Rect{10, 10, 980, 980})
+                           .characteristic(sg::Layer::kCharacteristicHasText)
                            .content(IsEditNode().text("foo@bar.").color(Color::PURPLE)))));
 
     // Change the text
@@ -212,8 +216,9 @@ TEST_F(SGEditTextTest, Everything)
         sg, IsLayer(Rect{0, 0, 1000, 1000})
                 .content(IsDrawNode()
                              .path(IsFramePath(RoundedRect{Rect{0, 0, 1000, 1000}, 0}, 4))
-                             .pathOp(IsFillOp(IsColorPaint(Color::RED))))
+                             .pathOp(IsFillOp(IsColorPaint(Color::RED), apl::sg::kFillTypeEvenOdd)))
                 .child(IsLayer(Rect{10, 10, 980, 980})
+                           .characteristic(sg::Layer::kCharacteristicHasText)
                            .dirty(sg::Layer::kFlagRedrawContent)
                            .content(IsEditNode().text("a").color(Color::PURPLE)))));
 
@@ -227,13 +232,14 @@ TEST_F(SGEditTextTest, Everything)
                 .dirty(sg::Layer::kFlagRedrawContent)
                 .content(IsDrawNode()
                              .path(IsFramePath(RoundedRect{Rect{0, 0, 1000, 1000}, 0}, 4))
-                             .pathOp(IsFillOp(IsColorPaint(Color::RED)))
+                             .pathOp(IsFillOp(IsColorPaint(Color::RED), apl::sg::kFillTypeEvenOdd))
                              .next(IsTransformNode()
                                        .translate(Point{10, 480})
                                        .child(IsTextNode()
                                                   .text("e-mail address")
                                                   .pathOp(IsFillOp(IsColorPaint(Color::BLUE))))))
                 .child(IsLayer(Rect{10, 10, 980, 980})
+                           .characteristic(sg::Layer::kCharacteristicHasText)
                            .dirty(sg::Layer::kFlagRedrawContent)
                            .content(IsEditNode().text("").color(Color::PURPLE)))));
 }
@@ -271,6 +277,7 @@ TEST_F(SGEditTextTest, UserTyping)
         IsLayer(Rect{0, 0, 600, 700})
             .child(IsLayer(Rect{100, 330, 400, 40})
                        .child(IsLayer(Rect{0, 0, 400, 40})
+                                  .characteristic(sg::Layer::kCharacteristicHasText)
                                   .content(IsEditNode("edit node")
                                                .text("Hello")
                                                .color(Color::GREEN))))));
@@ -283,6 +290,7 @@ TEST_F(SGEditTextTest, UserTyping)
         IsLayer(Rect{0, 0, 600, 700})
             .child(IsLayer(Rect{100, 330, 400, 40})
                        .child(IsLayer(Rect{0, 0, 400, 40})
+                                  .characteristic(sg::Layer::kCharacteristicHasText)
                                   .dirty(sg::Layer::kFlagRedrawContent)
                                   .content(IsEditNode("edit node")
                                                .text("Goodbye")
@@ -320,6 +328,7 @@ TEST_F(SGEditTextTest, UserDelete)
     ASSERT_TRUE(CheckSceneGraph(
         sg, IsLayer(Rect{0, 0, 600, 700})
                 .child(IsLayer(Rect{0, 0, 600, 700})
+                           .characteristic(sg::Layer::kCharacteristicHasText)
                            .content(IsEditNode("edit node")
                                         .text("Hello")
                                         .color(Color::BLUE)))));
@@ -338,6 +347,7 @@ TEST_F(SGEditTextTest, UserDelete)
                     .child(
                         IsTextNode().text("Type Here").pathOp(IsFillOp(IsColorPaint(Color::BLUE)))))
             .child(IsLayer(Rect{0, 0, 600, 700})
+                       .characteristic(sg::Layer::kCharacteristicHasText)
                        .dirty(sg::Layer::kFlagRedrawContent)
                        .content(IsEditNode("edit node")
                                     .text("")
@@ -373,9 +383,10 @@ TEST_F(SGEditTextTest, Resize) {
         sg, IsLayer(Rect{0, 0, 300, 300})
                 .content(IsDrawNode()
                              .path(IsFramePath(RoundedRect(Rect{0, 0, 300, 300}, 0), 1))
-                             .pathOp(IsFillOp(IsColorPaint(Color::RED))))
-                .child(IsLayer{Rect{1, 1, 298, 298}}.content(
-                    IsEditNode().text("Hello").color(Color::BLUE)))));
+                             .pathOp(IsFillOp(IsColorPaint(Color::RED), apl::sg::kFillTypeEvenOdd)))
+                .child(IsLayer{Rect{1, 1, 298, 298}}
+                    .characteristic(sg::Layer::kCharacteristicHasText)
+                    .content(IsEditNode().text("Hello").color(Color::BLUE)))));
 
     // Resize the screen
     configChange(ConfigurationChange(200, 200));
@@ -387,8 +398,9 @@ TEST_F(SGEditTextTest, Resize) {
                 .dirty(sg::Layer::kFlagSizeChanged | sg::Layer::kFlagRedrawContent)
                 .content(IsDrawNode()
                              .path(IsFramePath(RoundedRect(Rect{0, 0, 200, 200}, 0), 1))
-                             .pathOp(IsFillOp(IsColorPaint(Color::RED))))
+                             .pathOp(IsFillOp(IsColorPaint(Color::RED), apl::sg::kFillTypeEvenOdd)))
                 .child(IsLayer{Rect{1, 1, 198, 198}}
+                           .characteristic(sg::Layer::kCharacteristicHasText)
                            .dirty(sg::Layer::kFlagSizeChanged)
                            .content(IsEditNode().text("Hello").color(Color::BLUE)))));
 }
@@ -430,8 +442,9 @@ TEST_F(SGEditTextTest, ChangeSubmit)
     auto sg = root->getSceneGraph();
 
     ASSERT_TRUE(CheckSceneGraph(sg, IsLayer(Rect{0, 0, 300, 300})
-                                        .child(IsLayer{Rect{0, 0, 300, 300}}.content(
-                                            IsEditNode().text("").color(Color::BLACK)))));
+                                        .child(IsLayer{Rect{0, 0, 300, 300}}
+                                            .characteristic(sg::Layer::kCharacteristicHasText)
+                                            .content(IsEditNode().text("").color(Color::BLACK)))));
 
     // Change the text
     etlFactory->changeText("Foobar");
@@ -441,6 +454,7 @@ TEST_F(SGEditTextTest, ChangeSubmit)
         sg, IsLayer(Rect{0, 0, 300, 300})
                 .dirty(sg::Layer::kFlagRedrawContent) // Toggled because the hint color changes
                 .child(IsLayer{Rect{0, 0, 300, 300}}
+                           .characteristic(sg::Layer::kCharacteristicHasText)
                            .dirty(sg::Layer::kFlagRedrawContent)
                            .content(IsEditNode().text("Foobar").color(Color::BLACK)))));
 
@@ -498,14 +512,16 @@ TEST_F(SGEditTextTest, FocusStyle)
                 .child(IsLayer{Rect{0, 0, 300, 14}}
                            .content(IsDrawNode()
                                         .path(IsFramePath(RoundedRect(Rect{0, 0, 300, 14}, 0), 2))
-                                        .pathOp(IsFillOp(IsColorPaint(Color::BLUE))))
+                                        .pathOp(IsFillOp(IsColorPaint(Color::BLUE), apl::sg::kFillTypeEvenOdd)))
                            .child(IsLayer(Rect{2, 2, 296, 10})
+                                      .characteristic(sg::Layer::kCharacteristicHasText)
                                       .content(IsEditNode().text("Alpha").color(Color::BLACK))))
                 .child(IsLayer{Rect{0, 14, 300, 14}}
                            .content(IsDrawNode()
                                         .path(IsFramePath(RoundedRect(Rect{0, 0, 300, 14}, 0), 2))
-                                        .pathOp(IsFillOp(IsColorPaint(Color::BLUE))))
+                                        .pathOp(IsFillOp(IsColorPaint(Color::BLUE), apl::sg::kFillTypeEvenOdd)))
                            .child(IsLayer(Rect{2, 2, 296, 10})
+                                      .characteristic(sg::Layer::kCharacteristicHasText)
                                       .content(IsEditNode().text("Beta").color(Color::BLACK))))));
 
     // Pull out the two edit nodes
@@ -529,14 +545,16 @@ TEST_F(SGEditTextTest, FocusStyle)
                            .dirty(sg::Layer::kFlagRedrawContent)   // Content needs to be redrawn
                            .content(IsDrawNode()
                                         .path(IsFramePath(RoundedRect(Rect{0, 0, 300, 14}, 0), 2))
-                                        .pathOp(IsFillOp(IsColorPaint(Color::RED))))   // Frame changes color
+                                        .pathOp(IsFillOp(IsColorPaint(Color::RED), apl::sg::kFillTypeEvenOdd)))   // Frame changes color
                            .child(IsLayer(Rect{2, 2, 296, 10})
+                                      .characteristic(sg::Layer::kCharacteristicHasText)
                                       .content(IsEditNode().text("Alpha").color(Color::BLACK))))
                 .child(IsLayer{Rect{0, 14, 300, 14}}
                            .content(IsDrawNode()
                                         .path(IsFramePath(RoundedRect(Rect{0, 0, 300, 14}, 0), 2))
-                                        .pathOp(IsFillOp(IsColorPaint(Color::BLUE))))
+                                        .pathOp(IsFillOp(IsColorPaint(Color::BLUE), apl::sg::kFillTypeEvenOdd)))
                            .child(IsLayer(Rect{2, 2, 296, 10})
+                                      .characteristic(sg::Layer::kCharacteristicHasText)
                                       .content(IsEditNode().text("Beta").color(Color::BLACK))))));
 
     // Focus the second edit text box.  This should remove focus from the first
@@ -549,15 +567,17 @@ TEST_F(SGEditTextTest, FocusStyle)
                            .dirty(sg::Layer::kFlagRedrawContent)   // Content needs to be redrawn
                            .content(IsDrawNode()
                                         .path(IsFramePath(RoundedRect(Rect{0, 0, 300, 14}, 0), 2))
-                                        .pathOp(IsFillOp(IsColorPaint(Color::BLUE))))   // Frame changes back
+                                        .pathOp(IsFillOp(IsColorPaint(Color::BLUE), apl::sg::kFillTypeEvenOdd)))   // Frame changes back
                            .child(IsLayer(Rect{2, 2, 296, 10})
+                                      .characteristic(sg::Layer::kCharacteristicHasText)
                                       .content(IsEditNode().text("Alpha").color(Color::BLACK))))
                 .child(IsLayer{Rect{0, 14, 300, 14}}
                            .dirty(sg::Layer::kFlagRedrawContent)   // Content needs to be redrawn
                            .content(IsDrawNode()
                                         .path(IsFramePath(RoundedRect(Rect{0, 0, 300, 14}, 0), 2))
-                                        .pathOp(IsFillOp(IsColorPaint(Color::RED))))   // Frame changes to red
+                                        .pathOp(IsFillOp(IsColorPaint(Color::RED), apl::sg::kFillTypeEvenOdd)))   // Frame changes to red
                            .child(IsLayer(Rect{2, 2, 296, 10})
+                                      .characteristic(sg::Layer::kCharacteristicHasText)
                                       .content(IsEditNode().text("Beta").color(Color::BLACK))))));
 
     // Drop focus
@@ -569,15 +589,17 @@ TEST_F(SGEditTextTest, FocusStyle)
                 .child(IsLayer{Rect{0, 0, 300, 14}}
                            .content(IsDrawNode()
                                         .path(IsFramePath(RoundedRect(Rect{0, 0, 300, 14}, 0), 2))
-                                        .pathOp(IsFillOp(IsColorPaint(Color::BLUE))))
+                                        .pathOp(IsFillOp(IsColorPaint(Color::BLUE), apl::sg::kFillTypeEvenOdd)))
                            .child(IsLayer(Rect{2, 2, 296, 10})
+                                      .characteristic(sg::Layer::kCharacteristicHasText)
                                       .content(IsEditNode().text("Alpha").color(Color::BLACK))))
                 .child(IsLayer{Rect{0, 14, 300, 14}}
                            .dirty(sg::Layer::kFlagRedrawContent)   // Content needs to be redrawn
                            .content(IsDrawNode()
                                         .path(IsFramePath(RoundedRect(Rect{0, 0, 300, 14}, 0), 2))
-                                        .pathOp(IsFillOp(IsColorPaint(Color::BLUE))))   // Frame changes to red
+                                        .pathOp(IsFillOp(IsColorPaint(Color::BLUE), apl::sg::kFillTypeEvenOdd)))   // Frame changes to red
                            .child(IsLayer(Rect{2, 2, 296, 10})
+                                      .characteristic(sg::Layer::kCharacteristicHasText)
                                       .content(IsEditNode().text("Beta").color(Color::BLACK))))));
 }
 

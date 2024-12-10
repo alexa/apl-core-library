@@ -1006,7 +1006,8 @@ TEST_F(SGGraphicTest, BasicTextLayer)
     ASSERT_TRUE(
         CheckSceneGraph(updates, layer,
                         IsLayer(Rect(0, -8, 130, 10))
-                            .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren)
+                            .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren |
+                                            sg::Layer::kCharacteristicHasText)
                             .contentOffset(Point(0, -8))
                             .childOffset(Point(0, -8))
                             .content(IsTransformNode()
@@ -1084,7 +1085,8 @@ TEST_F(SGGraphicTest, ComplicatedTextLayer)
     ASSERT_TRUE(CheckSceneGraph(
         updates, layer,
         IsLayer(Rect(-4, -12, 158, 18))
-            .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren)
+            .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren | 
+                            sg::Layer::kCharacteristicHasText)
             .contentOffset(Point(-4, -12))
             .childOffset(Point(-4, -8))
             .content(IsTransformNode()
@@ -1252,7 +1254,8 @@ TEST_F(SGGraphicTest, ParameterizedTextLayout)
         IsLayer(Rect(0, 0, 0, 0), "...container")
             .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren)
             .child(IsLayer(Rect(0, -8, 50, 10), "...text")
-                       .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren)
+                       .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren | 
+                                       sg::Layer::kCharacteristicHasText)
                        .dirty(sg::Layer::kFlagRedrawContent | sg::Layer::kFlagPositionChanged |
                               sg::Layer::kFlagSizeChanged | sg::Layer::kFlagChildOffsetChanged)
                        .contentOffset(0, -8)
@@ -1268,7 +1271,8 @@ TEST_F(SGGraphicTest, ParameterizedTextLayout)
         IsLayer(Rect(0, 0, 0, 0), "...container")
             .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren)
             .child(IsLayer(Rect(0, -8, 50, 10), "...text")
-                       .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren)
+                       .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren | 
+                                       sg::Layer::kCharacteristicHasText)
                        .dirty(sg::Layer::kFlagRedrawContent)
                        .contentOffset(0, -8)
                        .content(IsTransformNode()
@@ -1283,7 +1287,8 @@ TEST_F(SGGraphicTest, ParameterizedTextLayout)
         IsLayer(Rect(0, 0, 0, 0), "...container")
             .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren)
             .child(IsLayer(Rect(0, -8, 50, 10), "...text")
-                       .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren)
+                       .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren | 
+                                       sg::Layer::kCharacteristicHasText)
                        .dirty(sg::Layer::kFlagRedrawContent)
                        .contentOffset(0, -8)
                        .content(IsTransformNode()
@@ -1301,7 +1306,8 @@ TEST_F(SGGraphicTest, ParameterizedTextLayout)
         IsLayer(Rect(0, 0, 0, 0), "...container")
             .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren)
             .child(IsLayer(Rect(0, -8, 50, 10), "...text")
-                       .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren)
+                       .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren | 
+                                       sg::Layer::kCharacteristicHasText)
                        .dirty(sg::Layer::kFlagRedrawContent)
                        .contentOffset(0, -8)
                        .content(IsTransformNode()
@@ -1330,7 +1336,8 @@ TEST_F(SGGraphicTest, ParameterizedTextLayout)
         IsLayer(Rect(0, 0, 0, 0), "...container")
             .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren)
             .child(IsLayer(Rect(0, -8, 30, 10), "...text")
-                       .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren)
+                       .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren | 
+                                       sg::Layer::kCharacteristicHasText)
                        .dirty(sg::Layer::kFlagChildOffsetChanged | sg::Layer::kFlagRedrawContent |
                               sg::Layer::kFlagSizeChanged | sg::Layer::kFlagPositionChanged)
                        .contentOffset(0, -8)
@@ -1345,7 +1352,8 @@ TEST_F(SGGraphicTest, ParameterizedTextLayout)
         IsLayer(Rect(0, 0, 0, 0), "...container")
             .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren)
             .child(IsLayer(Rect(10, -8, 30, 10), "...text")
-                       .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren)
+                       .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren | 
+                                       sg::Layer::kCharacteristicHasText)
                        .dirty(sg::Layer::kFlagChildOffsetChanged | sg::Layer::kFlagRedrawContent |
                               sg::Layer::kFlagPositionChanged)
                        .contentOffset(10, -8)
@@ -1360,7 +1368,8 @@ TEST_F(SGGraphicTest, ParameterizedTextLayout)
         IsLayer(Rect(0, 0, 0, 0), "...container")
             .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren)
             .child(IsLayer(Rect(10, 12, 30, 10), "...text")
-                       .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren)
+                       .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren | 
+                                       sg::Layer::kCharacteristicHasText)
                        .dirty(sg::Layer::kFlagChildOffsetChanged | sg::Layer::kFlagRedrawContent |
                               sg::Layer::kFlagPositionChanged)
                        .contentOffset(10, 12)
@@ -1375,7 +1384,8 @@ TEST_F(SGGraphicTest, ParameterizedTextLayout)
         IsLayer(Rect(0, 0, 0, 0), "...container")
             .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren)
             .child(IsLayer(Rect(-20, 12, 30, 10), "...text")
-                       .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren)
+                       .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren | 
+                                       sg::Layer::kCharacteristicHasText)
                        .dirty(sg::Layer::kFlagChildOffsetChanged | sg::Layer::kFlagRedrawContent |
                               sg::Layer::kFlagPositionChanged)
                        .contentOffset(-20, 12)
@@ -1499,7 +1509,8 @@ TEST_F(SGGraphicTest, ParameterizedTextStrokeLayouts)
                         IsLayer(Rect(0, 0, 0, 0), "...container")
                             .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren)
                             .child(IsLayer(Rect(-2, -10, 54, 14), "....text")
-                                       .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren)
+                                       .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren | 
+                                                       sg::Layer::kCharacteristicHasText)
                                        .dirty(sg::Layer::kFlagRedrawContent)
                                        .contentOffset(Point(-2, -10))
                                        .content(IsTransformNode().translate(0, -8).child(
@@ -1513,7 +1524,8 @@ TEST_F(SGGraphicTest, ParameterizedTextStrokeLayouts)
                         IsLayer(Rect(0, 0, 0, 0), "...container")
                             .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren)
                             .child(IsLayer(Rect(-2, -10, 54, 14), "....text")
-                                       .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren)
+                                       .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren | 
+                                                       sg::Layer::kCharacteristicHasText)
                                        .dirty(sg::Layer::kFlagRedrawContent)
                                        .contentOffset(Point(-2, -10))
                                        .content(IsTransformNode().translate(0, -8).child(
@@ -1527,7 +1539,8 @@ TEST_F(SGGraphicTest, ParameterizedTextStrokeLayouts)
         IsLayer(Rect(0, 0, 0, 0), "...container")
             .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren)
             .child(IsLayer(Rect(-2, -10, 54, 14), "....text")
-                       .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren)
+                       .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren | 
+                                       sg::Layer::kCharacteristicHasText)
                        .dirty(sg::Layer::kFlagRedrawContent)
                        .contentOffset(Point(-2, -10))
                        .content(IsTransformNode().translate(0, -8).child(
@@ -1545,7 +1558,8 @@ TEST_F(SGGraphicTest, ParameterizedTextStrokeLayouts)
             .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren)
             .child(
                 IsLayer(Rect(-2, -10, 54, 14), "....text")
-                    .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren)
+                    .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren | 
+                                    sg::Layer::kCharacteristicHasText)
                     .dirty(sg::Layer::kFlagRedrawContent)
                     .contentOffset(Point(-2, -10))
                     .content(IsTransformNode().translate(0, -8).child(
@@ -1563,7 +1577,8 @@ TEST_F(SGGraphicTest, ParameterizedTextStrokeLayouts)
                         IsLayer(Rect(0, 0, 0, 0), "...container")
                             .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren)
                             .child(IsLayer(Rect(-2, -10, 54, 14), "....text")
-                                       .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren)
+                                       .characteristic(sg::Layer::kCharacteristicRenderOnly | sg::Layer::kCharacteristicDoNotClipChildren | 
+                                                       sg::Layer::kCharacteristicHasText)
                                        .dirty(sg::Layer::kFlagRedrawContent)
                                        .contentOffset(Point(-2, -10))
                                        .content(IsTransformNode().translate(0, -8).child(

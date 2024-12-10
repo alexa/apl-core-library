@@ -255,6 +255,51 @@ TEST_F(SGImageTest, DelayedLoad) {
                                         .source(Rect{0, 0, 100, 200})))));
 }
 
+static const char * LEGACY_IMAGE = R"apl(
+    {
+      "type": "APL",
+      "version": "1.5",
+      "mainTemplate": {
+        "items": {
+          "type": "Container",
+          "width": 100,
+          "height": 100,
+          "items": {
+            "type": "Image",
+            "width": 200,
+            "height": 200,
+            "source": "http://fake.url"
+          }
+        }
+      }
+    }
+)apl";
+
+TEST_F(SGImageTest, LegacyNoCroppedImage)
+{
+    addMedia("http://fake.url", Size{100, 200});
+
+    metrics.size(300, 300);
+    loadDocument(LEGACY_IMAGE);
+    ASSERT_TRUE(component);
+
+    // Note: Image defaults to "center", "best-fit"
+    auto sg = root->getSceneGraph();
+
+    ASSERT_TRUE(CheckSceneGraph(
+        sg,
+        IsLayer(Rect{0, 0, 100, 100}, "...Container")
+            .child(IsLayer(Rect{0, 0, 200, 200})
+                       .characteristic(sg::Layer::kCharacteristicHasMedia | sg::Layer::kCharacteristicDoNotClipChildren)
+                       .content(IsClipNode()
+                                    .path(IsRoundRectPath(50, 0, 100, 200,
+                                                          0)) // Target bounds
+                                    .child(IsImageNode()
+                                               .filterTest(IsMediaObjectFilter("http://fake.url"))
+                                               .target(Rect{50, 0, 100, 200})
+                                               .source(Rect{0, 0, 100, 200}))))));
+}
+
 
 static const char * FRAMED_IMAGE = R"apl(
     {
@@ -294,7 +339,7 @@ TEST_F(SGImageTest, FramedImage)
         IsLayer(Rect{0, 0, 200, 200}, "...Frame")
             .content(IsDrawNode() // Draw the border of the frame
                         .path(IsFramePath(RoundedRect({0, 0, 200, 200}, 0), 10))
-                        .pathOp(IsFillOp(IsColorPaint(Color::RED))))
+                        .pathOp(IsFillOp(IsColorPaint(Color::RED), apl::sg::kFillTypeEvenOdd)))
             .childClip(IsRoundRectPath(10, 10, 180, 180, 0))
             .child(IsLayer(Rect{10, 10, 200, 200})
                        .characteristic(sg::Layer::kCharacteristicHasMedia)
@@ -387,7 +432,7 @@ TEST_F(SGImageTest, GradientOverlay) {
                                             IsMediaObjectFilter("ALPHA"),
                                             IsSolidFilter(IsLinearGradientPaint(
                                                 {0, 1}, {Color::BLUE, Color::RED}, Gradient::PAD,
-                                                true, {0.5, 0}, {0.5, 1})),
+                                                true, {0.5, 1}, {0.5, 0})),
                                             kBlendModeNormal))
                                         .target(Rect{100, 0, 200, 400})
                                         .source(Rect{0, 0, 100, 200})))));
@@ -524,6 +569,134 @@ TEST_F(SGImageTest, TwoImagesBlend) {
                                         .filterTest(IsBlendFilter(IsMediaObjectFilter("ALPHA"),
                                                                   IsMediaObjectFilter("BETA"),
                                                                   kBlendModeDarken))
+                                        .target(Rect{0, 55, 100, 200})
+                                        .source(Rect{0, 0, 100, 200})))));
+}
+
+static const char *INVALID_FILTER_SOURCE = R"apl(
+    {
+      "type": "APL",
+      "version": "1.6",
+      "mainTemplate": {
+        "items": {
+          "type": "Image",
+          "width": 250,
+          "height": 310,
+          "align": "left",
+          "scale": "none",
+          "source": [
+            "ALPHA"
+          ],
+          "filters": [
+            { "type": "Saturate", "source": 5 }
+          ]
+        }
+      }
+    }
+)apl";
+
+TEST_F(SGImageTest, InvalidFilterSource) {
+    addMedia("ALPHA", Size{100, 200});
+
+    metrics.size(300, 300);
+    loadDocument(INVALID_FILTER_SOURCE);
+    ASSERT_TRUE(component);
+
+    auto sg = root->getSceneGraph();
+
+    ASSERT_TRUE(CheckSceneGraph(
+        sg, IsLayer(Rect{0, 0, 250, 310})
+                .characteristic(sg::Layer::kCharacteristicHasMedia)
+                .content(IsClipNode()
+                             .path(IsRoundRectPath(0, 55, 100, 200, 0)) // Clip to the image size
+                             .child(IsImageNode()
+                                        .filterTest(IsMediaObjectFilter("ALPHA"))
+                                        .target(Rect{0, 55, 100, 200})
+                                        .source(Rect{0, 0, 100, 200})))));
+}
+
+static const char *TRANSPARENT_COLOR_BLEND_BACK = R"apl(
+    {
+      "type": "APL",
+      "version": "1.6",
+      "mainTemplate": {
+        "items": {
+          "type": "Image",
+          "width": 250,
+          "height": 310,
+          "align": "left",
+          "scale": "none",
+          "source": [
+            "ALPHA"
+          ],
+          "filters": [
+            { "type": "Color" },
+            { "type": "Blend", "mode": "darken" }
+          ]
+        }
+      }
+    }
+)apl";
+
+TEST_F(SGImageTest, TransparentColorBlendBack) {
+    addMedia("ALPHA", Size{100, 200});
+
+    metrics.size(300, 300);
+    loadDocument(TRANSPARENT_COLOR_BLEND_BACK);
+    ASSERT_TRUE(component);
+
+    auto sg = root->getSceneGraph();
+
+    ASSERT_TRUE(CheckSceneGraph(
+        sg, IsLayer(Rect{0, 0, 250, 310})
+                .characteristic(sg::Layer::kCharacteristicHasMedia)
+                .content(IsClipNode()
+                             .path(IsRoundRectPath(0, 55, 100, 200, 0)) // Clip to the image size
+                             .child(IsImageNode()
+                                        .filterTest(IsMediaObjectFilter("ALPHA"))
+                                        .target(Rect{0, 55, 100, 200})
+                                        .source(Rect{0, 0, 100, 200})))));
+}
+
+static const char *TRANSPARENT_COLOR_BLEND_FRONT = R"apl(
+    {
+      "type": "APL",
+      "version": "1.6",
+      "mainTemplate": {
+        "items": {
+          "type": "Image",
+          "width": 250,
+          "height": 310,
+          "align": "left",
+          "scale": "none",
+          "source": [
+            "ALPHA"
+          ],
+          "filters": [
+            { "type": "Color" },
+            { "type": "Blend", "mode": "darken", "source": -2, "destination": -1 }
+          ]
+        }
+      }
+    }
+)apl";
+
+TEST_F(SGImageTest, TransparentColorBlendFront) {
+    addMedia("ALPHA", Size{100, 200});
+
+    metrics.size(300, 300);
+    loadDocument(TRANSPARENT_COLOR_BLEND_FRONT);
+    ASSERT_TRUE(component);
+
+    auto sg = root->getSceneGraph();
+
+    ASSERT_TRUE(CheckSceneGraph(
+        sg, IsLayer(Rect{0, 0, 250, 310})
+                .characteristic(sg::Layer::kCharacteristicHasMedia)
+                .content(IsClipNode()
+                             .path(IsRoundRectPath(0, 55, 100, 200, 0)) // Clip to the image size
+                             .child(IsImageNode()
+                                        .filterTest(IsMediaObjectFilter("ALPHA"))
                                         .target(Rect{0, 55, 100, 200})
                                         .source(Rect{0, 0, 100, 200})))));
 }

@@ -57,18 +57,6 @@ TEST_F(MemoryTest, Basic)
     root = nullptr;
 }
 
-class MemTextMeasure : public TextMeasurement {
-public:
-    LayoutSize measure(Component *component, float width, MeasureMode widthMode, float height,
-                   MeasureMode heightMode) override {
-        return LayoutSize({5, 5});
-    }
-
-    float baseline(Component *component, float width, float height) override {
-        return height;
-    }
-};
-
 static const char *TEXT_DOC = R"({
   "type": "APL",
   "version": "1.4",
@@ -93,7 +81,7 @@ TEST_F(MemoryTest, Text)
     auto m = Metrics().size(1024,800).theme("dark");
     auto config = RootConfig()
             .set(RootProperty::kDefaultIdleTimeout, 15000)
-            .measure(std::make_shared<MemTextMeasure>());
+            .measure(std::make_shared<MyTestMeasurement>());
     root = RootContext::create(m, content, config);
 
     ASSERT_TRUE(root);

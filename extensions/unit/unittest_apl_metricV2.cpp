@@ -355,12 +355,31 @@ TEST_F(AplMetricsExtension2Test, TestIncrementCounter) {
                        .property(AMOUNT, 3);
     auto invoke = mExtension->invokeCommand(activity, command);
     ASSERT_TRUE(invoke);
-    // Test IncrementCounter without amount property
+
+    // Test IncrementCounter with amount as float
+    command = Command("1.0")
+                   .uri(URI_V2)
+                   .name("IncrementCounter")
+                   .property(METRIC_ID, "TestId")
+                   .property(AMOUNT, 2.0);
+    invoke = mExtension->invokeCommand(activity, command);
+    ASSERT_TRUE(invoke);
+
+    // Test IncrementCounter with amount as int string
     command = Command("1.0")
                   .uri(URI_V2)
                   .name("IncrementCounter")
                   .property(METRIC_ID, "TestId")
-                  .property(AMOUNT, 2);
+                  .property(AMOUNT, "2");
+    invoke = mExtension->invokeCommand(activity, command);
+    ASSERT_TRUE(invoke);
+
+    // Test IncrementCounter with amount as double string
+    command = Command("1.0")
+                  .uri(URI_V2)
+                  .name("IncrementCounter")
+                  .property(METRIC_ID, "TestId")
+                  .property(AMOUNT, "2.53");
     invoke = mExtension->invokeCommand(activity, command);
     ASSERT_TRUE(invoke);
 
@@ -372,7 +391,7 @@ TEST_F(AplMetricsExtension2Test, TestIncrementCounter) {
     mExtension->onActivityUnregistered(activity);
 
     auto metricList = mDestFactory->lastDestinationMock->lastPublishedMetricList;
-    ASSERT_EQ(6, metricList[0].value);
+    ASSERT_EQ(10, metricList[0].value);
 }
 
 TEST_F(AplMetricsExtension2Test, TestTimerMetric) {

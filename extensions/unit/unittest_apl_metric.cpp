@@ -300,12 +300,42 @@ TEST_F(AplMetricsExtensionTest, TestCommands) {
     auto invoke = mExtension->invokeCommand(activity, command);
     ASSERT_TRUE(invoke);
 
+    // Test IncrementCounter without amount as float
+    mObserver->mCommand = NONE;
+    command = Command("1.0")
+        .uri(URI)
+        .name("IncrementCounter")
+        .property(AMOUNT, 2.0)
+        .property(METRIC_ID, "TestId");
+    invoke = mExtension->invokeCommand(activity, command);
+    ASSERT_TRUE(invoke);
+
     // Test IncrementCounter without amount property
     mObserver->mCommand = NONE;
     command = Command("1.0")
         .uri(URI)
         .name("IncrementCounter")
         .property(METRIC_ID, "TestId");
+    invoke = mExtension->invokeCommand(activity, command);
+    ASSERT_TRUE(invoke);
+
+    // Test IncrementCounter with amount as int string
+    mObserver->mCommand = NONE;
+    command = Command("1.0")
+        .uri(URI)
+        .name("IncrementCounter")
+        .property(METRIC_ID, "TestId")
+        .property(AMOUNT, "2");
+    invoke = mExtension->invokeCommand(activity, command);
+    ASSERT_TRUE(invoke);
+
+    // Test IncrementCounter with amount as double string
+    mObserver->mCommand = NONE;
+    command = Command("1.0")
+        .uri(URI)
+        .name("IncrementCounter")
+        .property(METRIC_ID, "TestId")
+        .property(AMOUNT, "2.53");
     invoke = mExtension->invokeCommand(activity, command);
     ASSERT_TRUE(invoke);
 
@@ -327,7 +357,7 @@ TEST_F(AplMetricsExtensionTest, TestCommands) {
     ASSERT_EQ(RECORD_TIMER, mObserver->mCommand);
 
     mExtension->onSessionEnded(*activity.getSession());
-    ASSERT_EQ(4, mObserver->mRecordedCounter);
+    ASSERT_EQ(10, mObserver->mRecordedCounter);
     ASSERT_EQ(RECORD_COUNTER, mObserver->mCommand);
 }
 

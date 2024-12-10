@@ -36,37 +36,6 @@ namespace apl {
 
 static const bool DEBUG_YG_PRINT_TREE = false;
 
-static LogLevel
-ygLevelToDebugLevel(YGLogLevel level) {
-    switch (level) {
-        case YGLogLevelError: return LogLevel::kError;
-        case YGLogLevelWarn: return LogLevel::kWarn;
-        case YGLogLevelInfo: return LogLevel::kInfo;
-        case YGLogLevelDebug: return LogLevel::kDebug;
-        case YGLogLevelVerbose: return LogLevel::kTrace;
-        case YGLogLevelFatal: return LogLevel::kCritical;
-    }
-    return LogLevel::kDebug;
-}
-
-static int
-ygLogger(const YGConfigRef config,
-         const YGNodeRef node,
-         YGLogLevel level,
-         const char* format,
-         va_list args) {
-    va_list args_copy;
-    va_copy(args_copy, args);
-    std::vector<char> buf(1 + std::vsnprintf(nullptr, 0, format, args_copy));
-    va_end(args_copy);
-
-    std::vsnprintf(buf.data(), buf.size(), format, args);
-    va_end(args);
-
-    LOG(ygLevelToDebugLevel(level)) << buf.data();
-    return 1; // Does this matter?
-}
-
 SharedContextData::SharedContextData(const CoreRootContextPtr& root,
                                      const Metrics& metrics,
                                      const RootConfig& config)
@@ -87,33 +56,24 @@ SharedContextData::SharedContextData(const CoreRootContextPtr& root,
       mTimeManager(config.getTimeManager()),
       mMediaManager(config.getMediaManager()),
       mMediaPlayerFactory(config.getMediaPlayerFactory()),
-      mYGConfigRef(YGConfigNew()),
+      mYogaConfig(metrics, DEBUG_YG_PRINT_TREE),
       mTextMeasurement(config.getMeasure()),
-      mCachedMeasures(config.getProperty(RootProperty::kTextMeasurementCacheLimit).getInteger()),
-      mCachedBaselines(config.getProperty(RootProperty::kTextMeasurementCacheLimit).getInteger()),
       mTextLayoutCache(new sg::TextLayoutCache()),
       mTextPropertiesCache(new sg::TextPropertiesCache())
 {
-    YGConfigSetPrintTreeFlag(mYGConfigRef, DEBUG_YG_PRINT_TREE);
-    YGConfigSetLogger(mYGConfigRef, ygLogger);
-    YGConfigSetPointScaleFactor(mYGConfigRef, metrics.getDpi() / Metrics::CORE_DPI);
 }
 
 SharedContextData::SharedContextData(const RootConfig& config)
     : mRequestedVersion(config.getProperty(RootProperty::kReportedVersion).getString()),
       mUniqueIdGenerator(std::make_unique<UIDGenerator>()),
       mDependantManager(std::make_unique<DependantManager>()),
-      mYGConfigRef(YGConfigNew()),
+      mYogaConfig(),
       mTextMeasurement(config.getMeasure()),
-      mCachedMeasures(0),
-      mCachedBaselines(0),
       mTextLayoutCache(new sg::TextLayoutCache()),
       mTextPropertiesCache(new sg::TextPropertiesCache())
 {}
 
-SharedContextData::~SharedContextData() {
-    YGConfigFree(mYGConfigRef);
-}
+SharedContextData::~SharedContextData() {}
 
 void
 SharedContextData::halt()

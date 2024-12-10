@@ -16,12 +16,12 @@
 #include "apl/component/vectorgraphiccomponent.h"
 
 #include "apl/component/componentpropdef.h"
-#include "apl/component/yogaproperties.h"
 #include "apl/graphic/graphic.h"
 #include "apl/media/mediamanager.h"
 #include "apl/media/mediaobject.h"
 #include "apl/time/sequencer.h"
 #include "apl/utils/url.h"
+#include "apl/yoga/yogaproperties.h"
 #ifdef SCENEGRAPH
 #include "apl/content/rootconfig.h"
 #include "apl/scenegraph/builder.h"
@@ -115,13 +115,13 @@ VectorGraphicComponent::initialize()
 
     // Fix up the width if it was set to auto
     if (mCalculated.get(kPropertyWidth).isAutoDimension()) {
-        YGNodeStyleSetWidth(mYGNodeRef, static_cast<float>(width));
+        mYogaNode.setWidth(static_cast<float>(width));
         mCalculated.set(kPropertyWidth, Dimension(width));
     }
 
     // Fix up the height if it was set to auto
     if (mCalculated.get(kPropertyHeight).isAutoDimension()) {
-        YGNodeStyleSetHeight(mYGNodeRef, static_cast<float>(height));
+        mYogaNode.setHeight(static_cast<float>(height));
         mCalculated.set(kPropertyHeight, Dimension(height));
     }
 }

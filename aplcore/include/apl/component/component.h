@@ -222,7 +222,7 @@ public:
      * @param key The PropertyKey of the prop to return.
      * @return The current value assigned to that property.
      */
-    const Object& getCalculated( PropertyKey key ) const { return mCalculated.get(key); }
+    const Object& getCalculated( PropertyKey key ) const;
 
     /**
      * @return The primitive type of the component.
@@ -251,15 +251,14 @@ public:
     ConstContextPtr getContext() const { return mContext; }
 
     /**
-     * @return True if this component was properly created with all required
-     *         properties specified.
+     * @return True if this component was properly created and can be used from an external API standpoint.
      */
-    bool isValid() { return !mFlags.isSet(kComponentFlagInvalid); }
+    bool isValid() const { return !mFlags.isSet(kComponentFlagInvalid) && !mFlags.isSet(kComponentFlagIsReleased); }
 
     /**
      * @return True if this component has been inflated and should now run event handlers on a SetValue or equivalent.
      */
-    bool allowEventHandlers() { return mFlags.isSet(kComponentFlagAllowEventHandlers);}
+    bool allowEventHandlers() const { return mFlags.isSet(kComponentFlagAllowEventHandlers);}
 
     /**
      * An update message from the viewhost.  This method is used for all updates that take
@@ -280,8 +279,9 @@ public:
     /**
      * Update component media state. Not applicable for every component.
      * @param state component's MediaState.
+     * @deprecated Use MediaPlayer interface.
      */
-    virtual void updateMediaState(const MediaState& state, bool fromEvent = false);
+    virtual void updateMediaState(const MediaState& state, bool fromEvent = false) { aplThrow(NOT_SUPPORTED_ERROR); }
 
     /**
      * Update graphics display.  Not applicable for every component.
@@ -524,6 +524,7 @@ protected:
     enum ComponentFlags : uint8_t {
         kComponentFlagInvalid = 1u << 0,  // Marks a component missing a required property
         kComponentFlagAllowEventHandlers = 1u << 1,  // Event handlers don't run when the component is first inflated
+        kComponentFlagIsReleased = 1u << 2,  // Component was released and no longer valid
     };
 
     Flags<ComponentFlags>  mFlags;

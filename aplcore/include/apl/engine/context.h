@@ -16,8 +16,6 @@
 #ifndef _APL_CONTEXT_H
 #define _APL_CONTEXT_H
 
-#include <yoga/Yoga.h>
-
 #include "apl/common.h"
 #include "apl/component/componentproperties.h"
 #include "apl/content/metrics.h"
@@ -34,6 +32,7 @@
 #include "apl/utils/lrucache.h"
 #include "apl/utils/noncopyable.h"
 #include "apl/utils/path.h"
+#include "apl/yoga/yogaconfig.h"
 
 namespace apl {
 
@@ -591,16 +590,6 @@ public:
     void setDirtyDataSourceContext(const DataSourceConnectionPtr& ptr);
 
     /**
-     * @return internal text measurement cache.
-     */
-    LruCache<TextMeasureRequest, YGSize>& cachedMeasures();
-
-    /**
-     * @return internal text measurement baseline cache.
-     */
-    LruCache<TextMeasureRequest, float>& cachedBaselines();
-
-    /**
      * @return List of pending onMount handlers for recently inflated components.
      */
     WeakPtrSet<CoreComponent>& pendingOnMounts();
@@ -648,7 +637,7 @@ public:
 
     const SessionPtr& session() const;
 
-    YGConfigRef ygconfig() const;
+    const YogaConfig& ygconfig() const;
 
     const TextMeasurementPtr& measure() const;
 

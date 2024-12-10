@@ -41,4 +41,19 @@ GetWithDefault<std::string>(const rapidjson::Pointer& path,
     return value->GetString();
 }
 
+int GetAsIntWithDefault(const rapidjson::Pointer& path,
+                            const rapidjson::Value& root,
+                            int defaultValue)
+{
+    const rapidjson::Value* value = path.Get(root);
+    if (!value || value->IsNull()) {
+        return defaultValue;
+    } else if (value->IsNumber()) {
+        return static_cast<int>(value->GetDouble());
+    } else if (value->IsString()) {
+        return std::atoi(value->GetString());
+    }
+    return defaultValue;
+}
+
 } // namespace alexaext

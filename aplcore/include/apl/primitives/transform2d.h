@@ -35,19 +35,6 @@
 
 namespace apl {
 
-enum TransformType {
-    kTransformTypeRotate,
-    kTransformTypeScaleX,
-    kTransformTypeScaleY,
-    kTransformTypeScale,
-    kTransformTypeSkewX,
-    kTransformTypeSkewY,
-    kTransformTypeTranslateX,
-    kTransformTypeTranslateY,
-};
-
-extern Bimap<TransformType, std::string> sTransformTypeMap;
-
 const static bool DEBUG_TRANSFORM = false;
 
 /**
@@ -183,10 +170,10 @@ public:
 
     /**
      * Parse a string representing a transform
-     * @param string The string to parse
+     * @param transform The string to parse
      * @return A 2D transform.  This will be the identify transform if the string fails to parse.
      */
-    static Transform2D parse(const SessionPtr& session, const std::string& string);
+    static Transform2D parse(const SessionPtr& session, const std::string& transform);
 
     /**
      * Default constructor creates the identity matrix.

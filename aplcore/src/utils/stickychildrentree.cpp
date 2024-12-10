@@ -48,6 +48,8 @@ StickyChildrenTree::StickyChildrenTree(CoreComponent &scrollable) :
  */
 static void
 buildStickyTreeInternal(std::shared_ptr<StickyNode> currentNode, const CoreComponentPtr& c, ScrollType scrollableType) {
+    if (!c->isValid()) return;
+
     std::shared_ptr<StickyNode> nextNode = currentNode;
     if (c->getCalculated(kPropertyPosition) == kPositionSticky) {
         auto node = std::make_shared<StickyNode>(c);

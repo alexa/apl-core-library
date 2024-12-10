@@ -16,8 +16,8 @@
 #include "apl/component/sequencecomponent.h"
 
 #include "apl/component/componentpropdef.h"
-#include "apl/component/yogaproperties.h"
 #include "apl/content/rootconfig.h"
+#include "apl/yoga/yogaproperties.h"
 
 namespace apl {
 
@@ -59,14 +59,6 @@ SequenceComponent::layoutPropDefSet() const {
     });
 
     return &sSequenceChildProperties;
-}
-
-size_t
-SequenceComponent::estimateChildrenToCover(float distance, size_t baseChild)
-{
-    const auto& size = mChildren.at(baseChild)->getCalculated(kPropertyBounds).get<Rect>();
-    auto vertical = isVertical();
-    return std::ceil(std::abs(distance) / (vertical ? size.getHeight() : size.getWidth()));
 }
 
 } // namespace apl

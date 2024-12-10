@@ -22,6 +22,7 @@ target_sources_local(apl
     containercomponent.cpp
     corecomponent.cpp
     edittextcomponent.cpp
+    flexsequencecomponent.cpp
     framecomponent.cpp
     gridsequencecomponent.cpp
     hostcomponent.cpp
@@ -39,5 +40,4 @@ target_sources_local(apl
     touchwrappercomponent.cpp
     vectorgraphiccomponent.cpp
     videocomponent.cpp
-    yogaproperties.cpp
 )

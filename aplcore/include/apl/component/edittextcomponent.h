@@ -54,11 +54,11 @@ protected:
     PointerCaptureStatus processPointerEvent(const PointerEvent& event, apl_time_t timestamp, bool onlyProcessGestures) override;
     void executeOnBlur() override;
     void executeOnFocus() override;
-    YGSize textMeasure(float width, YGMeasureMode widthMode, float height, YGMeasureMode heightMode) override;
+    Size textMeasure(float width, MeasureMode widthMode, float height, MeasureMode heightMode) override;
     float textBaseline(float width, float height) override;
 
 private:
-    YGSize measureEditText(MeasureRequest&& request);
+    Size measureEditText(MeasureRequest&& request);
     float baselineText(float width, float height);
 
     bool ensureEditTextBox();

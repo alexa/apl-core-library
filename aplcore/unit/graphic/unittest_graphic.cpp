@@ -2667,11 +2667,10 @@ TEST_F(GraphicTest, ExternalResourcedGradient)
     ASSERT_EQ(Gradient::PAD, static_cast<Gradient::GradientSpreadMethod>(spreadMethod.getInteger()));
 
     ASSERT_NEAR(0.1585, fillGrad.getProperty(kGradientPropertyX1).getDouble(), 0.0001);
-    ASSERT_NEAR(-0.0915, fillGrad.getProperty(kGradientPropertyY1).getDouble(), 0.0001);
     ASSERT_NEAR(0.8415, fillGrad.getProperty(kGradientPropertyX2).getDouble(), 0.0001);
-    ASSERT_NEAR(1.0915, fillGrad.getProperty(kGradientPropertyY2).getDouble(), 0.0001);
 
-
+    ASSERT_NEAR(1.0915, fillGrad.getProperty(kGradientPropertyY1).getDouble(), 0.0001);
+    ASSERT_NEAR(-0.0915, fillGrad.getProperty(kGradientPropertyY2).getDouble(), 0.0001);
 
     auto text = group->getChildAt(1);
     ASSERT_EQ(kGraphicElementTypeText, text->getType());

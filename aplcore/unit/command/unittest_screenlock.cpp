@@ -19,24 +19,23 @@ using namespace apl;
 
 class ScreenLockTest : public DocumentWrapper {};
 
-static const char *SCROLLVIEW =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"mainTemplate\": {"
-    "    \"items\": {"
-    "      \"type\": \"ScrollView\","
-    "      \"id\": \"myScroll\","
-    "      \"height\": 100,"
-    "      \"width\": 100,"
-    "      \"items\": {"
-    "        \"type\": \"Frame\","
-    "        \"height\": 1000,"
-    "        \"width\": 100"
-    "      }"
-    "    }"
-    "  }"
-    "}";
+static const char *SCROLLVIEW = R"apl({
+  "type": "APL",
+  "version": "1.1",
+  "mainTemplate": {
+    "items": {
+      "type": "ScrollView",
+      "id": "myScroll",
+      "height": 100,
+      "width": 100,
+      "items": {
+        "type": "Frame",
+        "height": 1000,
+        "width": 100
+      }
+    }
+  }
+})apl";
 
 TEST_F(ScreenLockTest, Basic) {
     loadDocument(SCROLLVIEW);
@@ -139,32 +138,31 @@ TEST_F(ScreenLockTest, BasicSendEventWithDelayFastMode) {
     ASSERT_TRUE(ConsoleMessage());  // The SendEvent command fails in fast mode
 }
 
-static const char *ON_MOUNT =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"mainTemplate\": {"
-    "    \"items\": {"
-    "      \"type\": \"ScrollView\","
-    "      \"id\": \"myScroll\","
-    "      \"height\": 100,"
-    "      \"width\": 100,"
-    "      \"items\": {"
-    "        \"type\": \"Frame\","
-    "        \"height\": 1000,"
-    "        \"width\": 100"
-    "      }"
-    "    }"
-    "  },"
-    "  \"onMount\": {"
-    "    \"description\": \"At start up, wait one second and scroll to the end\","
-    "    \"type\": \"Scroll\","
-    "    \"distance\": \"10000\","
-    "    \"componentId\": \"myScroll\","
-    "    \"delay\": 1000,"
-    "    \"screenLock\": true"
-    "  }"
-    "}";
+static const char *ON_MOUNT = R"apl({
+  "type": "APL",
+  "version": "1.1",
+  "mainTemplate": {
+    "items": {
+      "type": "ScrollView",
+      "id": "myScroll",
+      "height": 100,
+      "width": 100,
+      "items": {
+        "type": "Frame",
+        "height": 1000,
+        "width": 100
+      }
+    }
+  },
+  "onMount": {
+    "description": "At start up, wait one second and scroll to the end",
+    "type": "Scroll",
+    "distance": "10000",
+    "componentId": "myScroll",
+    "delay": 1000,
+    "screenLock": true
+  }
+})apl";
 
 
 TEST_F(ScreenLockTest, OnMount) {
@@ -184,46 +182,43 @@ TEST_F(ScreenLockTest, OnMount) {
     ASSERT_FALSE(root->screenLock());
 }
 
-static const char *ON_MOUNT_INTERRUPT =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"mainTemplate\": {"
-    "    \"items\": {"
-    "      \"type\": \"ScrollView\","
-    "      \"id\": \"myScroll\","
-    "      \"height\": 100,"
-    "      \"width\": 100,"
-    "      \"items\": {"
-    "        \"type\": \"Frame\","
-    "        \"height\": 1000,"
-    "        \"width\": 100,"
-    "        \"items\": ["
-    "          {"
-    "            \"type\": \"TouchWrapper\","
-    "            \"id\": \"myTouch\","
-    "            \"width\": 100,"
-    "            \"height\": 400,"
-    "            \"onPress\": {"
-    "              \"type\": \"SendEvent\","
-    "              \"arguments\": ["
-    "                \"a\""
-    "              ]"
-    "            }"
-    "          }"
-    "        ]"
-    "      }"
-    "    }"
-    "  },"
-    "  \"onMount\": {"
-    "    \"description\": \"At start up, wait one second and scroll to the end\","
-    "    \"type\": \"Scroll\","
-    "    \"distance\": \"10000\","
-    "    \"componentId\": \"myScroll\","
-    "    \"delay\": 1000,"
-    "    \"screenLock\": true"
-    "  }"
-    "}";
+static const char *ON_MOUNT_INTERRUPT = R"apl({
+  "type": "APL",
+  "version": "1.1",
+  "mainTemplate": {
+    "items": {
+      "type": "ScrollView",
+      "id": "myScroll",
+      "height": 100,
+      "width": 100,
+      "items": {
+        "type": "Frame",
+        "height": 1000,
+        "width": 100,
+        "items": [
+          {
+            "type": "TouchWrapper",
+            "id": "myTouch",
+            "width": 100,
+            "height": 400,
+            "onPress": {
+              "type": "SendEvent",
+              "arguments": [ "a" ]
+            }
+          }
+        ]
+      }
+    }
+  },
+  "onMount": {
+    "description": "At start up, wait one second and scroll to the end",
+    "type": "Scroll",
+    "distance": "10000",
+    "componentId": "myScroll",
+    "delay": 1000,
+    "screenLock": true
+  }
+})apl";
 
 TEST_F(ScreenLockTest, OnMountInterrupt) {
     loadDocument(ON_MOUNT_INTERRUPT);
@@ -252,77 +247,76 @@ TEST_F(ScreenLockTest, OnMountInterrupt) {
     ASSERT_EQ(kEventTypeSendEvent, event.getType());
 }
 
-static const char *OVERLAPPING =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"commands\": {"
-    "    \"BigMess\": {"
-    "      \"command\": {"
-    "        \"type\": \"Sequential\","
-    "        \"repeatCount\": 1,"
-    "        \"commands\": ["
-    "          {"
-    "            \"type\": \"Parallel\","
-    "            \"commands\": ["
-    "              {"
-    "                \"type\": \"SendEvent\","
-    "                \"delay\": 500,"
-    "                \"arguments\": ["
-    "                  \"alpha\""
-    "                ],"
-    "                \"screenLock\": true"
-    "              },"
-    "              {"
-    "                \"type\": \"Sequential\","
-    "                \"commands\": ["
-    "                  {"
-    "                    \"type\": \"Scroll\","
-    "                    \"distance\": 100,"
-    "                    \"componentId\": \"myScroll\","
-    "                    \"screenLock\": true"
-    "                  },"
-    "                  {"
-    "                    \"type\": \"SendEvent\","
-    "                    \"delay\": 500,"
-    "                    \"arguments\": ["
-    "                      \"beta\""
-    "                    ]"
-    "                  }"
-    "                ]"
-    "              }"
-    "            ]"
-    "          }"
-    "        ]"
-    "      }"
-    "    }"
-    "  },"
-    "  \"mainTemplate\": {"
-    "    \"items\": {"
-    "      \"type\": \"ScrollView\","
-    "      \"id\": \"myScroll\","
-    "      \"height\": 100,"
-    "      \"width\": 100,"
-    "      \"items\": {"
-    "        \"type\": \"Frame\","
-    "        \"height\": 1000,"
-    "        \"width\": 100,"
-    "        \"items\": ["
-    "          {"
-    "            \"type\": \"TouchWrapper\","
-    "            \"id\": \"myTouch\","
-    "            \"width\": 100,"
-    "            \"height\": 100,"
-    "            \"onPress\": {"
-    "              \"type\": \"BigMess\","
-    "              \"delay\": 1000"
-    "            }"
-    "          }"
-    "        ]"
-    "      }"
-    "    }"
-    "  }"
-    "}";
+static const char *OVERLAPPING = R"apl({
+  "type": "APL",
+  "version": "1.1",
+  "commands": {
+    "BigMess": {
+      "command": {
+        "type": "Sequential",
+        "repeatCount": 1,
+        "commands": [
+          {
+            "type": "Parallel",
+            "commands": [
+              {
+                "type": "SendEvent",
+                "delay": 500,
+                "arguments": [
+                  "alpha"
+                ],
+                "screenLock": true
+              },
+              {
+                "type": "Sequential",
+                "commands": [
+                  {
+                    "type": "Scroll",
+                    "distance": 100,
+                    "componentId": "myScroll",
+                    "screenLock": true
+                  },
+                  {
+                    "type": "SendEvent",
+                    "delay": 500,
+                    "arguments": [
+                      "beta"
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "mainTemplate": {
+    "items": {
+      "type": "ScrollView",
+      "id": "myScroll",
+      "height": 100,
+      "width": 100,
+      "items": {
+        "type": "Frame",
+        "height": 1000,
+        "width": 100,
+        "items": [
+          {
+            "type": "TouchWrapper",
+            "id": "myTouch",
+            "width": 100,
+            "height": 100,
+            "onPress": {
+              "type": "BigMess",
+              "delay": 1000
+            }
+          }
+        ]
+      }
+    }
+  }
+})apl";
 
 TEST_F(ScreenLockTest, Overlapping) {
     loadDocument(OVERLAPPING);
@@ -393,5 +387,7 @@ TEST_F(ScreenLockTest, OverlappingWithInterrupt) {
 
     advanceTime(500);
     ASSERT_FALSE(root->hasEvent());
+
+    session->checkAndClear();
 }
 

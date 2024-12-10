@@ -39,18 +39,22 @@ class StyledText {
 public:
     /**
      * Limited set of APL supported styles.
+     * Style tags that go across a list item are closed before the list item, and
+     * reopened after. Because sorting accounts for the tag number, list item has
+     * to be before the styles for this to work.
      */
     enum SpanType {
         kSpanTypeLineBreak = 0,
-        kSpanTypeStrong = 1,
-        kSpanTypeItalic = 2,
-        kSpanTypeStrike = 3,
-        kSpanTypeUnderline = 4,
-        kSpanTypeMonospace = 5,
-        kSpanTypeSuperscript = 6,
-        kSpanTypeSubscript = 7,
-        kSpanTypeNoBreak = 8,
-        kSpanTypeSpan = 9,
+        kSpanTypeListItem = 1,
+        kSpanTypeStrong = 2,
+        kSpanTypeItalic = 3,
+        kSpanTypeStrike = 4,
+        kSpanTypeUnderline = 5,
+        kSpanTypeMonospace = 6,
+        kSpanTypeSuperscript = 7,
+        kSpanTypeSubscript = 8,
+        kSpanTypeNoBreak = 9,
+        kSpanTypeSpan = 10,
     };
 
     /**
@@ -252,9 +256,7 @@ public:
 
     rapidjson::Value serialize(rapidjson::Document::AllocatorType& allocator) const;
 
-    std::string toDebugString() const {
-        return "StyledText<'" + mRawText + "' span_count=" + std::to_string(mSpans.size()) + ">";
-    }
+    std::string toDebugString() const;
 
     bool empty() const { return mRawText.size() == 0; }
 

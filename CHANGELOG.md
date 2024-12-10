@@ -1,5 +1,21 @@
 # Changelog
 
+## [2024.3]
+This release adds support for version 2024.3 of the APL specification.
+
+### Added
+
+- Add the ImportPackage Command. Refactored the APL Package section to consolidate common package definitions. Included the accept property for all package loading. Add an environment property packages to list packages loaded at document inflation.
+- Add List tags to support bulleted lists.
+- Add data as allowed image source type.
+- Add FlexSequence Component.
+- Add role to context elements.
+- Add the String.indexOf, String.lastIndexOf, and String.includes functions to String functions.
+
+### Changed
+- Bug fixes.
+- Performance improvements.
+
 ## [2024.2]
 
 This release adds support for version 2024.2 of the APL specification.

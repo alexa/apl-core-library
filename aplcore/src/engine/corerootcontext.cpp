@@ -255,6 +255,34 @@ CoreRootContext::clearVisualContextDirty()
 }
 
 rapidjson::Value
+CoreRootContext::serializeDocumentState(rapidjson::Document::AllocatorType& allocator)
+{
+    assert(mTopDocument);
+    // Serialize actions in top document
+    rapidjson::Value actions(rapidjson::kArrayType);
+    auto topDocumentActions = mTopDocument->mCore->sequencer().serialize(allocator);
+    if (topDocumentActions.Size() > 0) {
+        rapidjson::Value wrappedObject(rapidjson::kObjectType);
+        wrappedObject.AddMember("document", "main", allocator);
+        wrappedObject.AddMember("actions", topDocumentActions, allocator);
+        actions.PushBack(wrappedObject, allocator);
+    }
+    assert(mShared);
+    // Serialize actions in all registered embedded documents
+    mShared->documentRegistrar().forEach([&](const CoreDocumentContextPtr& document) {
+        rapidjson::Value sequencer(rapidjson::kObjectType);
+        auto documentActions = document->serializeDocumentState(allocator);
+        if (documentActions.Size() > 0) {
+            rapidjson::Value object(rapidjson::kObjectType);
+            object.AddMember("document", "embedded", allocator);
+            object.AddMember("actions", documentActions, allocator);
+            actions.PushBack(object, allocator);
+        }
+    });
+    return actions;
+}
+
+rapidjson::Value
 CoreRootContext::serializeVisualContext(rapidjson::Document::AllocatorType& allocator)
 {
     clearVisualContextDirty();

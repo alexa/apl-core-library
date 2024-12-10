@@ -722,6 +722,70 @@ TEST_F(AutoSizeTest, ConfigurationChange)
     ASSERT_TRUE(checkViewport(200, 175));  // Viewport, maxHeight 175
 }
 
+static const char *AUTO_SIZE_CONFIG_CHANGE_TEST_DOC = R"apl(
+{
+  "type": "APL",
+  "version": "2024.3",
+  "settings": {
+    "supportsResizing": true
+  },
+  "onConfigChange": {
+    "type": "Reinflate"
+  },
+  "mainTemplate": {
+    "items": [
+      {
+        "type": "Frame",
+        "width": "${viewport.maxWidth}",
+        "height": "100%",
+        "background": "red",
+        "item": {
+          "type": "Text",
+          "text": "max:${viewport.maxWidth} cur:${viewport.width}"
+        }
+      }
+    ]
+  }
+}
+)apl";
+
+TEST_F(AutoSizeTest, AutoSizeConfigChangeTest)
+{
+    metrics = Metrics().dpi(160).size(300, 480).minAndMaxWidth(200, 400).minAndMaxHeight(480, 480);
+    ASSERT_TRUE(doInitialize(AUTO_SIZE_CONFIG_CHANGE_TEST_DOC, 400, 480));
+
+    auto preContext = root->payloadContext();
+    ASSERT_TRUE(IsEqual(300.0f, evaluate(*preContext, "${viewport.width}")));
+    ASSERT_TRUE(IsEqual(400.0f, evaluate(*preContext, "${viewport.maxWidth}")));
+
+    // maxWidth 400 -> 600
+    // width 300 -> 400
+    auto configChange = ConfigurationChange().sizeRange(400, 200, 600, 480, 480, 480);
+    metrics = Metrics().dpi(160).size(400, 480).minAndMaxWidth(200, 600).minAndMaxHeight(480, 480);
+    configChangeReinflate(configChange);
+    root->clearPending();
+
+    auto postContext = root->payloadContext();
+    // Expecting the data binding context to reflect the config change?
+    ASSERT_TRUE(IsEqual(400.0f, evaluate(*postContext, "${viewport.width}")));
+    ASSERT_TRUE(IsEqual(600.0f, evaluate(*postContext, "${viewport.maxWidth}")));
+}
+
+TEST_F(AutoSizeTest, NonAutosizeTest)
+{
+    metrics = Metrics().dpi(160).size(300, 480);
+    ASSERT_TRUE(doInitialize(AUTO_SIZE_CONFIG_CHANGE_TEST_DOC, 300, 480));
+
+    auto configChange = ConfigurationChange(350, 480);
+    metrics = Metrics().size(350, 480);
+    configChangeReinflate(configChange);
+    root->clearPending();
+
+    auto postContext = root->payloadContext();
+    ASSERT_TRUE(IsEqual(350.0f, root->getViewportSize().getWidth()));
+    ASSERT_TRUE(IsEqual(350.0f, evaluate(*postContext, "${viewport.width}")));
+}
+
 static const char *TEXT_RESIZING = R"apl(
 {
   "type": "APL",

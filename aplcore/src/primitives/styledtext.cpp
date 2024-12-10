@@ -15,7 +15,6 @@
 
 #include "apl/primitives/styledtext.h"
 
-#include <set>
 #include <locale>
 #include <codecvt>
 
@@ -25,7 +24,6 @@
 #include "apl/document/coredocumentcontext.h"
 #include "apl/primitives/color.h"
 #include "apl/primitives/dimension.h"
-#include "apl/primitives/objectdata.h"
 #include "apl/primitives/pseudolocalizer.h"
 #include "apl/primitives/styledtextstate.h"
 #include "apl/primitives/unicode.h"
@@ -102,9 +100,15 @@ struct symbol : not_one<'<','>','&',' '>{}; // Exclude markdown and whitespace c
 struct word : plus<symbol>{};
 struct ws : plus<space>{};
 struct tagname : plus<alnum>{};
-struct stag : seq<one<'<'>,star<space>,tagname,opt<attributes>,star<space>,one<'>'>>{};
-struct etag : seq<one<'<'>,one<'/'>,star<space>,tagname,star<space>,one<'>'>>{};
-// Start tag and single tag is too similar to do exact match so define line break itself.
+
+// Trim spaces around list item
+struct li : seq<one<'l','L'>,one<'i','I'>>{};
+struct slist : seq<star<space>,one<'<'>,star<space>,li,opt<attributes>,star<space>,one<'>'>,star<space>>{};
+struct elist : seq<star<space>,one<'<'>,one<'/'>,star<space>,li,opt<attributes>,star<space>,one<'>'>,star<space>>{};
+
+struct stag : sor<slist,seq<one<'<'>,star<space>,tagname,opt<attributes>,star<space>,one<'>'>>>{};
+struct etag : sor<elist,seq<one<'<'>,one<'/'>,star<space>,tagname,star<space>,one<'>'>>>{};
+// Start tag and single tag are too similar to do exact match so define line break itself.
 struct br : seq<star<space>,one<'<'>,star<space>,seq<one<'b','B'>,one<'r','R'>>,opt<attributes>,star<space>,opt<one<'/'>>,one<'>'>,star<space>>{};
 struct utag : seq<one<'<'>,star<space>,tagname,opt<attributes>,star<space>,one<'/'>,one<'>'>>{};
 struct element : sor<br, utag, stag, etag, specialentity, markdownchar, word, ws>{};
@@ -140,11 +144,31 @@ template<> struct action< tagname >
     }
 };
 
+template<> struct action< li >
+{
+    template< typename Input >
+    static void apply(const Input& in, StyledTextState& state) {
+        state.tag(in.string());
+    }
+};
+
+template<> struct action< slist >
+{
+    template< typename Input >
+    static void apply(const Input& in, StyledTextState& state) {
+        state.closeAndCacheAllTags();
+    }
+};
+
 template<> struct action< stag >
 {
     template< typename Input >
     static void apply(const Input& in, StyledTextState& state) {
         state.start();
+        // To prevent styles from crossing list items,
+        // tags are closed before the list item and re-opened here.
+        // Tag ordering is determined by the StyledTextState comparator.
+        state.openAllTagsFromCache();
     }
 };
 
@@ -303,6 +327,19 @@ StyledText::StyledText(const Context& context, const std::string& raw) {
     mSpans = state.finalize();
 }
 
+std::string
+StyledText::toDebugString() const
+{
+    auto result = std::string("StyledText<'" + mRawText);
+    result += "' outputText='" + mText;
+    result += "' spans=[";
+    for (const auto& span : mSpans) {
+        result += std::to_string(span.type) + ":" + std::to_string(span.start) + ":" + std::to_string(span.end) + ";";
+    }
+    result += "]>";
+    return result;
+}
+
 rapidjson::Value
 StyledText::serialize(rapidjson::Document::AllocatorType& allocator) const {
     using rapidjson::Value;
@@ -404,13 +441,13 @@ StyledText::ObjectType::asInt64(const Object::DataHolder& dataHolder, int base) 
 Color
 StyledText::ObjectType::asColor(const Object::DataHolder& dataHolder, const apl::SessionPtr& session) const
 {
-    return Color(session, getReferenced<StyledText>(dataHolder).asString());
+    return {session, getReferenced<StyledText>(dataHolder).asString()};
 }
 
 Dimension
 StyledText::ObjectType::asDimension(const Object::DataHolder& dataHolder, const Context& context) const
 {
-    return Dimension(context, getReferenced<StyledText>(dataHolder).asString());
+    return {context, getReferenced<StyledText>(dataHolder).asString()};
 }
 
 Dimension

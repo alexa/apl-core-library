@@ -16,17 +16,26 @@
 #include "apl/component/imagecomponent.h"
 
 #include "apl/component/componentpropdef.h"
-#include "apl/component/yogaproperties.h"
 #include "apl/content/rootconfig.h"
 #include "apl/engine/event.h"
 #include "apl/media/mediamanager.h"
 #include "apl/time/sequencer.h"
+#include "apl/utils/dataurl.h"
+#include "apl/yoga/yogaproperties.h"
 #ifdef SCENEGRAPH
 #include "apl/scenegraph/builder.h"
 #include "apl/scenegraph/scenegraph.h"
 #endif // SCENEGRAPH
 
 namespace apl {
+
+inline bool dataUrlValidator(const SessionPtr& session, const URLRequest& urlr) {
+    auto url = urlr.getUrl();
+    if (url.rfind("data:", 0) == 0)
+        return DataUrl::create(session, url) != nullptr;
+    else
+        return true; // Only validate data URLs.
+}
 
 CoreComponentPtr
 ImageComponent::create(const ContextPtr& context,
@@ -58,7 +67,7 @@ ImageComponent::propDefSet() const
     static auto resetMediaState = [](Component& component) {
         auto& comp = (ImageComponent&)component;
         comp.mOnLoadOnFailReported = false;
-        comp.resetMediaFetchState();
+        comp.resetMediaFetchState(dataUrlValidator);
     };
 
     static ComponentPropDefSet sImageComponentProperties = ComponentPropDefSet(
@@ -126,7 +135,7 @@ void
 ImageComponent::postProcessLayoutChanges(bool first)
 {
     CoreComponent::postProcessLayoutChanges(first);
-    MediaComponentTrait::postProcessLayoutChanges();
+    MediaComponentTrait::postProcessLayoutChanges(dataUrlValidator);
 }
 
 #ifdef SCENEGRAPH
@@ -211,60 +220,73 @@ ImageComponent::getFilteredImage()
     auto filters = getCalculated(kPropertyFilters);
 
     for (int i = 0; i < filters.size(); i++) {
+        sg::FilterPtr newFilter = nullptr;
+
         const auto& filter = filters.at(i).get<Filter>();
         switch (filter.getType()) {
             case kFilterTypeBlend:
-                stack.push_back(sg::blend(
+                newFilter = sg::blend(
                     fromStack(filter.getValue(kFilterPropertyDestination).getInteger()),
                     fromStack(filter.getValue(kFilterPropertySource).getInteger()),
-                    static_cast<BlendMode>(filter.getValue(kFilterPropertyMode).getInteger())));
+                    static_cast<BlendMode>(filter.getValue(kFilterPropertyMode).getInteger()));
                 break;
             case kFilterTypeBlur:  // TODO: Do we need to convert dimensions to pixels?
-                stack.push_back(sg::blur(
+                newFilter = sg::blur(
                     fromStack(filter.getValue(kFilterPropertySource).getInteger()),
-                    filter.getValue(kFilterPropertyRadius).asFloat()));
+                    filter.getValue(kFilterPropertyRadius).asFloat());
                 break;
             case kFilterTypeColor:
-                stack.push_back(sg::solid(
-                    sg::paint(filter.getValue(kFilterPropertyColor))));
+                newFilter = sg::solid(
+                    sg::paint(filter.getValue(kFilterPropertyColor)));
                 break;
             case kFilterTypeExtension:
                 // TODO: What do we do here?
                 break;
             case kFilterTypeGradient:
-                stack.push_back(sg::solid(
-                    sg::paint(filter.getValue(kFilterPropertyGradient))));
+                newFilter = sg::solid(
+                    sg::paint(filter.getValue(kFilterPropertyGradient)));
                 break;
             case kFilterTypeGrayscale:
-                stack.push_back(sg::grayscale(
+                newFilter = sg::grayscale(
                     fromStack(filter.getValue(kFilterPropertySource).getInteger()),
-                    filter.getValue(kFilterPropertyAmount).asFloat()));
+                    filter.getValue(kFilterPropertyAmount).asFloat());
                 break;
             case kFilterTypeNoise:
-                stack.push_back(sg::noise(
+                newFilter = sg::noise(
                     fromStack(filter.getValue(kFilterPropertySource).getInteger()),
                     static_cast<NoiseFilterKind>(filter.getValue(kFilterPropertyKind).getInteger()),
                     filter.getValue(kFilterPropertyUseColor).getBoolean(),
-                    filter.getValue(kFilterPropertySigma).getDouble()));
+                    filter.getValue(kFilterPropertySigma).getDouble());
                 break;
             case kFilterTypeSaturate:
-                stack.push_back(sg::saturate(
+                newFilter = sg::saturate(
                     fromStack(filter.getValue(kFilterPropertySource).getInteger()),
-                    filter.getValue(kFilterPropertyAmount).asFloat()));
+                    filter.getValue(kFilterPropertyAmount).asFloat());
                 break;
+        }
+
+        if (newFilter) {
+            stack.push_back(newFilter);
         }
     }
 
-    return
-        sg::blend(  // The overlay gradient goes on top
-            sg::blend(  // The overlay color goes next
-                stack.back(),  // The back of the stack is the final object
-                sg::solid(
-                    sg::paint(getCalculated(kPropertyOverlayColor))),
-                BlendMode::kBlendModeNormal),
-            sg::solid(
-                sg::paint(getCalculated(kPropertyOverlayGradient))),
-            BlendMode::kBlendModeNormal);
+    auto finalFilter = stack.back(); // The back of the stack is the final object
+
+    auto overlayPaint = sg::paint(getCalculated(kPropertyOverlayColor));
+
+    // Overlay color goes first.
+    if (overlayPaint->visible()) {
+        finalFilter =  sg::blend(finalFilter, sg::solid(overlayPaint), BlendMode::kBlendModeNormal);
+    }
+
+    auto overlayGradient = sg::paint(getCalculated(kPropertyOverlayGradient));
+
+    // Lay the gradient on top if we have a visible one.
+    if (overlayGradient->visible()) {
+        finalFilter =  sg::blend(finalFilter, sg::solid(overlayGradient), BlendMode::kBlendModeNormal);
+    }
+
+    return finalFilter;
 }
 
 ImageComponent::ImageRects

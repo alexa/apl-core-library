@@ -241,7 +241,7 @@ AplMetricsExtensionV2::invokeCommand(const ActivityDescriptor& activity,
     }
 
     if (COMMAND_INCREMENTCOUNTER_NAME == commandName) {
-        auto amount = GetWithDefault(PROPERTY_AMOUNT, params, 1);
+        int amount = GetAsIntWithDefault(PROPERTY_AMOUNT, params, 1);
         return queueTask([this, activity, metricId, amount]() mutable {
             incrementCounter(activity, std::move(metricId), amount);
         });

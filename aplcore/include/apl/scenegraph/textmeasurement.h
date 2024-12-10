@@ -17,68 +17,14 @@
 #define _APL_SG_TEXT_MEASUREMENT_H
 
 #include "apl/component/textmeasurement.h"
-#include "apl/scenegraph/common.h"
 
 namespace apl {
 namespace sg {
 
 /**
- * Override the older TextMeasurement class
+ * Alias for sg-namespaced consumers.
  */
-class TextMeasurement : public apl::TextMeasurement {
-public:
-
-    // Viewhost to implement one of these two definitions. The method with a component pointer
-    // is a temporary definition to support usage of the new TextMeasurement API before
-    // implementation is fully migrated to scenegraph.
-    virtual sg::TextLayoutPtr layout( const TextChunkPtr& chunk,
-                                      const TextPropertiesPtr& textProperties,
-                                      float width,
-                                      MeasureMode widthMode,
-                                      float height,
-                                      MeasureMode heightMode ) { return nullptr; };
-
-    // Expect this definition to be deprecated when Scenegraph is available.
-    virtual sg::TextLayoutPtr layout(Component *component,
-                                     const TextChunkPtr& chunk,
-                                     const TextPropertiesPtr& textProperties,
-                                     float width,
-                                     MeasureMode widthMode,
-                                     float height,
-                                     MeasureMode heightMode ) {
-        return layout(chunk, textProperties, width, widthMode, height, heightMode);
-    };
-
-    // Viewhost to implement one of these two definitions. The method with a component pointer
-    // is a temporary definition to support usage of the new TextMeasurement API before
-    // implementation is fully migrated to scenegraph.
-    virtual sg::EditTextBoxPtr box( int size,
-                                    const TextPropertiesPtr& textProperties,
-                                    float width,
-                                    MeasureMode widthMode,
-                                    float height,
-                                    MeasureMode heightMode ) { return nullptr; }
-
-    // Expect this definition to be deprecated when Scenegraph is available.
-    virtual sg::EditTextBoxPtr box(Component *component,
-                                   int size,
-                                   const TextPropertiesPtr& textProperties,
-                                   float width,
-                                   MeasureMode widthMode,
-                                   float height,
-                                   MeasureMode heightMode ) {
-        return box(size, textProperties, width, widthMode, height, heightMode);
-    };
-
-    // These functions are provided for backwards compatibility.  They should not be used
-    LayoutSize measure(Component *component,
-                       float width, MeasureMode widthMode,
-                       float height, MeasureMode heightMode) override { return {0,0}; }
-
-    float baseline(Component *component, float width, float height) override { return 0; }
-
-    bool layoutCompatible() const override { return true; }
-};
+class TextMeasurement : public apl::TextMeasurement {};
 
 } // namespace sg
 } // namespace apl

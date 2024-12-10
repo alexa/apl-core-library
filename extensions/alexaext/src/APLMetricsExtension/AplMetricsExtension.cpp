@@ -161,7 +161,7 @@ AplMetricsExtension::invokeCommand(const ActivityDescriptor& activity, const rap
         return false;
 
     if (COMMAND_INCREMENTCOUNTER_NAME == commandName) {
-        auto amount = GetWithDefault(PROPERTY_AMOUNT, params, 1);
+        int amount = GetAsIntWithDefault(PROPERTY_AMOUNT, params, 1);
         return incrementCounter(activity, metricId, amount);
     }
 

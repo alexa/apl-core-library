@@ -16,14 +16,12 @@
 #include "apl/component/corecomponent.h"
 
 #include <cmath>
-#include <yoga/YGNode.h>
 
 #include "apl/common.h"
 
 #include "apl/component/componenteventsourcewrapper.h"
 #include "apl/component/componenteventtargetwrapper.h"
 #include "apl/component/componentpropdef.h"
-#include "apl/component/yogaproperties.h"
 #include "apl/content/content.h"
 #include "apl/content/rootconfig.h"
 #include "apl/document/coredocumentcontext.h"
@@ -52,6 +50,8 @@
 #include "apl/utils/stickychildrentree.h"
 #include "apl/utils/stickyfunctions.h"
 #include "apl/utils/tracing.h"
+#include "apl/yoga/yoganode.h"
+#include "apl/yoga/yogaproperties.h"
 
 #ifdef SCENEGRAPH
 #include "apl/scenegraph/builder.h"
@@ -77,7 +77,9 @@ const static bool DEBUG_BOUNDS = false;
 const static bool DEBUG_ENSURE = false;
 const static bool DEBUG_LAYOUTDIRECTION = false;
 const static bool DEBUG_PADDING = false;
-const static bool DEBUG_MEASUREMENT = false;
+
+const static char* MODIFY_RELEASED_LOG = "Trying to modify released component: ";
+const static char* PROPERTY_LOG = ", property: ";
 
 using ComponentDependant = TypedDependant<CoreComponent, PropertyKey>;
 
@@ -86,13 +88,13 @@ using ComponentDependant = TypedDependant<CoreComponent, PropertyKey>;
  */
 static void
 zeroComponentInsets(const CoreComponentPtr &component) {
-    auto nodeRef = component->getNode();
-    yn::setPosition<YGEdgeLeft>(nodeRef,    NAN, *component->getContext());
-    yn::setPosition<YGEdgeBottom>(nodeRef,  NAN, *component->getContext());
-    yn::setPosition<YGEdgeRight>(nodeRef,   NAN, *component->getContext());
-    yn::setPosition<YGEdgeTop>(nodeRef,     NAN, *component->getContext());
-    yn::setPosition<YGEdgeStart>(nodeRef,   NAN, *component->getContext());
-    yn::setPosition<YGEdgeEnd>(nodeRef,     NAN, *component->getContext());
+    auto& node = component->getNode();
+    yn::setPosition<Edge::Left>(node,   NAN, *component->getContext());
+    yn::setPosition<Edge::Bottom>(node, NAN, *component->getContext());
+    yn::setPosition<Edge::Right>(node,  NAN, *component->getContext());
+    yn::setPosition<Edge::Top>(node,    NAN, *component->getContext());
+    yn::setPosition<Edge::Start>(node,  NAN, *component->getContext());
+    yn::setPosition<Edge::End>(node,    NAN, *component->getContext());
     component->setDirty(kPropertyBounds);
 }
 
@@ -102,13 +104,13 @@ zeroComponentInsets(const CoreComponentPtr &component) {
  */
 static void
 restoreComponentInsets(const CoreComponentPtr &component) {
-    auto nodeRef = component->getNode();
-    yn::setPosition<YGEdgeLeft>(nodeRef,   component->getCalculated(kPropertyLeft),   *component->getContext());
-    yn::setPosition<YGEdgeBottom>(nodeRef, component->getCalculated(kPropertyBottom), *component->getContext());
-    yn::setPosition<YGEdgeRight>(nodeRef,  component->getCalculated(kPropertyRight),  *component->getContext());
-    yn::setPosition<YGEdgeTop>(nodeRef,    component->getCalculated(kPropertyTop),    *component->getContext());
-    yn::setPosition<YGEdgeStart>(nodeRef,  component->getCalculated(kPropertyStart),  *component->getContext());
-    yn::setPosition<YGEdgeEnd>(nodeRef,    component->getCalculated(kPropertyEnd),    *component->getContext());
+    auto& node = component->getNode();
+    yn::setPosition<Edge::Left>(node,   component->getCalculated(kPropertyLeft),   *component->getContext());
+    yn::setPosition<Edge::Bottom>(node, component->getCalculated(kPropertyBottom), *component->getContext());
+    yn::setPosition<Edge::Right>(node,  component->getCalculated(kPropertyRight),  *component->getContext());
+    yn::setPosition<Edge::Top>(node,    component->getCalculated(kPropertyTop),    *component->getContext());
+    yn::setPosition<Edge::Start>(node,  component->getCalculated(kPropertyStart),  *component->getContext());
+    yn::setPosition<Edge::End>(node,    component->getCalculated(kPropertyEnd),    *component->getContext());
     component->setDirty(kPropertyBounds);
 }
 
@@ -119,7 +121,7 @@ CoreComponent::CoreComponent(const ContextPtr& context,
       mStyle(properties.asString(*context, "style", "")),
       mProperties(std::move(properties)),
       mParent(nullptr),
-      mYGNodeRef(YGNodeNewWithConfig(context->ygconfig())),
+      mYogaNode(context->ygconfig()),
       mPath(path)
 {
     mCoreFlags = Flags<CoreComponentFlags>(
@@ -131,7 +133,7 @@ CoreComponent::CoreComponent(const ContextPtr& context,
     if (mProperties.asBoolean(*context, "inheritParentState", false))
         mCoreFlags.set(kCoreComponentFlagInheritParentState);
 
-    YGNodeSetContext(mYGNodeRef, this);
+    mYogaNode.setComponent(this);
 }
 
 CoreComponentPtr
@@ -251,7 +253,11 @@ CoreComponent::releaseSelf()
     RecalculateTarget::removeUpstreamDependencies();
     mParent = nullptr;
     mChildren.clear();
+    mCalculated.clear();
+    mFlags.set(kComponentFlagInvalid);
+    mFlags.set(kComponentFlagIsReleased);
     clearActiveStateSelf();
+    mYogaNode.setComponent(nullptr);
 }
 
 void
@@ -309,6 +315,14 @@ CoreComponent::traverse(const Pre& pre, const Post& post)
     for (auto& child : mChildren)
         child->traverse(pre, post);
     post(*this);
+}
+
+void
+CoreComponent::preRelease()
+{
+    if (mFlags.isSet(kComponentFlagIsReleased)) {
+        LOG(LogLevel::kWarn) << "Releasing component which is already released: " << getId() << getUniqueId();
+    }
 }
 
 ComponentPtr
@@ -432,7 +446,7 @@ CoreComponent::notifyChildChanged(size_t index, const CoreComponentPtr& componen
 void
 CoreComponent::attachYogaNodeIfRequired(const CoreComponentPtr& coreChild, int index)
 {
-    YGNodeInsertChild(mYGNodeRef, coreChild->getNode(), index);
+    mYogaNode.insertChild(coreChild->getNode(), index);
 }
 
 void
@@ -441,7 +455,7 @@ CoreComponent::attachYogaNode(const CoreComponentPtr& child)
     auto it = std::find(mChildren.begin(), mChildren.end(), child);
     assert(it != mChildren.end());
 
-    YGNodeInsertChild(mYGNodeRef, child->getNode(), std::distance(mChildren.begin(), it));
+    mYogaNode.insertChild(child->getNode(), std::distance(mChildren.begin(), it));
     child->updateNodeProperties();
 }
 
@@ -482,7 +496,7 @@ CoreComponent::isDisplayedChild(const CoreComponent& child) const
 void
 CoreComponent::ensureDisplayedChildren()
 {
-    if (!mCoreFlags.isSet(kCoreComponentFlagDisplayedChildrenStale))
+    if (!mCoreFlags.isSet(kCoreComponentFlagDisplayedChildrenStale) || mFlags.isSet(kComponentFlagIsReleased))
         return;
 
     // clear previous calculations
@@ -606,7 +620,7 @@ CoreComponent::remove(bool useDirtyFlag)
         for (const auto& pd : *propDefSet) {
             if ((pd.second.flags & kPropResetOnRemove) != 0 && pd.second.layoutFunc) {
                 auto value = pd.second.defaultFunc ? pd.second.defaultFunc(*this, mContext->getRootConfig()) : pd.second.defvalue;
-                pd.second.layoutFunc(mYGNodeRef, value, *mContext);
+                pd.second.layoutFunc(mYogaNode, value, *mContext);
             }
         }
     }
@@ -619,7 +633,7 @@ CoreComponent::remove(bool useDirtyFlag)
 void
 CoreComponent::removeChildAfterMarkedRemoved(const CoreComponentPtr& child, size_t index, bool useDirtyFlag)
 {
-    YGNodeRemoveChild(mYGNodeRef, child->getNode());
+    mYogaNode.removeChild(child->getNode());
     mChildren.erase(mChildren.begin() + index);
 
     // The parent component has changed the number of children
@@ -735,7 +749,7 @@ CoreComponent::reportLoaded(size_t index)
 bool
 CoreComponent::isAttached() const
 {
-    return mYGNodeRef->getOwner() != nullptr;
+    return mYogaNode.hasOwner();
 }
 
 bool
@@ -744,7 +758,7 @@ CoreComponent::isLaidOut() const
     auto component = shared_from_corecomponent();
     while (true) {
         const auto& node = component->getNode();
-        if (YGNodeIsDirty(node))
+        if (node.isDirty())
             return false;
 
         if (mContext->layoutManager().isTopNode(component))
@@ -754,7 +768,7 @@ CoreComponent::isLaidOut() const
         if (!parent)
             return true;
 
-        if (node->getOwner() == nullptr)
+        if (!node.hasOwner())
             return false;
 
         component = parent;
@@ -768,9 +782,27 @@ CoreComponent::updateNodeProperties()
     if (pds) {
         for (const auto& it : pds->needsNode()) {
             const ComponentPropDef& pd = it.second;
-            pd.layoutFunc(mYGNodeRef, mCalculated.get(pd.key), *mContext);
+            pd.layoutFunc(mYogaNode, mCalculated.get(pd.key), *mContext);
         }
     }
+}
+
+bool
+CoreComponent::shouldClip()
+{
+    // On Android, we previously only apply the clipping for root container,
+    // a certain type of containers (listed above) and its children.
+    //
+    // In order to have backwards compatibility with clipping rules, we do
+    // a doc version check to avoid clipping the children of components that
+    // previously didn't clip their children to the parent bounds.
+    auto aplversion = getContext()->documentContext()->content()->getAPLVersion();
+    if (aplversion.compare("1.6") < 0 && getParentIfInDocument()) {
+        if (!getParentIfInDocument()->doesLegacyClipping() && !doesLegacyClipping()) {
+            return false;
+        }
+    }
+    return true;
 }
 
 #ifdef SCENEGRAPH
@@ -883,6 +915,11 @@ CoreComponent::constructSceneGraphLayer(sg::SceneGraphUpdates& sceneGraph)
                                       getCalculated(kPropertyShadowVerticalOffset).asFloat()},
                                 getCalculated(kPropertyShadowRadius).asFloat()));
 
+    // Clips by default, so we only need to set the clip if we shouldn't.
+    if (!shouldClip()) {
+        layer->setCharacteristic(sg::Layer::kCharacteristicDoNotClipChildren);
+    }
+
     // TODO: Fix visibility?
     return layer;
 }
@@ -966,7 +1003,7 @@ CoreComponent::assignProperties(const ComponentPropDefSet& propDefSet)
 
         //Apply this property to the yn if we care about it
         if (pd.layoutFunc != nullptr)
-            pd.layoutFunc(mYGNodeRef, value, *mContext);
+            pd.layoutFunc(mYogaNode, value, *mContext);
     }
 
     // Yoga padding values are calculated from a combination of two properties (e.g. "padding" and "paddingLeft").
@@ -1037,15 +1074,15 @@ CoreComponent::handlePropertyChange(const ComponentPropDef& def, const Object& v
 
         // Properties with a layout function will update the Yoga node
         if (def.layoutFunc != nullptr)
-            def.layoutFunc(mYGNodeRef, value, *mContext);
+            def.layoutFunc(mYogaNode, value, *mContext);
 
         // Properties with a trigger function need to recompute other properties
         if (def.trigger != nullptr)
             def.trigger(*this);
 
         // If this property affects the layout, we'll need a new layout pass
-        if ((def.flags & kPropLayout) != 0 && YGNodeHasMeasureFunc(mYGNodeRef))
-            YGNodeMarkDirty(mYGNodeRef);
+        if ((def.flags & kPropLayout) != 0 && mYogaNode.hasMeasureFunc())
+            mYogaNode.markDirty();
 
         // If this property affects the state, we'll do a SetState change
         if ((def.flags & kPropMixedState) != 0) {
@@ -1070,7 +1107,7 @@ CoreComponent::handlePropertyChange(const ComponentPropDef& def, const Object& v
 CoreComponentPtr
 CoreComponent::getLayoutRoot() {
     auto c = shared_from_corecomponent();
-    while (c->mParent && c->getNode()->getOwner())
+    while (c->mParent && c->isAttached())
         c = c->mParent;
     return c;
 }
@@ -1180,6 +1217,12 @@ CoreComponent::getPropertyInternal(ConstComponentPropIterator it) const
 bool
 CoreComponent::setProperty(PropertyKey key, const Object& value)
 {
+    if (mFlags.isSet(kComponentFlagIsReleased)) {
+        LOG(LogLevel::kWarn) << MODIFY_RELEASED_LOG << getUniqueId()
+                             << PROPERTY_LOG << sComponentPropertyBimap.at(key);
+        return false;
+    }
+
     auto findRef = find(key);
     if (findRef.first && setPropertyInternal(findRef.second, value))
         return true;
@@ -1485,7 +1528,7 @@ CoreComponent::markPropertyInternal(const ComponentPropDefSet& pds, PropertyKey 
 
     // Properties with a layout function will update the Yoga node
     if (def.layoutFunc != nullptr)
-        def.layoutFunc(mYGNodeRef, mCalculated.get(key), *mContext);
+        def.layoutFunc(mYogaNode, mCalculated.get(key), *mContext);
 
     // Properties with a trigger function need to recompute other properties
     if (def.trigger != nullptr)
@@ -1493,7 +1536,7 @@ CoreComponent::markPropertyInternal(const ComponentPropDefSet& pds, PropertyKey 
 
     // If this property affects the layout, we'll need a new layout pass
     if ((def.flags & kPropLayout) != 0)
-        YGNodeMarkDirty(mYGNodeRef);
+        mYogaNode.markDirty();
 
     return true;
 }
@@ -1501,6 +1544,12 @@ CoreComponent::markPropertyInternal(const ComponentPropDefSet& pds, PropertyKey 
 void
 CoreComponent::markProperty(PropertyKey key)
 {
+    if (mFlags.isSet(kComponentFlagIsReleased)) {
+        LOG(LogLevel::kWarn) << MODIFY_RELEASED_LOG << getUniqueId()
+                             << PROPERTY_LOG << sComponentPropertyBimap.at(key);
+        return;
+    }
+
     if (!markPropertyInternal(propDefSet(), key) && mParent) {
         auto layoutPDS = getLayoutPropDefSet();
         if (layoutPDS)
@@ -1511,6 +1560,12 @@ CoreComponent::markProperty(PropertyKey key)
 void
 CoreComponent::setValue(PropertyKey key, const Object& value, bool useDirtyFlag)
 {
+    if (mFlags.isSet(kComponentFlagIsReleased)) {
+        LOG(LogLevel::kWarn) << MODIFY_RELEASED_LOG << getUniqueId()
+                             << PROPERTY_LOG << sComponentPropertyBimap.at(key);
+        return;
+    }
+
     auto it = mAssigned.find(key);
     if (it == mAssigned.end())
         return;
@@ -1768,7 +1823,7 @@ CoreComponent::getLayoutPropDefSet() const
 bool
 CoreComponent::needsLayout() const
 {
-    return YGNodeIsDirty(mYGNodeRef);
+    return mYogaNode.isDirty();
 }
 
 bool
@@ -1837,13 +1892,13 @@ CoreComponent::preLayoutProcessing(bool useDirtyFlag)
 void
 CoreComponent::processLayoutChanges(bool useDirtyFlag, bool first)
 {
-    if (DEBUG_BOUNDS) YGNodePrint(mYGNodeRef, YGPrintOptions::YGPrintOptionsLayout);
     APL_TRACE_BLOCK("CoreComponent:processLayoutChanges");
+    LOG_IF(DEBUG_BOUNDS).session(getContext()) << mYogaNode.toDebugString();
 
-    float left = YGNodeLayoutGetLeft(mYGNodeRef);
-    float top = YGNodeLayoutGetTop(mYGNodeRef);
-    float width = YGNodeLayoutGetWidth(mYGNodeRef);
-    float height = YGNodeLayoutGetHeight(mYGNodeRef);
+    float left = mYogaNode.getLeft();
+    float top = mYogaNode.getTop();
+    float width = mYogaNode.getWidth();
+    float height = mYogaNode.getHeight();
 
     bool changed = false;
     // If no bounds set - set some now to get sticky stuff a chance to calculate on the very first pass
@@ -1879,15 +1934,15 @@ CoreComponent::processLayoutChanges(bool useDirtyFlag, bool first)
     }
 
     // Update the inner drawing area (this takes into account both padding and borders
-    float borderLeft = YGNodeLayoutGetBorder(mYGNodeRef, YGEdgeLeft);
-    float borderTop = YGNodeLayoutGetBorder(mYGNodeRef, YGEdgeTop);
-    float borderRight = YGNodeLayoutGetBorder(mYGNodeRef, YGEdgeRight);
-    float borderBottom = YGNodeLayoutGetBorder(mYGNodeRef, YGEdgeBottom);
+    float borderLeft = mYogaNode.getBorder(Edge::Left);
+    float borderTop = mYogaNode.getBorder(Edge::Top);
+    float borderRight = mYogaNode.getBorder(Edge::Right);
+    float borderBottom = mYogaNode.getBorder(Edge::Bottom);
 
-    float paddingLeft = YGNodeLayoutGetPadding(mYGNodeRef, YGEdgeLeft);
-    float paddingTop = YGNodeLayoutGetPadding(mYGNodeRef, YGEdgeTop);
-    float paddingRight = YGNodeLayoutGetPadding(mYGNodeRef, YGEdgeRight);
-    float paddingBottom = YGNodeLayoutGetPadding(mYGNodeRef, YGEdgeBottom);
+    float paddingLeft = mYogaNode.getPadding(Edge::Left);
+    float paddingTop = mYogaNode.getPadding(Edge::Top);
+    float paddingRight = mYogaNode.getPadding(Edge::Right);
+    float paddingBottom = mYogaNode.getPadding(Edge::Bottom);
 
     Rect inner(borderLeft + paddingLeft,
                      borderTop + paddingTop,
@@ -2060,8 +2115,8 @@ CoreComponent::eventPropertyMap() const {
             {"focused",         [](const CoreComponent *c) { return c->getState().get(kStateFocused); }},
             {"id",              [](const CoreComponent *c) { return c->getId(); }},
             {"uid",             [](const CoreComponent *c) { return c->getUniqueId(); }},
-            {"width",           [](const CoreComponent *c) { return YGNodeLayoutGetWidth(c->mYGNodeRef); }},
-            {"height",          [](const CoreComponent *c) { return YGNodeLayoutGetHeight(c->mYGNodeRef); }},
+            {"width",           [](const CoreComponent *c) { return c->getNode().getWidth(); }},
+            {"height",          [](const CoreComponent *c) { return c->getNode().getHeight(); }},
             {"opacity",         [](const CoreComponent *c) { return c->getCalculated(kPropertyOpacity); }},
             {"pressed",         [](const CoreComponent *c) { return c->getState().get(kStatePressed); }},
             {"type",            [](const CoreComponent *c) { return sComponentTypeBimap.at(c->getType()); }},
@@ -2107,7 +2162,7 @@ CoreComponent::serializeEvent(rapidjson::Value& out, rapidjson::Document::Alloca
         out.AddMember(rapidjson::Value(m.first.c_str(), allocator), m.second(this).serialize(allocator).Move(), allocator);
 }
 
-static const char sHierarchySig[] = "CEXFMHIPSQTWGV";  // Must match ComponentType
+static const char sHierarchySig[] = "CEXFMHIPSQTWGVL";  // Must match ComponentType
 
 std::string
 CoreComponent::getHierarchySignature() const
@@ -2137,8 +2192,8 @@ CoreComponent::fixTransform(bool useDirtyFlag)
     }
 
     if (transform.is<Transformation>()) {
-        float width = YGNodeLayoutGetWidth(mYGNodeRef);
-        float height = YGNodeLayoutGetHeight(mYGNodeRef);
+        float width = mYogaNode.getWidth();
+        float height = mYogaNode.getHeight();
         updated = transform.get<Transformation>()->get(width, height);
     }
 
@@ -2159,12 +2214,12 @@ CoreComponent::fixTransform(bool useDirtyFlag)
 }
 
 static bool
-setPaddingIfKeyFound(PropertyKey key, YGEdge edge, CalculatedPropertyMap& map, YGNodeRef nodeRef,
+setPaddingIfKeyFound(PropertyKey key, Edge edge, CalculatedPropertyMap& map, YogaNode& node,
                      const ContextPtr& context) {
     auto v = map.find(key);
     bool found = v != map.end() && !v->second.isNull();
     if (found)
-        yn::setPadding(nodeRef, edge, v->second, *context);
+        yn::setPadding(node, edge, v->second, *context);
     return found;
 }
 
@@ -2173,11 +2228,11 @@ CoreComponent::fixPadding()
 {
     LOG_IF(DEBUG_PADDING).session(mContext) << mCalculated.get(kPropertyPadding);
 
-    static std::vector<std::pair<PropertyKey, YGEdge>> EDGES = {
-        {kPropertyPaddingLeft,   YGEdgeLeft},
-        {kPropertyPaddingTop,    YGEdgeTop},
-        {kPropertyPaddingRight,  YGEdgeRight},
-        {kPropertyPaddingBottom, YGEdgeBottom},
+    static std::vector<std::pair<PropertyKey, Edge>> EDGES = {
+        {kPropertyPaddingLeft,   Edge::Left},
+        {kPropertyPaddingTop,    Edge::Top},
+        {kPropertyPaddingRight,  Edge::Right},
+        {kPropertyPaddingBottom, Edge::Bottom},
     };
 
     auto commonPadding = mCalculated.get(kPropertyPadding);
@@ -2185,18 +2240,18 @@ CoreComponent::fixPadding()
     for (size_t i = 0 ; i < EDGES.size() ; i++) {
         const auto& edge = EDGES.at(i);
         // That value may be overridden by the specific paddingLeft/Top/Right/Bottom values
-        if (!setPaddingIfKeyFound(edge.first, edge.second, mCalculated, mYGNodeRef, mContext)) {
+        if (!setPaddingIfKeyFound(edge.first, edge.second, mCalculated, mYogaNode, mContext)) {
             // If edge isn't set directly use padding value assigned by the "padding" property
             auto assigned = commonPadding.size() > i ? commonPadding.at(i) : Dimension(0);
-            yn::setPadding(mYGNodeRef, edge.second, assigned, *mContext);
+            yn::setPadding(mYogaNode, edge.second, assigned, *mContext);
         }
     }
 
     // paddingStart overrides left padding if layout is "ltf" or right padding if "rtl"
-    setPaddingIfKeyFound(kPropertyPaddingStart, YGEdgeStart, mCalculated, mYGNodeRef, mContext);
+    setPaddingIfKeyFound(kPropertyPaddingStart, Edge::Start, mCalculated, mYogaNode, mContext);
 
     // paddingEnd overrides left padding if layout is "ltf" or right padding if "rtl"
-    setPaddingIfKeyFound(kPropertyPaddingEnd, YGEdgeEnd, mCalculated, mYGNodeRef, mContext);
+    setPaddingIfKeyFound(kPropertyPaddingEnd, Edge::End, mCalculated, mYogaNode, mContext);
 }
 
 void
@@ -2204,7 +2259,7 @@ CoreComponent::fixLayoutDirection(bool useDirtyFlag)
 {
     LOG_IF(DEBUG_LAYOUTDIRECTION).session(mContext) << mCalculated.get(kPropertyLayoutDirection);
     auto reportedLayoutDirection = static_cast<LayoutDirection>(mCalculated.get(kPropertyLayoutDirection).asInt());
-    auto currentLayoutDirection = getLayoutDirection() == YGDirectionLTR ? kLayoutDirectionLTR : kLayoutDirectionRTL;
+    auto currentLayoutDirection = getLayoutDirection() == kLayoutDirectionLTR ? kLayoutDirectionLTR : kLayoutDirectionRTL;
     if (reportedLayoutDirection != currentLayoutDirection) {
         mCalculated.set(kPropertyLayoutDirection, currentLayoutDirection);
         if (useDirtyFlag) {
@@ -2216,16 +2271,16 @@ CoreComponent::fixLayoutDirection(bool useDirtyFlag)
 }
 
 void CoreComponent::setHeight(const Dimension& height) {
-    if (mYGNodeRef)
-        yn::setHeight(mYGNodeRef, height, *mContext);
+    if (mYogaNode.isValid())
+        yn::setHeight(mYogaNode, height, *mContext);
     else
         LOG(LogLevel::kError).session(mContext) << "setHeight:  Missing yoga node for component id '" << getId() << "'";
     mCalculated.set(kPropertyHeight, height);
 }
 
 void CoreComponent::setWidth(const Dimension& width) {
-    if (mYGNodeRef)
-        yn::setWidth(mYGNodeRef, width, *mContext);
+    if (mYogaNode.isValid())
+        yn::setWidth(mYogaNode, width, *mContext);
     else
         LOG(LogLevel::kError).session(mContext) << "setWidth:  Missing yoga node for component id '" << getId() << "'";
     mCalculated.set(kPropertyWidth, width);
@@ -2408,6 +2463,10 @@ CoreComponent::serializeVisualContextInternal(
     }
     if(!mId.empty()) {
         visualContext.AddMember("id", rapidjson::Value(mId.c_str(), allocator).Move(), allocator);
+    }
+    auto role = getCalculated(kPropertyRole).asInt();
+    if(role != kRoleNone) {
+        visualContext.AddMember("role", rapidjson::Value(sRoleMap.at(role).c_str(), allocator).Move(), allocator);
     }
     visualContext.AddMember("uid", rapidjson::Value(mUniqueId.c_str(), allocator).Move(), allocator);
     visualContext.AddMember("position", rapidjson::Value((getGlobalBounds().toString() + ":"
@@ -2624,16 +2683,26 @@ CoreComponent::isDisplayable() const {
 }
 
 void
-CoreComponent::executeOnCursorEnter() {
-    auto eventContext = createDefaultEventContext("CursorEnter");
+CoreComponent::executeOnCursorEnter(const ObjectMapPtr& additionalProperties) {
     auto command = getCalculated(kPropertyOnCursorEnter);
+    if (command.empty()) return;
+    auto eventContext = createEventContext("CursorEnter", additionalProperties);
     mContext->sequencer().executeCommands(command, eventContext, shared_from_corecomponent(), true);
 }
 
 void
 CoreComponent::executeOnCursorExit() {
-    auto eventContext = createDefaultEventContext("CursorExit");
     auto command = getCalculated(kPropertyOnCursorExit);
+    if (command.empty()) return;
+    auto eventContext = createDefaultEventContext("CursorExit");
+    mContext->sequencer().executeCommands(command, eventContext, shared_from_corecomponent(), true);
+}
+
+void
+CoreComponent::executeOnCursorMove(const ObjectMapPtr& additionalProperties) {
+    auto command = getCalculated(kPropertyOnCursorMove);
+    if (command.empty()) return;
+    auto eventContext = createEventContext("CursorMove", additionalProperties);
     mContext->sequencer().executeCommands(command, eventContext, shared_from_corecomponent(), true);
 }
 
@@ -2680,35 +2749,8 @@ void
 CoreComponent::fixSpacing(bool reset) {
     auto spacing = getCalculated(kPropertySpacing).asDimension(*mContext);
     if (reset) spacing = 0;
-    if (spacing.isAbsolute()) {
-        auto parentNode = YGNodeGetParent(mYGNodeRef);
-        auto parentComponent = getParentIfInDocument();
-        if (!parentNode || !parentComponent)
-            return;
-
-        auto parentLayoutDirection = parentComponent->getCalculated(kPropertyLayoutDirection);
-        auto dir = YGNodeStyleGetFlexDirection(parentNode);
-        YGEdge edge = YGEdgeLeft;
-        switch (dir) {
-            case YGFlexDirectionColumn:        edge = YGEdgeTop;    break;
-            case YGFlexDirectionColumnReverse: edge = YGEdgeBottom; break;
-            case YGFlexDirectionRow:
-                edge = (parentLayoutDirection == kLayoutDirectionLTR) ? YGEdgeLeft : YGEdgeRight;
-                break;
-            case YGFlexDirectionRowReverse:
-                edge = (parentLayoutDirection == kLayoutDirectionLTR) ? YGEdgeRight : YGEdgeLeft;
-                break;
-        }
-
-        float currentValue = YGNodeStyleGetMargin(mYGNodeRef, edge).value;
-        if ((std::isnan(currentValue) && spacing.getValue() != 0) || std::abs(currentValue - spacing.getValue()) > 0.1) {
-            YGNodeStyleSetMargin(mYGNodeRef, YGEdgeTop,    0);
-            YGNodeStyleSetMargin(mYGNodeRef, YGEdgeBottom, 0);
-            YGNodeStyleSetMargin(mYGNodeRef, YGEdgeLeft,   0);
-            YGNodeStyleSetMargin(mYGNodeRef, YGEdgeRight,  0);
-            YGNodeStyleSetMargin(mYGNodeRef, edge, spacing.getValue());
-        }
-    }
+    if (!spacing.isAbsolute()) return;
+    mYogaNode.setSpacing(spacing.getValue(), false);
 }
 
 /**
@@ -2757,81 +2799,6 @@ CoreComponent::executeEventHandler(const std::string& event, const Object& comma
             shared_from_corecomponent(),
             fastMode);
     }
-}
-
-YGSize
-CoreComponent::textMeasure(float width, YGMeasureMode widthMode, float height, YGMeasureMode heightMode)
-{
-    APL_TRACE_BLOCK("CoreComponent:textMeasureInternal");
-    // Recalculate visual hash if marked as stale
-    fixVisualHash(true);
-
-    auto textPropertiesHash = textMeasurementHash();
-    LOG_IF(DEBUG_MEASUREMENT).session(mContext)
-        << "Measuring: " << getUniqueId()
-        << " hash: " << textPropertiesHash
-        << " width: " << width
-        << " widthMode: " << widthMode
-        << " height: " << height
-        << " heightMode: " << heightMode;
-
-    TextMeasureRequest tmr = {width, widthMode, height, heightMode, textPropertiesHash};
-    auto& measuresCache = getContext()->cachedMeasures();
-    if (measuresCache.has(tmr)) {
-        return measuresCache.get(tmr);
-    }
-
-    APL_TRACE_BEGIN("CoreComponent:textMeasureInternal:runtimeMeasure");
-    LayoutSize layoutSize = getContext()->measure()->measure(
-            this, width, toMeasureMode(widthMode), height, toMeasureMode(heightMode));
-    auto size = YGSize({layoutSize.width, layoutSize.height});
-    measuresCache.put(tmr, size);
-    LOG_IF(DEBUG_MEASUREMENT).session(mContext) << "Size: " << size.width << "x" << size.height;
-    APL_TRACE_END("CoreComponent:textMeasureInternal:runtimeMeasure");
-    return size;
-}
-
-float
-CoreComponent::textBaseline(float width, float height)
-{
-    APL_TRACE_BEGIN("CoreComponent:textBaselineInternal");
-    TextMeasureRequest tmr = {
-            width,
-            YGMeasureMode::YGMeasureModeUndefined,
-            height,
-            YGMeasureMode::YGMeasureModeUndefined,
-            textMeasurementHash()
-    };
-    auto& baselineCache = getContext()->cachedBaselines();
-    if (baselineCache.has(tmr)) {
-        return baselineCache.get(tmr);
-    }
-
-    APL_TRACE_BEGIN("CoreComponent:textBaselineInternal:runtimeMeasure");
-    auto size = getContext()->measure()->baseline(this, width, height);
-    baselineCache.put(tmr, size);
-    APL_TRACE_END("CoreComponent:textBaselineInternal:runtimeMeasure");
-    return size;
-}
-
-YGSize
-CoreComponent::textMeasureFunc( YGNodeRef node,
-                 float width,
-                 YGMeasureMode widthMode,
-                 float height,
-                 YGMeasureMode heightMode )
-{
-    auto *component = static_cast<CoreComponent*>(node->getContext());
-    assert(component);
-    return component->textMeasure(width, widthMode, height, heightMode);
-}
-
-float
-CoreComponent::textBaselineFunc( YGNodeRef node, float width, float height )
-{
-    auto *component = static_cast<CoreComponent*>(node->getContext());
-    assert(component);
-    return component->textBaseline(width, height);
 }
 
 // Old style static actions. Just copy defined and implicit to the output.
@@ -3048,6 +3015,7 @@ CoreComponent::propDefSet() const {
                                                                                             kPropStyled,         yn::setWidth,  defaultWidth},
       {kPropertyOnCursorEnter,                Object::EMPTY_ARRAY(),   asCommand,           kPropIn},
       {kPropertyOnCursorExit,                 Object::EMPTY_ARRAY(),   asCommand,           kPropIn},
+      {kPropertyOnCursorMove,                 Object::EMPTY_ARRAY(),   asCommand,           kPropIn},
       {kPropertyLaidOut,                      false,                   asBoolean,           kPropOut |
                                                                                             kPropVisualContext |
                                                                                             kPropVisibility},
@@ -3186,15 +3154,15 @@ CoreComponent::getGlobalToLocalTransform() const {
     return mGlobalToLocal;
 }
 
-YGDirection
+LayoutDirection
 CoreComponent::getLayoutDirection() const
 {
-    auto direction = YGNodeStyleGetDirection(mYGNodeRef);
-    if (direction == YGDirectionInherit) {
+    auto direction = mYogaNode.getLayoutDirection();
+    if (direction == kLayoutDirectionInherit) {
         auto parentInDocument = getParentIfInDocument();
         if (!parentInDocument)
             // Fallback to document level layoutDirection
-            return mContext->getLayoutDirection() == kLayoutDirectionRTL ? YGDirectionRTL : YGDirectionLTR;
+            return mContext->getLayoutDirection() == kLayoutDirectionRTL ? kLayoutDirectionRTL : kLayoutDirectionLTR;
 
         return parentInDocument->getLayoutDirection();
     }

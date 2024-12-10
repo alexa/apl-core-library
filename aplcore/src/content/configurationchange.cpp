@@ -26,7 +26,9 @@ ConfigurationChange::mergeMetrics(const Metrics& oldMetrics) const
     auto metrics = oldMetrics;
 
     if ((mFlags & kConfigurationChangeSize) != 0)
-        metrics.size(mPixelWidth, mPixelHeight);
+        metrics.size(mPixelWidth, mPixelHeight)
+            .minAndMaxWidth(mMinPixelWidth, mMaxPixelWidth)
+            .minAndMaxHeight(mMinPixelHeight, mMaxPixelHeight);
 
     if ((mFlags & kConfigurationChangeTheme) != 0)
         metrics.theme(mTheme.c_str());

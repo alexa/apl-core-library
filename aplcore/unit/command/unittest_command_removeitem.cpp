@@ -94,7 +94,7 @@ TEST_F(CommandRemoveItemTest, RemoveItemWithNonExistentComponentId)
 
     executeRemoveItem(id);
 
-    ASSERT_TRUE(session->checkAndClear("Illegal command RemoveItem - need to specify a target componentId"));
+    ASSERT_TRUE(session->checkAndClear("Illegal command RemoveItem: Could not resolve target 'missing'. Need to specify a valid target componentId"));
     ASSERT_FALSE(root->isDirty());
 }
 

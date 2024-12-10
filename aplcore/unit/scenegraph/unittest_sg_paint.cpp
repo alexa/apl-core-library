@@ -250,7 +250,7 @@ TEST_F(SGPaintTest, PatternPaint) {
                     "op": [
                         {
                             "type": "fill",
-                            "fillType": "even-odd",
+                            "fillType": "non-zero",
                             "paint": {
                                 "opacity": 1.0,
                                 "type": "colorPaint",

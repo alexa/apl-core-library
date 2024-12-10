@@ -69,7 +69,7 @@ AutoScroller::updateOffset(apl_duration_t offset)
     if (mFinished) return;
 
     auto scrollable = mScrollable.lock();
-    if (!scrollable) {
+    if (!scrollable || !scrollable->isValid()) {
         finish();
         return;
     }

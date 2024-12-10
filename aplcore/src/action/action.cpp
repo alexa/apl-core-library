@@ -19,6 +19,7 @@
 
 #include "apl/document/documentcontext.h"
 #include "apl/time/timers.h"
+#include "apl/utils/actiondata.h"
 #include "apl/utils/log.h"
 
 namespace apl {
@@ -381,6 +382,11 @@ Action::wrapWithCallback(const TimersPtr& timers, const ActionPtr& action, Callb
     });
 
     return ptr;
+}
+
+ActionData
+Action::getActionData() {
+    return ActionData();
 }
 
 streamer&

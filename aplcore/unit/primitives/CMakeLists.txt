@@ -27,5 +27,6 @@ target_sources_local(unittest
         unittest_symbols.cpp
         unittest_time_grammar.cpp
         unittest_transform.cpp
+        unittest_transform_grammar.cpp
         unittest_unicode.cpp
         )

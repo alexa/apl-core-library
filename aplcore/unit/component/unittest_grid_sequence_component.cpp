@@ -271,14 +271,7 @@ static const char* HORIZONTAL_UNIFORM_GRID_DOC = R"({
         "type": "Text",
         "id": "${data}"
       },
-      "data": [
-        1,
-        2,
-        3,
-        4,
-        5,
-        6
-      ]
+      "data": [1, 2, 3, 4, 5, 6 ]
     }
   }
 })";
@@ -319,16 +312,7 @@ static const char* HORIZONTAL_MULTI_HEIGHT_GRID_DOC = R"({
         "type": "Text",
         "id": "${data}"
       },
-      "data": [
-        1,
-        2,
-        3,
-        4,
-        5,
-        6,
-        7,
-        8
-      ]
+      "data": [1, 2, 3, 4, 5, 6, 7, 8 ]
     }
   }
 })";
@@ -367,14 +351,7 @@ static const char* VERTICAL_UNIFORM_GRID_DOC = R"({
         "type": "Text",
         "id": "${data}"
       },
-      "data": [
-        1,
-        2,
-        3,
-        4,
-        5,
-        6
-      ]
+      "data": [1, 2, 3, 4, 5, 6 ]
     }
   }
 })";
@@ -416,14 +393,7 @@ static const char* VERTICAL_AUTO_SIZE_GRID_WIDTH = R"({
         "type": "Text",
         "id": "${data}"
       },
-      "data": [
-        1,
-        2,
-        3,
-        4,
-        5,
-        6
-      ]
+      "data": [1, 2, 3, 4, 5, 6 ]
     }
   }
 })";
@@ -466,14 +436,7 @@ static const char* HORIZONTAL_AUTO_SIZE_GRID_HEIGHT = R"({
         "type": "Text",
         "id": "${data}"
       },
-      "data": [
-        1,
-        2,
-        3,
-        4,
-        5,
-        6
-      ]
+      "data": [1, 2, 3, 4, 5, 6 ]
     }
   }
 })";
@@ -516,14 +479,7 @@ static const char* VERTICAL_MULTI_WIDTH_GRID_DOC = R"({
         "type": "Text",
         "id": "${data}"
       },
-      "data": [
-        1,
-        2,
-        3,
-        4,
-        5,
-        6
-      ]
+      "data": [1, 2, 3, 4, 5, 6 ]
     }
   }
 })";
@@ -562,12 +518,7 @@ static const char* MULTI_WIDTH_RELATIVE_GRID_DOC = R"({
         "type": "Text",
         "id": "${data}"
       },
-      "data": [
-        1,
-        2,
-        3,
-        4
-      ]
+      "data": [1, 2, 3, 4 ]
     }
   }
 })";
@@ -618,20 +569,7 @@ static const char* SCROLLING_EVENT_DOC = R"({
         "type": "Text",
         "id": "textId"
       },
-      "data": [
-        1,
-        2,
-        3,
-        4,
-        5,
-        6,
-        7,
-        8,
-        9,
-        10,
-        11,
-        12
-      ]
+      "data": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12 ]
     }
   }
 })";
@@ -666,14 +604,7 @@ static const char* AUTO_SIZE_ALL_DOC = R"({
         "type": "Text",
         "id": "${data}"
       },
-      "data": [
-        1,
-        2,
-        3,
-        4,
-        5,
-        6
-      ]
+      "data": [1, 2, 3, 4, 5, 6 ]
     }
   }
 })";
@@ -713,16 +644,7 @@ static const char* AUTO_SIZE_SOME_DOC = R"({
         "type": "Text",
         "id": "${data}"
       },
-      "data": [
-        1,
-        2,
-        3,
-        4,
-        5,
-        6,
-        7,
-        8
-      ]
+      "data": [1, 2, 3, 4, 5, 6, 7, 8 ]
     }
   }
 })";
@@ -762,16 +684,7 @@ static const char* AUTO_SIZE_SOME_ZEROS_DOC = R"({
         "type": "Text",
         "id": "${data}"
       },
-      "data": [
-        1,
-        2,
-        3,
-        4,
-        5,
-        6,
-        7,
-        8
-      ]
+      "data": [1, 2, 3, 4, 5, 6, 7, 8 ]
     }
   }
 })";
@@ -955,8 +868,8 @@ TEST_F(GridSequenceComponentTest, GridSequenceScrollingContext)
     // 1 back should not be laid out. Same for 1 forward.
     ASSERT_TRUE(CheckChildrenLaidOutDirtyFlags(component, {2, 3}));
     ASSERT_TRUE(CheckChildrenLaidOut(component, {0, 1}, false));
-    ASSERT_TRUE(CheckChildrenLaidOut(component, {2, 16}, true));
-    ASSERT_TRUE(CheckChildrenLaidOut(component, {17, 19}, false));
+    ASSERT_TRUE(CheckChildrenLaidOut(component, {2, 18}, true));
+    ASSERT_TRUE(CheckChildrenLaidOut(component, {19, 19}, false));
 
     scrollPosition = component->getCalculated(kPropertyScrollPosition).asNumber();
     ASSERT_EQ(300, scrollPosition);
@@ -989,8 +902,8 @@ TEST_F(GridSequenceComponentTest, GridSequenceScrollingContext)
     ASSERT_EQ(11, list["highestIndexSeen"].GetInt());
 
     ASSERT_TRUE(CheckChildrenLaidOutDirtyFlags(component, {0, 1}));
-    ASSERT_TRUE(CheckChildrenLaidOut(component, {0, 16}, true));
-    ASSERT_TRUE(CheckChildrenLaidOut(component, {17, 19}, false));
+    ASSERT_TRUE(CheckChildrenLaidOut(component, {0, 18}, true));
+    ASSERT_TRUE(CheckChildrenLaidOut(component, {19, 19}, false));
 
     completeScroll(component, 3);
     advanceTime(10);
@@ -1151,8 +1064,8 @@ TEST_F(GridSequenceComponentTest, GridSequenceScrollingContextRTL)
 
     // 1 back should not be laid out. Same for 1 forward.
     ASSERT_TRUE(CheckChildrenLaidOut(component, {0, 1}, false));
-    ASSERT_TRUE(CheckChildrenLaidOut(component, {2, 16}, true));
-    ASSERT_TRUE(CheckChildrenLaidOut(component, {17, 19}, false));
+    ASSERT_TRUE(CheckChildrenLaidOut(component, {2, 18}, true));
+    ASSERT_TRUE(CheckChildrenLaidOut(component, {19, 19}, false));
 
     scrollPosition = component->getCalculated(kPropertyScrollPosition).asNumber();
     ASSERT_EQ(-300, scrollPosition);
@@ -1184,8 +1097,8 @@ TEST_F(GridSequenceComponentTest, GridSequenceScrollingContextRTL)
     ASSERT_EQ(0, list["lowestIndexSeen"].GetInt());
     ASSERT_EQ(11, list["highestIndexSeen"].GetInt());
 
-    ASSERT_TRUE(CheckChildrenLaidOut(component, {0, 16}, true));
-    ASSERT_TRUE(CheckChildrenLaidOut(component, {17, 19}, false));
+    ASSERT_TRUE(CheckChildrenLaidOut(component, {0, 18}, true));
+    ASSERT_TRUE(CheckChildrenLaidOut(component, {19, 19}, false));
 
     completeScroll(component, 3);
     advanceTime(10);
@@ -1397,12 +1310,7 @@ static const char* CHILD_PADDING = R"({
         "type": "Text",
         "id": "${data}"
       },
-      "data": [
-        1,
-        2,
-        3,
-        4
-      ]
+      "data": [ 1, 2, 3, 4]
     }
   }
 })";
@@ -1438,16 +1346,7 @@ static const char* CHILD_PADDING_FIT = R"({
         "type": "Text",
         "id": "${data}"
       },
-      "data": [
-        1,
-        2,
-        3,
-        4,
-        5,
-        6,
-        7,
-        8
-      ]
+      "data": [ 1, 2, 3, 4, 5, 6, 7, 8 ]
     }
   }
 })";
@@ -1483,18 +1382,7 @@ static const char* CHILD_CLIPPING = R"({
         "type": "Text",
         "id": "${data}"
       },
-      "data": [
-        1,
-        2,
-        3,
-        4,
-        5,
-        6,
-        7,
-        8,
-        9,
-        10
-      ]
+      "data": [ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 ]
     }
   }
 })";
@@ -1530,16 +1418,7 @@ static const char* UNIFORM_RELATIVE = R"({
         "type": "Text",
         "id": "${data}"
       },
-      "data": [
-        1,
-        2,
-        3,
-        4,
-        5,
-        6,
-        7,
-        8
-      ]
+      "data": [ 1, 2, 3, 4, 5, 6, 7, 8 ]
     }
   }
 })";
@@ -1575,10 +1454,7 @@ static const char* SINGLE_AUTO = R"({
         "type": "Text",
         "id": "${data}"
       },
-      "data": [
-        1,
-        2
-      ]
+      "data": [ 1, 2 ]
     }
   }
 })";
@@ -2185,37 +2061,29 @@ const char * SNAP_MULTI_COMPS = R"apl(
     "item": {
       "type": "Container",
       "width": 600,
-      "items": [{
-        "type": "GridSequence",
-        "id": "gridSequence",
-        "scrollDirection": "vertical",
-        "width": 650,
-        "height": 300,
-        "snap": "forceStart",
-        "childWidth": 300,
-        "childHeight": 150,
-        "items": {
-          "id":  "${data}",
-          "type": "Frame",
-          "borderColor": "green",
-          "borderWidth": 4,
+      "items": [
+        {
+          "type": "GridSequence",
+          "id": "gridSequence",
+          "scrollDirection": "vertical",
+          "width": 650,
+          "height": 300,
+          "snap": "forceStart",
+          "childWidth": 300,
+          "childHeight": 150,
           "items": {
-            "type": "Text",
-            "text": "${data}"
-          }
-        },
-        "data": [
-          0,
-          1,
-          2,
-          3,
-          4,
-          5,
-          6,
-          7,
-          8
-        ]
-      }]
+            "id":  "${data}",
+            "type": "Frame",
+            "borderColor": "green",
+            "borderWidth": 4,
+            "items": {
+              "type": "Text",
+              "text": "${data}"
+            }
+          },
+          "data": [ 1, 2, 3, 4, 5, 6, 7, 8 ]
+        }
+      ]
     }
   }
 }
@@ -2240,60 +2108,6 @@ TEST_F(GridSequenceComponentTest, TestSnappingWithMultipleComponentsPerLine) {
 
     // Verify we snap to the top of the component
     ASSERT_EQ(0, grid->getCalculated(kPropertyScrollPosition).asNumber());
-}
-
-static const char *GRID_SEQUENCE_SCROLL_OFFSET = R"({
-  "type": "APL",
-  "version": "1.7",
-  "onConfigChange": {
-    "type": "Reinflate"
-  },
-  "mainTemplate": {
-    "item": {
-      "type": "Sequence",
-      "id": "testSequence",
-      "width": 100,
-      "height": 100,
-      "preserve": [
-         "scrollOffset"
-      ],
-      "data": "${TestArray}",
-      "item": {
-        "type": "Frame",
-        "width": "100%",
-        "height": 60
-      }
-    }
-  }
-})";
-
-TEST_F(GridSequenceComponentTest, ScrollOffsetReinflate) {
-    auto myArray = LiveArray::create(ObjectArray{0, 1, 2, 3, 4, 5});
-    config->liveData("TestArray", myArray);
-
-    metrics.size(200,200);
-    loadDocument(GRID_SEQUENCE_SCROLL_OFFSET);
-    ASSERT_TRUE(component);
-    ASSERT_EQ(6, component->getChildCount());
-    ASSERT_TRUE(CheckChildrenLaidOut(component, {0,1}, true));
-    ASSERT_TRUE(CheckChildrenLaidOut(component, {2,3}, false));
-    root->clearDirty();
-
-    advanceTime(10);
-    ASSERT_TRUE(CheckChildrenLaidOut(component, {0,3}, true));
-
-    // Trigger reinflate
-    configChangeReinflate(ConfigurationChange(200,200));
-    ASSERT_TRUE(component);
-
-    ASSERT_EQ(6, component->getChildCount());
-    ASSERT_TRUE(CheckChildrenLaidOut(component, {0,1}, true));
-    ASSERT_TRUE(CheckChildrenLaidOut(component, {2,3}, false));
-    root->clearDirty();
-
-    // Validate second layout pass when scroll position need not to be adjusted after re-inflation
-    advanceTime(10);
-    ASSERT_TRUE(CheckChildrenLaidOut(component, {0,3}, true));
 }
 
 static const char* GRIDSEQUENCE_LARGE_CHILD = R"({
@@ -2327,4 +2141,141 @@ TEST_F(GridSequenceComponentTest, InflateLargeChild) {
 
     ASSERT_EQ(kComponentTypeGridSequence, component->getType());
     ASSERT_EQ(kScrollDirectionVertical, component->getCalculated(kPropertyScrollDirection).asInt());
+}
+
+static const char* SIMPLE_LAZY_GRID = R"({
+  "type": "APL",
+  "version": "2023.3",
+  "layouts": {
+    "TB": {
+      "parameters": [ { "name": "TXT", "default": "-1" } ],
+      "items": {
+        "type": "Text",
+        "height": "100%",
+        "width": "100%",
+        "text": "${TXT}",
+        "textAlignVertical": "center",
+        "textAlign": "center"
+      }
+    }
+  },
+  "mainTemplate": {
+    "item": {
+      "type": "GridSequence",
+      "childHeight": [100, 100, 100],
+      "childWidth": 150,
+      "width": 500,
+      "height": 300,
+      "scrollDirection": "horizontal",
+      "item": {
+        "height": 200,
+        "width": 160,
+        "bind": [ { "name": "ItemData", "value": "${index}" } ],
+        "type": "Frame",
+        "borderWidth": 2,
+        "borderColor": "grey",
+        "item": {
+          "type": "TB",
+          "TXT": "${ItemData}"
+        }
+      },
+      "data": "${Array.range(0,20)}"
+    }
+  }
+})";
+
+TEST_F(GridSequenceComponentTest, LazyInflationCheck) {
+    // With 0 cache it should have 12 children at minimum to properly cover first frame.
+    config->set(kSequenceChildCache, 0);
+
+    loadDocument(SIMPLE_LAZY_GRID);
+
+    ASSERT_EQ(20, component->getChildCount());
+    ASSERT_TRUE(CheckChildrenLaidOut(component, {0, 12}, true)); // 12 to cover + 1 to measure by
+    ASSERT_TRUE(CheckChildrenLaidOut(component, {13, 19}, false));
+}
+
+static const char* GRIDSEQUENCE_SINGLE_CHILD_CROSS_AXIS_HORIZONTAL = R"({
+  "type": "APL",
+  "version": "1.4",
+  "mainTemplate": {
+    "parameters": [],
+    "item": {
+      "type": "GridSequence",
+      "scrollDirection": "vertical",
+      "width": 60,
+      "height": 40,
+      "childWidth": "100%",
+      "childHeight": "20dp",
+      "items": {
+        "type": "Frame",
+        "backgroundColor": "${data}"
+      },
+      "data": [ "red", "blue", "green", "yellow", "gray", "orange", "white", "purple", "magenta", "cyan"  ]
+    }
+  }
+})";
+
+TEST_F(GridSequenceComponentTest, SingleChildCrossAxisHorizontalInflationCheck) {
+    loadDocument(GRIDSEQUENCE_SINGLE_CHILD_CROSS_AXIS_HORIZONTAL);
+    ASSERT_EQ(10, component->getChildCount());
+    ASSERT_TRUE(CheckChildrenLaidOut(component, {0, 2}, true));
+    ASSERT_TRUE(CheckChildrenLaidOut(component, {3, 9}, false));
+}
+
+static const char* GRIDSEQUENCE_SINGLE_CHILD_CROSS_AXIS_HORIZONTAL_RTL = R"({
+  "type": "APL",
+  "version": "1.4",
+  "layoutDirection":"RTL",
+  "mainTemplate": {
+    "parameters": [],
+    "item": {
+      "type": "GridSequence",
+      "scrollDirection": "vertical",
+      "width": 60,
+      "height": 40,
+      "childWidth": "100%",
+      "childHeight": "20dp",
+      "items": {
+        "type": "Frame",
+        "backgroundColor": "${data}"
+      },
+      "data": [ "red", "blue", "green", "yellow", "gray", "orange", "white", "purple", "magenta", "cyan"  ]
+    }
+  }
+})";
+
+TEST_F(GridSequenceComponentTest, SingleChildCrossAxisHorizontalInflationCheckRTL) {
+    loadDocument(GRIDSEQUENCE_SINGLE_CHILD_CROSS_AXIS_HORIZONTAL_RTL);
+    ASSERT_EQ(10, component->getChildCount());
+    ASSERT_TRUE(CheckChildrenLaidOut(component, {0, 2}, true));
+    ASSERT_TRUE(CheckChildrenLaidOut(component, {3, 9}, false));
+}
+
+static const char* GRIDSEQUENCE_SINGLE_CHILD_CROSS_AXIS_VERTICAL = R"({
+  "type": "APL",
+  "version": "1.4",
+  "mainTemplate": {
+    "parameters": [],
+    "item": {
+      "type": "GridSequence",
+      "scrollDirection": "horizontal",
+      "width": 60,
+      "height": 40,
+      "childWidth": "50%",
+      "childHeight": "100%",
+      "items": {
+        "type": "Frame",
+        "backgroundColor": "${data}"
+      },
+      "data": [ "red", "blue", "green", "yellow", "gray", "orange", "white", "purple", "magenta", "cyan"  ]
+    }
+  }
+})";
+
+TEST_F(GridSequenceComponentTest, SingleChildCrossAxisVerticalInflationCheck) {
+    loadDocument(GRIDSEQUENCE_SINGLE_CHILD_CROSS_AXIS_VERTICAL);
+    ASSERT_EQ(10, component->getChildCount());
+    ASSERT_TRUE(CheckChildrenLaidOut(component, {0, 2}, true));
+    ASSERT_TRUE(CheckChildrenLaidOut(component, {3, 9}, false));
 }

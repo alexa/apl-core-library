@@ -16,6 +16,7 @@
 #include "gtest/gtest.h"
 
 #include "apl/apl.h"
+#include "../scenegraph/testedittext.h"
 
 using namespace apl;
 
@@ -77,3 +78,16 @@ TEST(RootConfigTest, RootPropertyBimapFullySynced)
         ASSERT_TRUE(it != sRootPropertyBimap.end());
     }
 }
+
+#ifdef SCENEGRAPH
+TEST(RootConfigTest, CopyEditTextFactory)
+{
+    RootConfig rootConfig;
+
+    rootConfig.editTextFactory(std::make_shared<TestEditTextFactory>());
+
+    RootConfigPtr copiedRootConfig = rootConfig.copy();
+
+    ASSERT_EQ(rootConfig.getEditTextFactory(), copiedRootConfig->getEditTextFactory());
+}
+#endif

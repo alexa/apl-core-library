@@ -88,6 +88,7 @@ private:
     void scroll(bool backwards);
     bool setScrollPositionInternal(float value);
     bool canScroll(FocusDirection direction);
+    bool doesLegacyClipping() const override { return true; }
 
     // A tree of the descendants of this scroll with position: sticky.
     std::shared_ptr<StickyChildrenTree> mStickyTree;

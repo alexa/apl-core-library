@@ -22,17 +22,6 @@
 
 using namespace apl;
 
-inline
-::testing::AssertionResult
-CheckProperties(const ComponentPtr& component, std::map<PropertyKey, Object> values) {
-    for (const auto& m : values) {
-        auto result = IsEqual(m.second, component->getCalculated(m.first));
-        if (!result)
-            return result << " on property " << sComponentPropertyBimap.at(m.first);
-    }
-    return ::testing::AssertionSuccess();
-}
-
 class DynamicPropertiesTest : public DocumentWrapper {};
 
 static const char *HEIGHT_WIDTH_SETVALUE = R"apl(
@@ -919,112 +908,6 @@ TEST_F(DynamicPropertiesTest, BorderAnyRadius) {
     }));
 }
 
-static const char *IMAGE_SETVALUE = R"apl(
-{
-    "type": "APL",
-    "version": "1.6",
-    "mainTemplate": {
-        "item": {
-            "type": "Container",
-            "items": [
-                {
-                    "type": "Image",
-                    "id": "img1",
-                    "source": "https://images.amazon.com/image/foo.png",
-                    "align": "center",
-                    "borderRadius": 5,
-                    "overlayGradient": {
-                        "colorRange": [
-                            "blue",
-                            "red"
-                        ]
-                    },
-                    "scale": "fill"
-                },
-                {
-                    "type": "Image",
-                    "id": "img2",
-                    "source": "https://images.amazon.com/image/bar.png",
-                    "overlayGradient": {
-                        "colorRange": [
-                            "green",
-                            "gray"
-                        ]
-                    }
-                }
-            ]
-        }
-    }
-}
-)apl";
-
-// Test for image component align/borderRadius/overlayGradient/scale properties for dynamic
-TEST_F(DynamicPropertiesTest, ImageProperties) {
-    loadDocument(IMAGE_SETVALUE);
-    ASSERT_TRUE(component);
-    auto mediaSourceUrl = Object("https://images.amazon.com/image/foo.png");
-    auto img1 = CoreComponent::cast(context->findComponentById("img1"));
-    ASSERT_TRUE(img1);
-    ASSERT_EQ(kComponentTypeImage, img1->getType());
-    ASSERT_TRUE(CheckProperties(img1, {
-            {kPropertyAlign, kImageAlignCenter },
-            {kPropertyScale, kImageScaleFill },
-            {kPropertyBorderRadius, Dimension(5) },
-            {kPropertySource, mediaSourceUrl },
-    }));
-
-    auto grad1 = img1->getCalculated(kPropertyOverlayGradient);
-    ASSERT_TRUE(grad1.is<Gradient>());
-    ASSERT_EQ(Object(Color(Color::BLUE)), grad1.get<Gradient>().getProperty(kGradientPropertyColorRange).at(0));
-    ASSERT_EQ(Object(Color(Color::RED)), grad1.get<Gradient>().getProperty(kGradientPropertyColorRange).at(1));
-
-    // Set aline property of img
-    img1->setProperty(kPropertyAlign, "left");
-
-    ASSERT_EQ(1, root->getDirty().size());
-    ASSERT_TRUE(CheckDirty(img1, kPropertyAlign, kPropertyVisualHash));
-    ASSERT_TRUE(CheckDirty(root, img1));
-    root->clearDirty();
-
-    ASSERT_EQ(kImageAlignLeft, img1->getCalculated(kPropertyAlign).getInteger());
-
-    // Set borderRadius property of img
-    img1->setProperty(kPropertyBorderRadius, 10);
-
-    ASSERT_EQ(1, root->getDirty().size());
-    ASSERT_TRUE(CheckDirty(img1, kPropertyBorderRadius, kPropertyVisualHash));
-    ASSERT_TRUE(CheckDirty(root, img1));
-    root->clearDirty();
-
-    ASSERT_EQ(Object(Dimension(10)), img1->getCalculated(kPropertyBorderRadius));
-
-    // Set scale property of img
-    img1->setProperty(kPropertyScale, "best-fill");
-
-    ASSERT_EQ(1, root->getDirty().size());
-    ASSERT_TRUE(CheckDirty(img1, kPropertyScale, kPropertyVisualHash));
-    ASSERT_TRUE(CheckDirty(root, img1));
-    root->clearDirty();
-
-    ASSERT_EQ(kImageScaleBestFill, img1->getCalculated(kPropertyScale).getInteger());
-
-    // Set overlayGradient property of img
-    auto img2 = CoreComponent::cast(context->findComponentById("img2"));
-    auto grad2 = img2->getCalculated(kPropertyOverlayGradient);
-
-    img1->setProperty(kPropertyOverlayGradient, Object(grad2));
-
-    ASSERT_EQ(1, root->getDirty().size());
-    ASSERT_TRUE(CheckDirty(img1, kPropertyOverlayGradient, kPropertyVisualHash));
-    ASSERT_TRUE(CheckDirty(root, img1));
-    root->clearDirty();
-
-    grad1 = img1->getCalculated(kPropertyOverlayGradient);
-    ASSERT_TRUE(grad1.is<Gradient>());
-    ASSERT_EQ(Object(Color(Color::GREEN)), grad1.get<Gradient>().getProperty(kGradientPropertyColorRange).at(0));
-    ASSERT_EQ(Object(Color(Color::GRAY)), grad1.get<Gradient>().getProperty(kGradientPropertyColorRange).at(1));
-}
-
 static const char *VECTOR_GRAPHIC_SETVALUE = R"apl(
 {
     "type": "APL",
@@ -1577,4 +1460,47 @@ TEST_F(DynamicPropertiesTest, AccessibilityProperties) {
     ASSERT_EQ("4", touchwrapper->getCalculated(kPropertyAccessibilityAdjustableValue).asString());
     auto decrementJsonData = JsonData(R"({"minValue": 0, "maxValue": 10, "currentValue": 4})");
     ASSERT_EQ(Object(decrementJsonData.get()), touchwrapper->getCalculated(kPropertyAccessibilityAdjustableRange));
+}
+
+static const char* SIMPLEST = R"({
+  "type": "APL",
+  "version": "2024.3",
+  "theme": "dark",
+  "mainTemplate": {
+    "items": {
+      "type": "Text",
+      "text": "HELLO WORLD"
+    }
+  }
+})";
+
+TEST_F(DynamicPropertiesTest, ReleasedComponentUnusable) {
+    auto logBridge = std::make_shared<TestLogBridge>();
+    LoggerFactory::instance().initialize(logBridge);
+
+    loadDocument(SIMPLEST);
+    ASSERT_TRUE(component);
+
+    ASSERT_EQ("HELLO WORLD", component->getCalculated(apl::kPropertyText).asString());
+
+    component->release();
+
+    component->setValue(kPropertyText, "HELLO MOON", true);
+    ASSERT_TRUE(logBridge->checkAndClear("Trying to modify released component:"));
+
+    component->setProperty(kPropertyText, "HELLO MOON");
+    ASSERT_TRUE(logBridge->checkAndClear("Trying to modify released component:"));
+
+    component->markProperty(kPropertyText);
+    ASSERT_TRUE(logBridge->checkAndClear("Trying to modify released component:"));
+    ASSERT_FALSE(component->isDirty(kPropertyText));
+
+    auto text = component->getCalculated(kPropertyText).asString();
+    ASSERT_TRUE(logBridge->checkAndClear("Trying to access released component:"));
+    ASSERT_TRUE(text.empty());
+
+    component->release();
+    ASSERT_TRUE(logBridge->checkAndClear("Releasing component which is already released:"));
+
+    LoggerFactory::instance().reset();
 }

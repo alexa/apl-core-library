@@ -16,6 +16,7 @@
 #include <queue>
 
 #include "../testeventloop.h"
+#include "apl/utils/actiondata.h"
 
 using namespace apl;
 
@@ -109,6 +110,8 @@ public:
 TEST_F(ActionTest, MakeResolved)
 {
     auto p = Action::make(loop);
+    rapidjson::Document doc(rapidjson::kObjectType);
+    ASSERT_STREQ("None", p->getActionData().serialize(doc.GetAllocator())["actionHint"].GetString());
 
     bool fired = false;
     connect(p, fired);

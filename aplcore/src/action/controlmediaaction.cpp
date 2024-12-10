@@ -19,6 +19,7 @@
 #include "apl/component/videocomponent.h"
 #include "apl/media/mediaplayer.h"
 #include "apl/time/sequencer.h"
+#include "apl/utils/actiondata.h"
 #include "apl/utils/session.h"
 
 namespace apl {
@@ -105,14 +106,16 @@ ControlMediaAction::start()
                 break;
         }
         resolve();
+    } else {
+        LOG(LogLevel::kWarn) << "Terminate ControlMedia without MediaPlayer.";
+        terminate();
     }
-    else {
-        EventBag bag;
-        bag.emplace(kEventPropertyCommand, mediaCommand);
-        bag.emplace(kEventPropertyValue, value);
-        mCommand->context()->pushEvent(
-            Event(kEventTypeControlMedia, std::move(bag), mTarget, shared_from_this()));
-    }
+}
+
+ActionData
+ControlMediaAction::getActionData()
+{
+    return ActionData().target(mTarget).actionHint("MediaPlayback");
 }
 
 } // namespace apl

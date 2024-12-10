@@ -247,7 +247,7 @@ TEST_F(SerializeTest, Components)
     styledTextIt.next();
     ASSERT_EQ(styledTextIt.spanCount(), textJson["text"]["spans"].Size());
     ASSERT_EQ(styledTextIt.getSpanAttributes().size(), textJson["text"]["spans"][0][3].Size());
-    ASSERT_EQ(text->getCalculated(kPropertyTextAlignAssigned), textJson["_textAlign"].GetDouble());
+    ASSERT_EQ(text->getCalculated(kPropertyTextAlign), textJson["_textAlign"].GetDouble());
     ASSERT_EQ(text->getCalculated(kPropertyTextAlignVertical), textJson["textAlignVertical"].GetDouble());
 
     auto scroll = context->findComponentById("scroll");
@@ -498,6 +498,7 @@ const static char *SERIALIZE_ALL_RESULT = R"({
   "width": "100%",
   "onCursorEnter": [],
   "onCursorExit": [],
+  "onCursorMove": [],
   "_laidOut": true,
   "_visualHash": "[HASH]"
 })";

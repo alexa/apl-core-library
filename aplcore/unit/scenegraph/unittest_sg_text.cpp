@@ -104,6 +104,7 @@ TEST_F(SGTextTest, Basic)
 
     ASSERT_TRUE(CheckSceneGraph(
         sg, IsLayer(Rect{0, 0, 300, 300})
+                .characteristic(sg::Layer::kCharacteristicHasText)
                 .content(IsTransformNode()
                              .child(IsTextNode()
                                         .text("This is my text")
@@ -140,6 +141,7 @@ TEST_F(SGTextTest, Framed)
     ASSERT_TRUE(
         CheckSceneGraph(sg, IsLayer(Rect{0, 0, 300, 300}, "...Frame")
                                 .child(IsLayer(Rect{0, 0, 150, 10}, "...Text")
+                                           .characteristic(sg::Layer::kCharacteristicHasText)
                                            .content(IsTransformNode().child(
                                                IsTextNode()
                                                    .text("This is my text")
@@ -173,6 +175,7 @@ TEST_F(SGTextTest, Dynamic)
 
     ASSERT_TRUE(
         CheckSceneGraph(sg, IsLayer(Rect{0, 0, 200, 200})
+                                .characteristic(sg::Layer::kCharacteristicHasText)
                                 .content(IsTransformNode().child(IsTextNode().text("TEST").pathOp(
                                     IsFillOp(IsColorPaint(Color::RED)))))));
 
@@ -184,6 +187,7 @@ TEST_F(SGTextTest, Dynamic)
 
     ASSERT_TRUE(CheckSceneGraph(
         sg, IsLayer(Rect{0, 0, 200, 200})
+                .characteristic(sg::Layer::kCharacteristicHasText)
                 .dirty(sg::Layer::kFlagRedrawContent)
                 .content(IsTransformNode()
                              .translate(Point{80, 0})
@@ -199,6 +203,7 @@ TEST_F(SGTextTest, Dynamic)
     sg = root->getSceneGraph();
     ASSERT_TRUE(CheckSceneGraph(
         sg, IsLayer(Rect{0, 0, 200, 200})
+                .characteristic(sg::Layer::kCharacteristicHasText)
                 .dirty(sg::Layer::kFlagRedrawContent)
                 .content(IsTransformNode()
                              .translate(Point{80, 190})
@@ -214,6 +219,7 @@ TEST_F(SGTextTest, Dynamic)
     ASSERT_TRUE(CheckSceneGraph(
         sg, IsLayer(Rect{0, 0, 200, 200})
                 .dirty(sg::Layer::kFlagRedrawContent)
+                .characteristic(sg::Layer::kCharacteristicHasText)
                 .content(IsTransformNode()
                              .translate(Point{80, 190})
                              .child(IsTextNode()
@@ -227,6 +233,7 @@ TEST_F(SGTextTest, Dynamic)
     sg = root->getSceneGraph();
     ASSERT_TRUE(CheckSceneGraph(
         sg, IsLayer(Rect{0, 0, 200, 200})
+                .characteristic(sg::Layer::kCharacteristicHasText)
                 .dirty(sg::Layer::kFlagRedrawContent)
                 .content(IsTransformNode()
                              .translate(Point{80, 190})
@@ -266,6 +273,7 @@ TEST_F(SGTextTest, SimpleValue)
 
     ASSERT_TRUE(
         CheckSceneGraph(sg, IsLayer(Rect{0, 0, 100, 100})
+                                .characteristic(sg::Layer::kCharacteristicHasText)
                                 .content(IsTransformNode().child(IsTextNode().text("C=10").pathOp(
                                     IsFillOp(IsColorPaint(Color::WHITE)))))));
 
@@ -274,6 +282,7 @@ TEST_F(SGTextTest, SimpleValue)
     sg = root->getSceneGraph();
 
     ASSERT_TRUE(CheckSceneGraph(sg, IsLayer(Rect{0, 0, 100, 100})
+                                        .characteristic(sg::Layer::kCharacteristicHasText)
                                         .dirty(sg::Layer::kFlagRedrawContent)
                                         .content(IsTransformNode().child(
                                             IsTextNode()
@@ -333,6 +342,7 @@ TEST_F(SGTextTest, Packing)
                     .vertical()
                     .child(
                         IsLayer(Rect{0, 0, 500, 1520})
+                            .characteristic(sg::Layer::kCharacteristicHasText)
                             .content(IsTransformNode().child(
                                 IsTextNode()
                                     .text(
@@ -346,6 +356,7 @@ TEST_F(SGTextTest, Packing)
                                     AccessibilityAction::ACCESSIBILITY_ACTION_SCROLLFORWARD,
                                     true)))
             .child(IsLayer(Rect{0, 460, 500, 40})
+                       .characteristic(sg::Layer::kCharacteristicHasText)
                        .content(IsTransformNode().child(
                            IsTextNode()
                                .text("Footnote")
@@ -382,6 +393,7 @@ TEST_F(SGTextTest, UnknownWidth) {
     ASSERT_TRUE(CheckSceneGraph(
         sg, IsLayer(Rect{0, 0, 500, 500})
                 .child(IsLayer(Rect{300, 0, 200, 40})
+                           .characteristic(sg::Layer::kCharacteristicHasText)
                            .content(IsTransformNode().child(IsTextNode().text("Hello").pathOp(
                                IsFillOp(IsColorPaint(Color::BLUE))))))));
 
@@ -393,6 +405,7 @@ TEST_F(SGTextTest, UnknownWidth) {
     ASSERT_TRUE(CheckSceneGraph(
         sg, IsLayer(Rect{0, 0, 500, 500})
                 .child(IsLayer(Rect{460, 0, 40, 40})
+                           .characteristic(sg::Layer::kCharacteristicHasText)
                            .dirty(sg::Layer::kFlagPositionChanged |
                                   sg::Layer::kFlagSizeChanged |
                                   sg::Layer::kFlagRedrawContent)
@@ -433,6 +446,7 @@ TEST_F(SGTextTest, ChangingSize) {
     ASSERT_TRUE(CheckSceneGraph(
         sg, IsLayer(Rect{0, 0, 200, 240})
                 .child(IsLayer(Rect{0, 0, 200, 240})   // 5 characters per line
+                           .characteristic(sg::Layer::kCharacteristicHasText)
                            .content(IsTransformNode().child(
                                IsTextNode()
                                    .measuredSize({200,240})
@@ -448,6 +462,7 @@ TEST_F(SGTextTest, ChangingSize) {
         sg, IsLayer(Rect{0, 0, 100, 520})
                 .dirty(sg::Layer::kFlagSizeChanged)
                 .child(IsLayer(Rect{0, 0, 100, 40 * 13})   // 2 characters per line
+                           .characteristic(sg::Layer::kCharacteristicHasText)
                            .dirty(sg::Layer::kFlagSizeChanged |
                                   sg::Layer::kFlagRedrawContent)
                            .content(IsTransformNode().child(
@@ -465,6 +480,7 @@ TEST_F(SGTextTest, ChangingSize) {
         sg, IsLayer(Rect{0, 0, 200, 240})
                 .dirty(sg::Layer::kFlagSizeChanged)
                 .child(IsLayer(Rect{0, 0, 200, 240})   // 5 characters per line
+                           .characteristic(sg::Layer::kCharacteristicHasText)
                            .dirty(sg::Layer::kFlagSizeChanged |
                                   sg::Layer::kFlagRedrawContent)
                            .content(IsTransformNode().child(
@@ -506,6 +522,7 @@ TEST_F(SGTextTest, LimitSize) {
     ASSERT_TRUE(CheckSceneGraph(
         sg, IsLayer(Rect{0, 0, 200, 200})
                 .child(IsLayer(Rect{0, 0, 200, 200})   // 5 characters per line
+                           .characteristic(sg::Layer::kCharacteristicHasText)
                            .content(IsTransformNode().child(
                                IsTextNode()
                                    .measuredSize({200,200})
@@ -534,6 +551,7 @@ TEST_F(SGTextTest, Resize) {
     auto sg = root->getSceneGraph();
     ASSERT_TRUE(
         CheckSceneGraph(sg, IsLayer(Rect{0, 0, 300, 300})
+                                .characteristic(sg::Layer::kCharacteristicHasText)
                                 .content(IsTransformNode().child(IsTextNode().text("Hello").pathOp(
                                     IsFillOp(IsColorPaint(Color::RED)))))));
 
@@ -543,6 +561,7 @@ TEST_F(SGTextTest, Resize) {
     sg = root->getSceneGraph();
     ASSERT_TRUE(
         CheckSceneGraph(sg, IsLayer(Rect{0, 0, 200, 200})
+                                .characteristic(sg::Layer::kCharacteristicHasText)
                                 .dirty(sg::Layer::kFlagSizeChanged | sg::Layer::kFlagRedrawContent)
                                 .content(IsTransformNode().child(IsTextNode().text("Hello").pathOp(
                                     IsFillOp(IsColorPaint(Color::RED)))))));
@@ -570,6 +589,7 @@ TEST_F(SGTextTest, FixedLayoutRequestedOnce) {
     auto sg = root->getSceneGraph();
     ASSERT_TRUE(CheckSceneGraph(
         sg, IsLayer(Rect{0, 0, 400, 400})
+            .characteristic(sg::Layer::kCharacteristicHasText)
             .content(IsTransformNode().child(
                 IsTextNode()
                     .measuredSize({400,120})
@@ -586,6 +606,7 @@ TEST_F(SGTextTest, FixedLayoutRequestedOnce) {
     ASSERT_EQ(1, measurement->getLayoutCount());
     ASSERT_TRUE(CheckSceneGraph(
         sg, IsLayer(Rect{0, 0, 400, 400})
+            .characteristic(sg::Layer::kCharacteristicHasText)
             .dirty(sg::Layer::kFlagRedrawContent)
             .content(IsTransformNode().child(
                 IsTextNode()
@@ -625,12 +646,14 @@ TEST_F(SGTextTest, IdenticalLayoutsRequestedOnce) {
         sg, IsLayer(Rect{0, 0, 200, 480})
                 .children({
                     IsLayer(Rect{0, 0, 200, 240})   // 5 characters per line
+                           .characteristic(sg::Layer::kCharacteristicHasText)
                            .content(IsTransformNode().child(
                                IsTextNode()
                                    .measuredSize({200,240})
                                    .text("ABCDEFGHIJKLMNOPQRSTUVWXYZ")
                                    .pathOp(IsFillOp(IsColorPaint(Color::BLUE))))),
                     IsLayer(Rect{0, 240, 200, 240})   // 5 characters per line
+                        .characteristic(sg::Layer::kCharacteristicHasText)
                         .content(IsTransformNode().child(
                             IsTextNode()
                                 .measuredSize({200,240})
@@ -705,6 +728,7 @@ TEST_F(SGTextTest, TextLayoutAutosizeFixed) {
     ASSERT_TRUE(CheckSceneGraph(
         sg, IsLayer(Rect{0, 0, 400, 400})
                 .child(IsLayer(Rect{0, 0, 400, 200})
+                           .characteristic(sg::Layer::kCharacteristicHasText)
                            .content(IsTransformNode().child(
                                IsTextNode()
                                    .measuredSize({400,120})

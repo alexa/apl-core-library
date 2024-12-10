@@ -338,6 +338,8 @@ TEST_F(PackageManagerTest, ChangeConfigAfterContentInitialization)
     config->setEnvironmentValue("hasMagic", "magic");
     content->refresh(Metrics(), *config);
 
+    ASSERT_TRUE(content->isWaiting());
+
     content->load([&]() { successCalled++; },
                   []{});
 
@@ -507,6 +509,24 @@ TEST_F(PackageManagerTest, CanceledContent)
     ASSERT_TRUE(successB);
 }
 
+TEST_F(PackageManagerTest, ExpiredContent)
+{
+    auto testPackageManager = std::make_shared<TestPackageManager>();
+    auto json = makeTestPackage({"A"}, {{"test", "value"}});
+    auto pkg_a = makeTestPackage({"C"}, {{"testA", "A"}});
+    testPackageManager->putPackage("A:1.0", pkg_a);
+
+    auto config = RootConfig().packageManager(testPackageManager);
+    {
+        auto content = Content::create(json, session, Metrics(), config);
+        ASSERT_TRUE(content);
+        content->load([]{},[]{});
+    }
+
+    // Assert no crash
+    testPackageManager->fail(testPackageManager->get("C:1.0"));
+}
+
 static const char *IMPORT_PACKAGE_DOC = R"(
 {
   "type": "APL",
@@ -619,6 +639,33 @@ static const char *LEVEL_TWO_PACKAGE_JSON = R"(
   ]
 }
 )";
+
+TEST_F(PackageManagerTest, EmptyImportWithNonEmptyParams)
+{
+    const char *BASIC_DOC_WITH_EMPTY_IMPORTS = R"apl({
+        "type": "APL",
+        "version": "1.1",
+        "import": [],
+        "mainTemplate": {
+          "parameters": [
+            "payload"
+          ],
+          "item": {
+            "type": "Text",
+            "text": "Text"
+          }
+        }
+    })apl";
+
+    auto testPackageManager = std::make_shared<TestPackageManager>();
+    auto config = RootConfig().packageManager(testPackageManager);
+    auto content = Content::create(BASIC_DOC_WITH_EMPTY_IMPORTS, makeDefaultSession(), Metrics(), config);
+    ASSERT_TRUE(content);
+
+    bool successCalled = false;
+    content->load([&]() { successCalled = true;}, []{});
+    ASSERT_TRUE(successCalled);
+}
 
 TEST_F(PackageManagerTest, SingleOneLevelNestedPackageImport) {
     auto testPackageManager = std::make_shared<TestPackageManager>();

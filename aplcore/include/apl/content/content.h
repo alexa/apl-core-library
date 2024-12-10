@@ -130,8 +130,6 @@ public:
     std::set<ImportRequest> getRequestedPackages();
 
     /**
-     * @deprecated Supply a PackageManager and use load(SuccessCallback, FailureCallback).
-     *
      * @return true if this document is waiting for a number of packages to be loaded.
      */
     bool isWaiting() const;
@@ -289,13 +287,13 @@ private:  // Private internal methods
     void init(bool supportsEvaluation);
     void addExtensions(const Package& package);
     void updateStatus();
+    void preloadPackages();
     void loadExtensionSettings();
     bool allowAdd(const std::string& name);
     std::string extractTheme(const Metrics& metrics) const;
     static ContentPtr create(JsonData&& document, const SessionPtr& session, const Metrics& metrics,
                              const RootConfig& config, bool supportsEvaluation);
     Object extractBackground(const Context& evaluationContext) const;
-    bool isManual() const { return mConfig.getPackageManager() == nullptr; }
 
 private:
     enum State {

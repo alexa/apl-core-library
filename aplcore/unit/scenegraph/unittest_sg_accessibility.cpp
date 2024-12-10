@@ -71,14 +71,17 @@ TEST_F(SGAccessibilityTest, Basic) {
             .child(
                 IsLayer(Rect{0, 0, 300, 120})
                     .child(IsLayer(Rect{0, 0, 300, 40})
+                               .characteristic(sg::Layer::kCharacteristicHasText)
                                .accessibility(IsAccessibility().label("Text item 0"))
                                .content(IsTransformNode().child(IsTextNode().text("Item 0").pathOp(
                                    IsFillOp(IsColorPaint(Color::BLACK))))))
                     .child(IsLayer(Rect{0, 40, 300, 40})
+                               .characteristic(sg::Layer::kCharacteristicHasText)
                                .accessibility(IsAccessibility().label("Text item 1"))
                                .content(IsTransformNode().child(IsTextNode().text("Item 1").pathOp(
                                    IsFillOp(IsColorPaint(Color::BLACK))))))
                     .child(IsLayer(Rect{0, 80, 300, 40})
+                               .characteristic(sg::Layer::kCharacteristicHasText)
                                .accessibility(IsAccessibility().label("Text item 2"))
                                .content(IsTransformNode().child(IsTextNode().text("Item 2").pathOp(
                                    IsFillOp(IsColorPaint(Color::BLACK))))))
@@ -102,15 +105,18 @@ TEST_F(SGAccessibilityTest, Basic) {
             .child(
                 IsLayer(Rect{0, 0, 300, 120})
                     .child(IsLayer(Rect{0, 0, 300, 40})
+                               .characteristic(sg::Layer::kCharacteristicHasText)
                                .accessibility(IsAccessibility().label("Text item 0"))
                                .content(IsTransformNode().child(IsTextNode().text("Item 0").pathOp(
                                    IsFillOp(IsColorPaint(Color::BLACK))))))
                     .child(IsLayer(Rect{0, 40, 300, 40})
+                               .characteristic(sg::Layer::kCharacteristicHasText)
                                .accessibility(IsAccessibility().label("Text item 1"))
                                .content(IsTransformNode().child(IsTextNode().text("Item 1").pathOp(
                                    IsFillOp(IsColorPaint(Color::BLACK))))))
                     .child(IsLayer(Rect{0, 80, 300, 40})
                                .dirty(sg::Layer::kFlagAccessibilityChanged)
+                               .characteristic(sg::Layer::kCharacteristicHasText)
                                .accessibility(IsAccessibility().label("FOO"))
                                .content(IsTransformNode().child(IsTextNode().text("Item 2").pathOp(
                                    IsFillOp(IsColorPaint(Color::BLACK))))))
@@ -161,6 +167,7 @@ TEST_F(SGAccessibilityTest, Role) {
         sg, IsLayer(Rect{0, 0, 200, 200})
                 .accessibility(IsAccessibility().role(apl::kRoleList))
                 .child(IsLayer(Rect{0, 0, 100, 100})
+                           .characteristic(sg::Layer::kCharacteristicHasText)
                            .accessibility(IsAccessibility().role(apl::kRoleListItem))
                            .content(IsTransformNode().child(IsTextNode().text("Hello").pathOp(
                                IsFillOp(IsColorPaint(Color::BLACK))))))

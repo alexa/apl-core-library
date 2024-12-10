@@ -60,23 +60,16 @@ public:
     PackageResolver(const PackageManagerPtr& packageManager, const SessionPtr& session) : mPackageManager(packageManager), mSession(session) {}
 
     /**
-     * Loads the packages that are requested from the root package.
+     * Loads the packages that are requested from a pending import package.
      *
-     * @param evaluationContext the context for evaluating imports (may be nullptr)
-     * @param session           the session for logging
-     * @param root              the root package which may have imports
-     * @param loadedPackages    a vector of already loaded packages
-     * @param onSuccess         the success callback for when all imports have been successfully
-     *                              resolved and ordered
-     * @param onFailure         the failure callback for if one or more imports have not resolved
-     *                              or they cannot be ordered
-     * @param onPackageAdded    a callback for handling package added updates.
-     * @return                  A pointer for the pending load.
+     * @param pendingImportPackage the requested packages to import
+     * @param onSuccess            the success callback for when all imports have been successfully
+     *                                 resolved and ordered
+     * @param onFailure            the failure callback for if one or more imports have not resolved
+     *                                 or they cannot be ordered
+     * @param onPackageAdded       a callback for handling package added updates.
      */
-    PendingImportPackagePtr load(const ContextPtr& evaluationContext,
-                                 const SessionPtr& session,
-                                 const PackagePtr& root,
-                                 const std::vector<PackagePtr>& loadedPackages,
+    void load(const PendingImportPackagePtr& pendingImportPackage,
                                  SuccessCallback&& onSuccess,
                                  FailureCallback&& onFailure,
                                  PackageAddedCallback&& onPackageAdded = [](const Package& package){});

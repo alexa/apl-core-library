@@ -19,6 +19,16 @@ using namespace apl;
 
 class SpeakItemTest : public CommandTest {
 public:
+    SpeakItemTest() {
+        audioPlayerFactory->addFakeContent({
+            { "URL", 1000, 100, -1, {} },
+            { "URL1", 1000, 100, -1, {} },
+            { "URL2", 1000, 100, -1, {} },
+            { "URL3", 1000, 100, -1, {} },
+            { "URL4", 1000, 100, -1, {} },
+        });
+    }
+
     void executeSpeakItem(const std::string& item, CommandScrollAlign align, CommandHighlightMode highlightMode, int minimumDwell) {
         rapidjson::Value cmd(rapidjson::kObjectType);
         auto& alloc = doc.GetAllocator();
@@ -38,34 +48,32 @@ public:
     rapidjson::Document doc;
 };
 
-static const char *DATA = "{"
-                          "\"title\": \"Pecan Pie V\""
-                          "}";
+static const char *DATA = R"apl({ "title": "Pecan Pie V" })apl";
 
-static const char *SPEAK_ITEM_TEST = "{"
-                              "  \"type\": \"APL\","
-                              "  \"version\": \"1.1\","
-                              "  \"mainTemplate\": {"
-                              "    \"parameters\": ["
-                              "      \"payload\""
-                              "    ],"
-                              "    \"item\": {"
-                              "      \"type\": \"TouchWrapper\","
-                              "      \"onPress\": {"
-                              "        \"type\": \"SpeakItem\","
-                              "        \"delay\": 100,"
-                              "        \"componentId\": \"xyzzy\","
-                              "        \"align\": \"center\","
-                              "        \"highlightMode\": \"line\","
-                              "        \"minimumDwellTime\": 230"
-                              "      },"
-                              "     \"items\": {"
-                              "       \"type\": \"Text\","
-                              "       \"id\": \"xyzzy\""
-                              "     }"
-                              "    }"
-                              "  }"
-                              "}";
+static const char *SPEAK_ITEM_TEST = R"apl({
+  "type": "APL",
+  "version": "1.1",
+  "mainTemplate": {
+    "parameters": [
+      "payload"
+    ],
+    "item": {
+      "type": "TouchWrapper",
+      "onPress": {
+        "type": "SpeakItem",
+        "delay": 100,
+        "componentId": "xyzzy",
+        "align": "center",
+        "highlightMode": "line",
+        "minimumDwellTime": 230
+      },
+     "items": {
+       "type": "Text",
+       "id": "xyzzy"
+     }
+    }
+  }
+})apl";
 
 // In this simple case, we don't expect to get a pre-roll or a scroll event
 // The minimum dwell time guarantees that it will take 230 milliseconds to finish
@@ -85,6 +93,8 @@ TEST_F(SpeakItemTest, SpeakItemTest)
     loop->advanceToEnd();
 
     ASSERT_EQ(330, loop->currentTime());  // The command delayed by 100 first and then had a minimum dwell time of 230
+
+    session->checkAndClear();
 }
 
 TEST_F(SpeakItemTest, DisallowedCommandStillRespectsDelay)
@@ -105,26 +115,26 @@ TEST_F(SpeakItemTest, DisallowedCommandStillRespectsDelay)
     ASSERT_TRUE(ConsoleMessage());
 }
 
-static const char *SPEAK_ITEM_INVALID = "{"
-                                 "  \"type\": \"APL\","
-                                 "  \"version\": \"1.1\","
-                                 "  \"mainTemplate\": {"
-                                 "    \"parameters\": ["
-                                 "      \"payload\""
-                                 "    ],"
-                                 "    \"item\": {"
-                                 "      \"type\": \"TouchWrapper\","
-                                 "      \"onPress\": {"
-                                 "        \"type\": \"SpeakItem\","
-                                 "        \"delay\": 100,"
-                                 "        \"componentId\": \"xyzzy\","
-                                 "        \"align\": \"center\","
-                                 "        \"highlightMode\": \"line\","
-                                 "        \"minimumDwellTime\": 230"
-                                 "      }"
-                                 "    }"
-                                 "  }"
-                                 "}";
+static const char *SPEAK_ITEM_INVALID = R"apl({
+  "type": "APL",
+  "version": "1.1",
+  "mainTemplate": {
+    "parameters": [
+      "payload"
+    ],
+    "item": {
+      "type": "TouchWrapper",
+      "onPress": {
+        "type": "SpeakItem",
+        "delay": 100,
+        "componentId": "xyzzy",
+        "align": "center",
+        "highlightMode": "line",
+        "minimumDwellTime": 230
+      }
+    }
+  }
+})apl";
 
 TEST_F(SpeakItemTest, SpeakItemInvalid)
 {
@@ -136,38 +146,38 @@ TEST_F(SpeakItemTest, SpeakItemInvalid)
     ASSERT_FALSE(ConsoleMessage());
     performTap(1,1);
 
-    // Should fail because there is no component with id "xyzzy"
+    // Should fail because there is no component with id "xyzzy
     loop->advanceToEnd();
     ASSERT_FALSE(root->hasEvent());
     ASSERT_TRUE(ConsoleMessage());
 }
 
-static const char *SPEAK_ITEM_THEN_SEND = "{"
-                                   "  \"type\": \"APL\","
-                                   "  \"version\": \"1.1\","
-                                   "  \"mainTemplate\": {"
-                                   "    \"parameters\": ["
-                                   "      \"payload\""
-                                   "    ],"
-                                   "    \"item\": {"
-                                   "      \"type\": \"TouchWrapper\","
-                                   "      \"onPress\": ["
-                                   "        {"
-                                   "          \"type\": \"SpeakItem\","
-                                   "          \"componentId\": \"xyzzy\""
-                                   "        },"
-                                   "        {"
-                                   "          \"type\": \"SendEvent\""
-                                   "        }"//
-                                   "      ],"
-                                   "     \"items\": {"
-                                   "       \"type\": \"Text\","
-                                   "       \"id\": \"xyzzy\","
-                                   "       \"speech\": \"URL\""
-                                   "     }"
-                                   "    }"
-                                   "  }"
-                                   "}";
+static const char *SPEAK_ITEM_THEN_SEND = R"apl({
+  "type": "APL",
+  "version": "1.1",
+  "mainTemplate": {
+    "parameters": [
+      "payload"
+    ],
+    "item": {
+      "type": "TouchWrapper",
+      "onPress": [
+        {
+          "type": "SpeakItem",
+          "componentId": "xyzzy"
+        },
+        {
+          "type": "SendEvent"
+        }
+      ],
+     "items": {
+       "type": "Text",
+       "id": "xyzzy",
+       "speech": "URL"
+     }
+    }
+  }
+})apl";
 
 // The speak item should run directly without a pre-roll or a scroll
 TEST_F(SpeakItemTest, SpeakItemThenSend)
@@ -183,76 +193,70 @@ TEST_F(SpeakItemTest, SpeakItemThenSend)
     auto ptr = mIssuedCommands.at(0);
     auto p = std::static_pointer_cast<CoreCommand>(ptr);
 
-    ASSERT_TRUE(root->hasEvent());
-    auto event = root->popEvent();
-    ASSERT_EQ(kEventTypePreroll, event.getType());
-    ASSERT_EQ("URL", event.getValue(kEventPropertySource).asString());
+    ASSERT_TRUE(CheckPlayer("URL", TestAudioPlayer::kPreroll));
+    advanceTime(100);
 
-    ASSERT_TRUE(root->hasEvent());
-    event = root->popEvent();
-    ASSERT_EQ(kEventTypeSpeak, event.getType());
-    ASSERT_EQ("URL", event.getValue(kEventPropertySource).asString());
-    ASSERT_EQ(kEventHighlightModeBlock, event.getValue(kEventPropertyHighlightMode).asInt());
-    ASSERT_EQ(kEventScrollAlignVisible, event.getValue(kEventPropertyAlign).getInteger());
+    ASSERT_TRUE(CheckPlayer("URL", TestAudioPlayer::kReady));
+    ASSERT_TRUE(CheckPlayer("URL", TestAudioPlayer::kPlay));
 
     // The send event will execute when we resolve the speak item
     ASSERT_FALSE(root->hasEvent());
 
-    event.getActionRef().resolve();
+    advanceTime(1000);
+
+    ASSERT_TRUE(CheckPlayer("URL", TestAudioPlayer::kDone));
+    ASSERT_TRUE(CheckPlayer("URL", TestAudioPlayer::kRelease));
+
+    advanceTime(100);
 
     ASSERT_TRUE(root->hasEvent());
 
-    ASSERT_EQ(2, mIssuedCommands.size());
-    ASSERT_EQ(1, mActionCount[kCommandTypeSendEvent]);
-
-    event = root->popEvent();
-    ASSERT_EQ(kEventTypeSendEvent, event.getType());
+    ASSERT_TRUE(CheckSendEvent(root));
 
     ASSERT_FALSE(root->hasEvent());
 }
 
 
-static const char *TEST_STAGES =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"styles\": {"
-    "    \"base\": {"
-    "      \"values\": ["
-    "        {"
-    "          \"color\": \"green\""
-    "        },"
-    "        {"
-    "          \"when\": \"${state.karaoke}\","
-    "          \"color\": \"blue\""
-    "        }"
-    "      ]"
-    "    }"
-    "  },"
-    "  \"mainTemplate\": {"
-    "    \"items\": {"
-    "      \"type\": \"ScrollView\","
-    "      \"width\": 500,"
-    "      \"height\": 500,"
-    "      \"item\": {"
-    "        \"type\": \"Container\","
-    "        \"items\": {"
-    "          \"type\": \"Text\","
-    "          \"style\": \"base\","
-    "          \"text\": \"${data}\","
-    "          \"speech\": \"${data}\","
-    "          \"height\": 200"
-    "        },"
-    "        \"data\": ["
-    "          \"URL1\","
-    "          \"URL2\","
-    "          \"URL3\","
-    "          \"URL4\""
-    "        ]"
-    "      }"
-    "    }"
-    "  }"
-    "}";
+static const char *TEST_STAGES = R"apl({
+  "type": "APL",
+  "version": "1.1",
+  "styles": {
+    "base": {
+      "values": [
+        {
+          "color": "green"
+        },
+        {
+          "when": "${state.karaoke}",
+          "color": "blue"
+        }
+      ]
+    }
+  },
+  "mainTemplate": {
+    "items": {
+      "type": "ScrollView",
+      "width": 500,
+      "height": 500,
+      "item": {
+        "type": "Container",
+        "items": {
+          "type": "Text",
+          "style": "base",
+          "text": "${data}",
+          "speech": "${data}",
+          "height": 200
+        },
+        "data": [
+          "URL1",
+          "URL2",
+          "URL3",
+          "URL4"
+        ]
+      }
+    }
+  }
+})apl";
 
 /**
  * Run a single SpeakItem command and verify each stage.
@@ -272,11 +276,7 @@ TEST_F(SpeakItemTest, TestStages)
     executeSpeakItem(child, kCommandScrollAlignFirst, kCommandHighlightModeBlock, 1000);
 
     // The first thing we should get is a pre-roll event
-    ASSERT_TRUE(root->hasEvent());
-    auto event = root->popEvent();
-    ASSERT_EQ(kEventTypePreroll, event.getType());
-    ASSERT_EQ(child, event.getComponent());
-    ASSERT_EQ(Object("URL2"), event.getValue(kEventPropertySource));
+    ASSERT_TRUE(CheckPlayer("URL2", TestAudioPlayer::kPreroll));
 
     // Now we scroll the world.
     advanceTime(1000);
@@ -284,12 +284,8 @@ TEST_F(SpeakItemTest, TestStages)
     ASSERT_TRUE(CheckDirty(component, kPropertyNotifyChildrenChanged, kPropertyScrollPosition));
 
     // We should have an event for speaking.
-    ASSERT_TRUE(root->hasEvent());
-    event = root->popEvent();
-    ASSERT_EQ(kEventTypeSpeak, event.getType());
-    ASSERT_EQ(Object("URL2"), event.getValue(kEventPropertySource));
-    ASSERT_EQ(Object(kEventHighlightModeBlock), event.getValue(kEventPropertyHighlightMode));
-    ASSERT_EQ(kEventScrollAlignFirst, event.getValue(kEventPropertyAlign).getInteger());
+    ASSERT_TRUE(CheckPlayer("URL2", TestAudioPlayer::kReady));
+    ASSERT_TRUE(CheckPlayer("URL2", TestAudioPlayer::kPlay));
 
     // The item should have updated colors
     ASSERT_TRUE(CheckDirty(child, kPropertyColor, kPropertyColorKaraokeTarget, kPropertyVisualHash));
@@ -297,11 +293,14 @@ TEST_F(SpeakItemTest, TestStages)
     ASSERT_EQ(Object(Color(Color::BLUE)), child->getCalculated(kPropertyColor));
 
     // We'll assume that speech is SLOWER than the timeout (takes longer than 1000 milliseconds)
-    advanceTime(1000);
+    advanceTime(500);
     ASSERT_TRUE(CheckDirty(root));   // No karaoke changes yet
 
-    event.getActionRef().resolve();
+    advanceTime(500);
     root->clearPending();
+
+    ASSERT_TRUE(CheckPlayer("URL2", TestAudioPlayer::kDone));
+    ASSERT_TRUE(CheckPlayer("URL2", TestAudioPlayer::kRelease));
 
     // No more events
     ASSERT_FALSE(root->hasEvent());
@@ -349,10 +348,7 @@ TEST_F(SpeakItemTest, TestStagesFastSpeech)
     executeSpeakItem(child, kCommandScrollAlignCenter, kCommandHighlightModeBlock, 1000);
 
     // Check pre-roll event
-    ASSERT_TRUE(root->hasEvent());
-    auto event = root->popEvent();
-    ASSERT_EQ(kEventTypePreroll, event.getType());
-    ASSERT_EQ(Object("URL3"), event.getValue(kEventPropertySource));
+    ASSERT_TRUE(CheckPlayer("URL3", TestAudioPlayer::kPreroll));
 
     // Now we scroll the world.
     advanceTime(1000);
@@ -360,12 +356,8 @@ TEST_F(SpeakItemTest, TestStagesFastSpeech)
     ASSERT_TRUE(CheckDirty(component, kPropertyNotifyChildrenChanged, kPropertyScrollPosition));
 
     // We should have an event for speaking.
-    ASSERT_TRUE(root->hasEvent());
-    event = root->popEvent();
-    ASSERT_EQ(kEventTypeSpeak, event.getType());
-    ASSERT_EQ(Object("URL3"), event.getValue(kEventPropertySource));
-    ASSERT_EQ(Object(kEventHighlightModeBlock), event.getValue(kEventPropertyHighlightMode));
-    ASSERT_EQ(kEventScrollAlignCenter, event.getValue(kEventPropertyAlign).getInteger());
+    ASSERT_TRUE(CheckPlayer("URL3", TestAudioPlayer::kReady));
+    ASSERT_TRUE(CheckPlayer("URL3", TestAudioPlayer::kPlay));
 
     // The item should have updated colors
     ASSERT_TRUE(CheckDirty(child, kPropertyColor, kPropertyColorKaraokeTarget, kPropertyVisualHash));
@@ -374,7 +366,6 @@ TEST_F(SpeakItemTest, TestStagesFastSpeech)
 
     // We'll assume that speech is faster than the timeout
     advanceTime(500);   // Move forward by 500 milliseconds
-    event.getActionRef().resolve();
 
     // There should be no changes yet - we're still waiting for dwell time
     root->clearPending();
@@ -382,6 +373,9 @@ TEST_F(SpeakItemTest, TestStagesFastSpeech)
 
     // Reach the dwell time
     advanceTime(500);
+
+    ASSERT_TRUE(CheckPlayer("URL3", TestAudioPlayer::kDone));
+    ASSERT_TRUE(CheckPlayer("URL3", TestAudioPlayer::kRelease));
 
     // No further events, but the color should have changed back
     ASSERT_FALSE(root->hasEvent());
@@ -410,19 +404,7 @@ TEST_F(SpeakItemTest, TestStagesNoScrollingRequired)
     executeSpeakItem(child, kCommandScrollAlignVisible, kCommandHighlightModeLine, 0);
 
     // Check pre-roll event
-    ASSERT_TRUE(root->hasEvent());
-    auto event = root->popEvent();
-    ASSERT_EQ(kEventTypePreroll, event.getType());
-    ASSERT_EQ(Object("URL2"), event.getValue(kEventPropertySource));
-
-    // Check scroll-to event
-    ASSERT_TRUE(root->hasEvent());
-    event = root->popEvent();
-    ASSERT_EQ(kEventTypeRequestFirstLineBounds, event.getType());
-    event.getActionRef().resolve(Rect(0, 0, 500, 100));
-    // Reset event to simulate action reference cleared after resolve
-    event = Event(EventType::kEventTypeSendEvent, nullptr);
-    loop->advance();
+    ASSERT_TRUE(CheckPlayer("URL2", TestAudioPlayer::kPreroll));
 
     // Advance time by 1000 and indicate we're finished scrolling
     advanceTime(1000);
@@ -430,25 +412,29 @@ TEST_F(SpeakItemTest, TestStagesNoScrollingRequired)
 
 
     // We should have an event for speaking.
+    ASSERT_TRUE(CheckPlayer("URL2", TestAudioPlayer::kReady));
+    ASSERT_TRUE(CheckPlayer("URL2", TestAudioPlayer::kPlay));
+
     ASSERT_TRUE(root->hasEvent());
-    event = root->popEvent();
-    ASSERT_EQ(kEventTypeSpeak, event.getType());
-    ASSERT_EQ(Object("URL2"), event.getValue(kEventPropertySource));
-    ASSERT_EQ(Object(kEventHighlightModeLine), event.getValue(kEventPropertyHighlightMode));
-    ASSERT_EQ(kEventScrollAlignVisible, event.getValue(kEventPropertyAlign).getInteger());
+    auto event = root->popEvent();
+    ASSERT_EQ(kEventTypeLineHighlight, event.getType());
 
     // The item should have updated colors
-    ASSERT_TRUE(CheckDirty(child, kPropertyColor, kPropertyColorKaraokeTarget, kPropertyVisualHash));
+    ASSERT_TRUE(CheckDirty(child, kPropertyColor, kPropertyColorKaraokeTarget, kPropertyRangeKaraokeTarget, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, child));
     ASSERT_EQ(Object(Color(Color::BLUE)), child->getCalculated(kPropertyColor));
 
     // We'll assume that speech is faster than the timeout
     advanceTime(500);   // Move forward by 500 milliseconds
-    event.getActionRef().resolve();
 
-    // No further events, but the color should have changed back
-    ASSERT_FALSE(root->hasEvent());
-    ASSERT_TRUE(CheckDirty(child, kPropertyColor, kPropertyColorKaraokeTarget, kPropertyVisualHash));
+    ASSERT_TRUE(CheckPlayer("URL2", TestAudioPlayer::kDone));
+    ASSERT_TRUE(CheckPlayer("URL2", TestAudioPlayer::kRelease));
+
+    ASSERT_TRUE(root->hasEvent());
+    event = root->popEvent();
+    ASSERT_EQ(kEventTypeLineHighlight, event.getType());
+
+    ASSERT_TRUE(CheckDirty(child, kPropertyColor, kPropertyColorKaraokeTarget, kPropertyRangeKaraokeTarget, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, child));
     ASSERT_EQ(Object(Color(Color::GREEN)), child->getCalculated(kPropertyColor));
 }
@@ -471,12 +457,12 @@ TEST_F(SpeakItemTest, TestTerminationDuringScroll)
     executeSpeakItem(child, kCommandScrollAlignLast, kCommandHighlightModeBlock, 0);
 
     // Check pre-roll event
-    ASSERT_TRUE(root->hasEvent());
-    auto event = root->popEvent();
-    ASSERT_EQ(kEventTypePreroll, event.getType());
-    ASSERT_EQ(Object("URL4"), event.getValue(kEventPropertySource));
+    ASSERT_TRUE(CheckPlayer("URL4", TestAudioPlayer::kPreroll));
 
     advanceTime(500);
+
+    ASSERT_TRUE(CheckPlayer("URL4", TestAudioPlayer::kReady));
+
     ASSERT_EQ(Point(0,150), component->scrollPosition());
     ASSERT_TRUE(CheckDirty(component, kPropertyNotifyChildrenChanged, kPropertyScrollPosition));
     ASSERT_TRUE(CheckDirty(root, component));   // No dirty properties yet - except children visibility
@@ -485,6 +471,8 @@ TEST_F(SpeakItemTest, TestTerminationDuringScroll)
     root->cancelExecution();
     ASSERT_FALSE(root->hasEvent());  // No events pending
     ASSERT_TRUE(CheckDirty(root));   // No dirty properties
+
+    ASSERT_TRUE(CheckPlayer("URL4", TestAudioPlayer::kRelease));
 }
 
 
@@ -505,63 +493,52 @@ TEST_F(SpeakItemTest, TestTerminationDuringSpeech)
     executeSpeakItem(child, kCommandScrollAlignLast, kCommandHighlightModeBlock, 0);
 
     // Check pre-roll event
-    ASSERT_TRUE(root->hasEvent());
-    auto event = root->popEvent();
-    ASSERT_EQ(kEventTypePreroll, event.getType());
-    ASSERT_EQ(Object("URL4"), event.getValue(kEventPropertySource));
+    ASSERT_TRUE(CheckPlayer("URL4", TestAudioPlayer::kPreroll));
 
     advanceTime(1000);
     ASSERT_EQ(Point(0,300), component->scrollPosition());
     ASSERT_TRUE(CheckDirty(component, kPropertyNotifyChildrenChanged, kPropertyScrollPosition));
 
     // We should have an event for speaking.
-    ASSERT_TRUE(root->hasEvent());
-    event = root->popEvent();
-    ASSERT_EQ(kEventTypeSpeak, event.getType());
-    ASSERT_EQ(Object("URL4"), event.getValue(kEventPropertySource));
-    ASSERT_EQ(Object(kEventHighlightModeBlock), event.getValue(kEventPropertyHighlightMode));
-    ASSERT_EQ(kEventScrollAlignLast, event.getValue(kEventPropertyAlign).getInteger());
+    ASSERT_TRUE(CheckPlayer("URL4", TestAudioPlayer::kReady));
+    ASSERT_TRUE(CheckPlayer("URL4", TestAudioPlayer::kPlay));
 
     // The item should have updated colors
     ASSERT_TRUE(CheckDirty(child, kPropertyColor, kPropertyColorKaraokeTarget, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, component, child));
     ASSERT_EQ(Object(Color(Color::BLUE)), child->getCalculated(kPropertyColor));
 
-    bool speechTerminated = false;
-    event.getActionRef().addTerminateCallback([&speechTerminated](const TimersPtr&) {
-        speechTerminated = true;
-    });
-
     // Move forward a bit in time and then terminate the command
-    advanceTime(1000);
+    advanceTime(500);
     root->cancelExecution();
 
+    ASSERT_TRUE(CheckPlayer("URL4", TestAudioPlayer::kPause));
+    ASSERT_TRUE(CheckPlayer("URL4", TestAudioPlayer::kRelease));
+
     // No events should be pending, but the color should change back to green
-    ASSERT_TRUE(speechTerminated);
     ASSERT_FALSE(root->hasEvent());
     ASSERT_TRUE(CheckDirty(child, kPropertyColor, kPropertyColorKaraokeTarget, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, child));
     ASSERT_EQ(Object(Color(Color::GREEN)), child->getCalculated(kPropertyColor));
 }
 
-static const char * MISSING_COMPONENT =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"mainTemplate\": {"
-    "    \"items\": {"
-    "      \"type\": \"ScrollView\","
-    "      \"width\": 500,"
-    "      \"height\": 500,"
-    "      \"item\": {"
-    "        \"type\": \"Text\","
-    "        \"id\": \"myText\","
-    "        \"text\": \"Hello!\","
-    "        \"speech\": \"URL1\""
-    "      }"
-    "    }"
-    "  }"
-    "}";
+static const char * MISSING_COMPONENT = R"apl({
+  "type": "APL",
+  "version": "1.1",
+  "mainTemplate": {
+    "items": {
+      "type": "ScrollView",
+      "width": 500,
+      "height": 500,
+      "item": {
+        "type": "Text",
+        "id": "myText",
+        "text": "Hello!",
+        "speech": "URL1"
+      }
+    }
+  }
+})apl";
 
 /**
  * Try to speak something that simply doesn't exist
@@ -576,64 +553,63 @@ TEST_F(SpeakItemTest, MissingComponent)
     ASSERT_TRUE(ConsoleMessage());
 }
 
-static const char *MISSING_SPEECH =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"styles\": {"
-    "    \"base\": {"
-    "      \"values\": ["
-    "        {"
-    "          \"color\": \"green\""
-    "        },"
-    "        {"
-    "          \"when\": \"${state.karaoke}\","
-    "          \"color\": \"blue\""
-    "        }"
-    "      ]"
-    "    }"
-    "  },"
-    "  \"mainTemplate\": {"
-    "    \"items\": {"
-    "      \"type\": \"ScrollView\","
-    "      \"width\": 300,"
-    "      \"height\": 300,"
-    "      \"item\": {"
-    "        \"type\": \"Container\","
-    "        \"items\": ["
-    "          {"
-    "            \"type\": \"Text\","
-    "            \"id\": \"text1\","
-    "            \"height\": 200,"
-    "            \"style\": \"base\","
-    "            \"text\": \"Hello!\""
-    "          },"
-    "          {"
-    "            \"type\": \"Text\","
-    "            \"id\": \"text2\","
-    "            \"height\": 200,"
-    "            \"style\": \"base\","
-    "            \"text\": \"Good afternoon!\""
-    "          },"
-    "          {"
-    "            \"type\": \"Text\","
-    "            \"id\": \"text3\","
-    "            \"height\": 200,"
-    "            \"style\": \"base\","
-    "            \"text\": \"Good day!\""
-    "          },"
-    "          {"
-    "            \"type\": \"Text\","
-    "            \"id\": \"text4\","
-    "            \"height\": 200,"
-    "            \"style\": \"base\","
-    "            \"text\": \"Good bye!\""
-    "          }"
-    "        ]"
-    "      }"
-    "    }"
-    "  }"
-    "}";
+static const char *MISSING_SPEECH = R"apl({
+  "type": "APL",
+  "version": "1.1",
+  "styles": {
+    "base": {
+      "values": [
+        {
+          "color": "green"
+        },
+        {
+          "when": "${state.karaoke}",
+          "color": "blue"
+        }
+      ]
+    }
+  },
+  "mainTemplate": {
+    "items": {
+      "type": "ScrollView",
+      "width": 300,
+      "height": 300,
+      "item": {
+        "type": "Container",
+        "items": [
+          {
+            "type": "Text",
+            "id": "text1",
+            "height": 200,
+            "style": "base",
+            "text": "Hello!"
+          },
+          {
+            "type": "Text",
+            "id": "text2",
+            "height": 200,
+            "style": "base",
+            "text": "Good afternoon!"
+          },
+          {
+            "type": "Text",
+            "id": "text3",
+            "height": 200,
+            "style": "base",
+            "text": "Good day!"
+          },
+          {
+            "type": "Text",
+            "id": "text4",
+            "height": 200,
+            "style": "base",
+            "text": "Good bye!"
+          }
+        ]
+      }
+    }
+  }
+})apl";
 
 /**
  * Speak something without the speech property, but still available for scrolling.
@@ -645,6 +621,8 @@ TEST_F(SpeakItemTest, MissingSpeech)
     auto child = container->getChildAt(1);
 
     executeSpeakItem("text2", kCommandScrollAlignFirst, kCommandHighlightModeBlock, 1000);
+
+    session->checkAndClear();
 
     // Now we scroll the world.
     advanceTime(1000);
@@ -676,6 +654,8 @@ TEST_F(SpeakItemTest, MissingSpeechNoDwell)
 
     executeSpeakItem("text2", kCommandScrollAlignFirst, kCommandHighlightModeBlock, 0);
 
+    session->checkAndClear();
+
     // Now we scroll the world.
     advanceTime(1000);
     ASSERT_EQ(Point(0,200), component->scrollPosition());
@@ -687,45 +667,44 @@ TEST_F(SpeakItemTest, MissingSpeechNoDwell)
     ASSERT_TRUE(CheckDirty(root));
 }
 
-static const char * MISSING_SPEECH_AND_SCROLL =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"styles\": {"
-    "    \"base\": {"
-    "      \"values\": ["
-    "        {"
-    "          \"color\": \"green\""
-    "        },"
-    "        {"
-    "          \"when\": \"${state.karaoke}\","
-    "          \"color\": \"blue\""
-    "        }"
-    "      ]"
-    "    }"
-    "  },"
-    "  \"mainTemplate\": {"
-    "    \"items\": {"
-    "      \"type\": \"Container\","
-    "      \"items\": ["
-    "        {"
-    "          \"type\": \"Text\","
-    "          \"id\": \"text1\","
-    "          \"height\": 200,"
-    "          \"style\": \"base\","
-    "          \"text\": \"Hello!\""
-    "        },"
-    "        {"
-    "          \"type\": \"Text\","
-    "          \"id\": \"text2\","
-    "          \"height\": 200,"
-    "          \"style\": \"base\","
-    "          \"text\": \"Good afternoon!\""
-    "        }"
-    "      ]"
-    "    }"
-    "  }"
-    "}";
+static const char * MISSING_SPEECH_AND_SCROLL = R"apl({
+  "type": "APL",
+  "version": "1.1",
+  "styles": {
+    "base": {
+      "values": [
+        {
+          "color": "green"
+        },
+        {
+          "when": "${state.karaoke}",
+          "color": "blue"
+        }
+      ]
+    }
+  },
+  "mainTemplate": {
+    "items": {
+      "type": "Container",
+      "items": [
+        {
+          "type": "Text",
+          "id": "text1",
+          "height": 200,
+          "style": "base",
+          "text": "Hello!"
+        },
+        {
+          "type": "Text",
+          "id": "text2",
+          "height": 200,
+          "style": "base",
+          "text": "Good afternoon!"
+        }
+      ]
+    }
+  }
+})apl";
 
 /**
  * In this test the spoken item can't scroll and has no speech.  It can still be highlighted due to dwell time.
@@ -736,6 +715,8 @@ TEST_F(SpeakItemTest, MissingSpeechAndScroll)
     auto child = component->getChildAt(1);
 
     executeSpeakItem("text2", kCommandScrollAlignFirst, kCommandHighlightModeBlock, 1000);
+
+    session->checkAndClear();
 
     // We'll need to wait out the minimum dwell time because one was set
     ASSERT_FALSE(root->hasEvent());   // No events pending
@@ -761,52 +742,53 @@ TEST_F(SpeakItemTest, MissingSpeechAndScrollNoDwell)
 
     executeSpeakItem("text2", kCommandScrollAlignFirst, kCommandHighlightModeBlock, 0);
 
+    session->checkAndClear();
+
     // Nothing should happen
     ASSERT_FALSE(root->hasEvent());   // No events pending
     ASSERT_TRUE(CheckDirty(root));
 }
 
-static const char *MISSING_SCROLL =
-    "{"
-    "  \"type\": \"APL\","
-    "  \"version\": \"1.1\","
-    "  \"styles\": {"
-    "    \"base\": {"
-    "      \"values\": ["
-    "        {"
-    "          \"color\": \"green\""
-    "        },"
-    "        {"
-    "          \"when\": \"${state.karaoke}\","
-    "          \"color\": \"blue\""
-    "        }"
-    "      ]"
-    "    }"
-    "  },"
-    "  \"mainTemplate\": {"
-    "    \"items\": {"
-    "      \"type\": \"Container\","
-    "      \"items\": ["
-    "        {"
-    "          \"type\": \"Text\","
-    "          \"id\": \"text1\","
-    "          \"height\": 200,"
-    "          \"style\": \"base\","
-    "          \"text\": \"Hello!\","
-    "          \"speech\": \"URL1\""
-    "        },"
-    "        {"
-    "          \"type\": \"Text\","
-    "          \"id\": \"text2\","
-    "          \"height\": 200,"
-    "          \"style\": \"base\","
-    "          \"text\": \"Good afternoon!\","
-    "          \"speech\": \"URL2\""
-    "        }"
-    "      ]"
-    "    }"
-    "  }"
-    "}";
+static const char *MISSING_SCROLL = R"apl({
+  "type": "APL",
+  "version": "1.1",
+  "styles": {
+    "base": {
+      "values": [
+        {
+          "color": "green"
+        },
+        {
+          "when": "${state.karaoke}",
+          "color": "blue"
+        }
+      ]
+    }
+  },
+  "mainTemplate": {
+    "items": {
+      "type": "Container",
+      "items": [
+        {
+          "type": "Text",
+          "id": "text1",
+          "height": 200,
+          "style": "base",
+          "text": "Hello!",
+          "speech": "URL1"
+        },
+        {
+          "type": "Text",
+          "id": "text2",
+          "height": 200,
+          "style": "base",
+          "text": "Good afternoon!",
+          "speech": "URL2"
+        }
+      ]
+    }
+  }
+})apl";
 
 /**
  * In this example there is nothing to scroll, but we can still speak
@@ -821,18 +803,14 @@ TEST_F(SpeakItemTest, MissingScroll)
     executeSpeakItem("text2", kCommandScrollAlignFirst, kCommandHighlightModeBlock, 1000);
 
     // Check pre-roll event
-    ASSERT_TRUE(root->hasEvent());
-    auto event = root->popEvent();
-    ASSERT_EQ(kEventTypePreroll, event.getType());
-    ASSERT_EQ(Object("URL2"), event.getValue(kEventPropertySource));
+    ASSERT_TRUE(CheckPlayer("URL2", TestAudioPlayer::kPreroll));
+
+    // Preroll
+    advanceTime(100);
 
     // We should have an event for speaking.
-    ASSERT_TRUE(root->hasEvent());
-    event = root->popEvent();
-    ASSERT_EQ(kEventTypeSpeak, event.getType());
-    ASSERT_EQ(Object("URL2"), event.getValue(kEventPropertySource));
-    ASSERT_EQ(Object(kEventHighlightModeBlock), event.getValue(kEventPropertyHighlightMode));
-    ASSERT_EQ(kEventScrollAlignFirst, event.getValue(kEventPropertyAlign).getInteger());
+    ASSERT_TRUE(CheckPlayer("URL2", TestAudioPlayer::kReady));
+    ASSERT_TRUE(CheckPlayer("URL2", TestAudioPlayer::kPlay));
 
     // The item should have updated colors
     ASSERT_TRUE(CheckDirty(child, kPropertyColor, kPropertyColorKaraokeTarget, kPropertyVisualHash));
@@ -841,7 +819,6 @@ TEST_F(SpeakItemTest, MissingScroll)
 
     // Move forward a bit in time and finish speaking
     advanceTime(500);
-    event.getActionRef().resolve();
 
     // We haven't passed the minimum dwell time
     ASSERT_FALSE(root->hasEvent());
@@ -850,6 +827,9 @@ TEST_F(SpeakItemTest, MissingScroll)
     // Move forward past the minimum dwell time
     advanceTime(500);
 
+    ASSERT_TRUE(CheckPlayer("URL2", TestAudioPlayer::kDone));
+    ASSERT_TRUE(CheckPlayer("URL2", TestAudioPlayer::kRelease));
+
     // No events should be pending, but the color should change back to green
     ASSERT_FALSE(root->hasEvent());
     ASSERT_TRUE(CheckDirty(child, kPropertyColor, kPropertyColorKaraokeTarget, kPropertyVisualHash));
@@ -857,10 +837,3 @@ TEST_F(SpeakItemTest, MissingScroll)
     ASSERT_EQ(Object(Color(Color::GREEN)), child->getCalculated(kPropertyColor));
 }
 
-// TODO: Add pager test
-// TODO: Add a test for the "position" component property, since I accidentally changed the name of it.
-// TODO: Instead of passing constants for my rapidjson construction, instead just pass strings.  This
-//       will help insure that I don't change property names inadvertently.
-
-// TODO: Add a SetPage test.  This doesn't use scrollto - it uses pageto action.
-// TODO: Add an AutoPage test.  This uses pageto as well.

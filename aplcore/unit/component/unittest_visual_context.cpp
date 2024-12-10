@@ -43,8 +43,6 @@ protected:
     rapidjson::Value visualContext;
 };
 
-static const char* DATA = "{}";
-
 static const char* BASIC = R"apl({
  "type": "APL",
  "version": "1.1",
@@ -58,6 +56,7 @@ static const char* BASIC = R"apl({
        "type": "Text",
        "id": "text",
        "text": "Text.",
+       "role": "button",
        "entities": ["entity"]
      }
    }
@@ -78,12 +77,14 @@ TEST_F(VisualContextTest, Basic) {
     ASSERT_TRUE(visualContext["tags"].HasMember("clickable"));
     ASSERT_FALSE(visualContext.HasMember("visibility"));
     ASSERT_STREQ("text", visualContext["type"].GetString());
+    ASSERT_FALSE(visualContext.HasMember("role"));
 
     // Check children
     ASSERT_EQ(1, visualContext["children"].GetArray().Size());
     auto& child = visualContext["children"][0];
     ASSERT_STREQ("text", child["id"].GetString());
     ASSERT_STREQ("text", child["type"].GetString());
+    ASSERT_STREQ("button", child["role"].GetString());
     ASSERT_FALSE(child.HasMember("tags"));
 }
 
@@ -197,9 +198,6 @@ static const char* SEQUENCE = R"apl({
   "type": "APL",
   "version": "1.1",
   "mainTemplate": {
-    "parameters": [
-      "payload"
-    ],
     "item": {
       "type": "Sequence",
       "id": "seq",
@@ -255,7 +253,7 @@ static const char* SEQUENCE = R"apl({
 })apl";
 
 TEST_F(VisualContextTest, Sequence) {
-    loadDocument(SEQUENCE, DATA);
+    loadDocument(SEQUENCE);
     ASSERT_EQ(kComponentTypeSequence, component->getType());
 
     // Check parent
@@ -388,9 +386,6 @@ static const char* HORIZONTAL_SEQUENCE = R"apl({
   "type": "APL",
   "version": "1.1",
   "mainTemplate": {
-    "parameters": [
-      "payload"
-    ],
     "item": {
       "type": "Sequence",
       "id": "seq",
@@ -446,7 +441,7 @@ static const char* HORIZONTAL_SEQUENCE = R"apl({
 })apl";
 
 TEST_F(VisualContextTest, HorizontalSequence) {
-    loadDocument(HORIZONTAL_SEQUENCE, DATA);
+    loadDocument(HORIZONTAL_SEQUENCE);
     ASSERT_EQ(kComponentTypeSequence, component->getType());
 
     // Check parent
@@ -574,7 +569,7 @@ TEST_F(VisualContextTest, HorizontalSequence) {
 }
 
 TEST_F(VisualContextTest, RevertedSequence) {
-    loadDocument(SEQUENCE, DATA);
+    loadDocument(SEQUENCE);
     advanceTime(10);
     ASSERT_EQ(kComponentTypeSequence, component->getType());
 
@@ -712,9 +707,6 @@ static const char* SHIFTED_SEQUENCE = R"apl({
   "type": "APL",
   "version": "1.1",
   "mainTemplate": {
-    "parameters": [
-      "payload"
-    ],
     "item": {
     "type": "Container",
     "items": {
@@ -776,7 +768,7 @@ static const char* SHIFTED_SEQUENCE = R"apl({
 })apl";
 
 TEST_F(VisualContextTest, ShiftedSequence) {
-    loadDocument(SHIFTED_SEQUENCE, DATA);
+    loadDocument(SHIFTED_SEQUENCE);
     ASSERT_EQ(kComponentTypeContainer, component->getType());
 
     auto seq = component->getCoreChildAt(0);
@@ -904,9 +896,6 @@ static const char* ORDINAL_SEQUENCE = R"apl({
   "type": "APL",
   "version": "1.1",
   "mainTemplate": {
-    "parameters": [
-      "payload"
-    ],
     "item": {
       "type": "Sequence",
       "id": "seq",
@@ -965,7 +954,7 @@ static const char* ORDINAL_SEQUENCE = R"apl({
 })apl";
 
 TEST_F(VisualContextTest, MissingOrdinalSequence) {
-    loadDocument(ORDINAL_SEQUENCE, DATA);
+    loadDocument(ORDINAL_SEQUENCE);
     ASSERT_EQ(kComponentTypeSequence, component->getType());
 
     // Check parent
@@ -991,9 +980,6 @@ static const char* NO_ORDINAL_SEQUENCE = R"apl({
   "type": "APL",
   "version": "1.1",
   "mainTemplate": {
-    "parameters": [
-      "payload"
-    ],
     "item": {
       "type": "Sequence",
       "id": "seq",
@@ -1049,7 +1035,7 @@ static const char* NO_ORDINAL_SEQUENCE = R"apl({
 })apl";
 
 TEST_F(VisualContextTest, NoOrdinalSequence) {
-    loadDocument(NO_ORDINAL_SEQUENCE, DATA);
+    loadDocument(NO_ORDINAL_SEQUENCE);
     ASSERT_EQ(kComponentTypeSequence, component->getType());
 
     // Check parent
@@ -1195,9 +1181,6 @@ static const char* PAGER = R"apl({
   "type": "APL",
   "version": "1.1",
   "mainTemplate": {
-    "parameters": [
-      "payload"
-    ],
     "item": {
       "type": "Pager",
       "id": "page",
@@ -1227,7 +1210,7 @@ static const char* PAGER = R"apl({
 })apl";
 
 TEST_F(VisualContextTest, Pager) {
-    loadDocument(PAGER, DATA);
+    loadDocument(PAGER);
 
     ASSERT_EQ(kComponentTypePager, component->getType());
     advanceTime(10);
@@ -1280,9 +1263,6 @@ static const char* MEDIA = R"apl({
   "version": "1.1",
   "theme": "auto",
   "mainTemplate": {
-    "parameters": [
-      "payload"
-    ],
     "item": {
       "type": "Pager",
       "id": "page",
@@ -1296,10 +1276,12 @@ static const char* MEDIA = R"apl({
           "width": "100%",
           "autoplay": true,
           "audioTrack": "background",
+          "muted": true,
           "source": [
             "SOURCE0",
             {
-              "url": "https://testsource.com/video-urls/video.mp4",
+              "url": "SAMPLE_SOURCE",
+              "duration": 38000,
               "entities": ["source"]
             }
           ],
@@ -1311,12 +1293,21 @@ static const char* MEDIA = R"apl({
 })apl";
 
 TEST_F(VisualContextTest, Media) {
-    loadDocument(MEDIA, DATA);
+    mediaPlayerFactory->addFakeContent({
+        {"SOURCE0", 1000, 0, -1},
+        {"SAMPLE_SOURCE", 38000, 0, -1},
+    });
+
+    loadDocument(MEDIA);
     ASSERT_EQ(kComponentTypePager, component->getType());
     auto video = component->getChildAt(0);
     ASSERT_EQ(kComponentTypeVideo, video->getType());
 
-    video->updateMediaState(MediaState(1, 2, 1000, 38000, true, false, false));
+    // Bring it to required state. Next track, mute (paused implicitly)
+    executeCommand("ControlMedia", {{"componentId", "video"}, {"command", "next"}}, false);
+    executeCommand("ControlMedia", {{"componentId", "video"}, {"command", "seek"}, {"value", 1000}}, false);
+    executeCommand("SetValue", {{"componentId", "video"}, {"property", "muted"}, {"value", true}}, false);
+
     ASSERT_TRUE(CheckDirtyVisualContext(root, video));
     serializeVisualContext();
     ASSERT_FALSE(CheckDirtyVisualContext(root, video));
@@ -1347,12 +1338,67 @@ TEST_F(VisualContextTest, Media) {
     ASSERT_EQ(true, media["allowAdjustSeekPositionBackwards"].GetBool());
     ASSERT_EQ(false, media["allowNext"].GetBool());
     ASSERT_EQ(true, media["allowPrevious"].GetBool());
+    ASSERT_STREQ("background", media["audioTrack"].GetString());
     auto& entity = media["entities"];
     ASSERT_EQ(1, entity.Size());
+    ASSERT_EQ(true, media["muted"].GetBool());
     ASSERT_STREQ("source", entity[0].GetString());
     ASSERT_EQ(1000, media["positionInMilliseconds"].GetInt());
     ASSERT_STREQ("paused", media["state"].GetString());
-    ASSERT_STREQ("https://testsource.com/video-urls/video.mp4", media["url"].GetString());
+    ASSERT_STREQ("SAMPLE_SOURCE", media["url"].GetString());
+}
+
+static const char* MEDIA_AUDIO_TRACKS = R"apl({
+  "type": "APL",
+  "version": "1.1",
+  "theme": "auto",
+  "mainTemplate": {
+    "item": {
+      "type": "Container",
+      "height": "100%",
+      "width": "100%",
+      "items": [
+        {
+          "type": "Video",
+          "id": "video",
+          "height": "5%",
+          "width": "100%",
+          "audioTrack": "${data}",
+          "source": [
+            "SOURCE0",
+            {
+              "url": "SAMPLE_SOURCE"
+            }
+          ]
+        }
+      ],
+      "data": [ null, "foreground", "background", "none"]
+    }
+  }
+})apl";
+
+TEST_F(VisualContextTest, MEDIA_AUDIO_TRACKS) {
+    mediaPlayerFactory->addFakeContent({
+        {"SOURCE0", 1000, 0, -1},
+        {"SAMPLE_SOURCE", 38000, 0, -1},
+    });
+
+    std::vector<std::string> expectedAudioTrackForEachChild =
+        {"foreground", "foreground", "background", "none"};
+    loadDocument(MEDIA_AUDIO_TRACKS);
+    ASSERT_EQ(kComponentTypeContainer, component->getType());
+    serializeVisualContext();
+
+    ASSERT_EQ(expectedAudioTrackForEachChild.size(), component->getChildCount());
+    for (int i = 0; i < component->getChildCount(); i++) {
+        auto video = component->getChildAt(i);
+        auto& reportedChild = visualContext["children"][i];
+        auto& ct = reportedChild["tags"];
+        ASSERT_TRUE(ct.HasMember("media"));
+        auto& media = ct["media"];
+        ASSERT_STREQ(expectedAudioTrackForEachChild[i].c_str(), media["audioTrack"].GetString());
+        ASSERT_EQ(false, media["muted"].GetBool());
+    }
 }
 
 static const char* EMPTY_MEDIA = R"apl({
@@ -1360,9 +1406,6 @@ static const char* EMPTY_MEDIA = R"apl({
   "version": "1.1",
   "theme": "auto",
   "mainTemplate": {
-    "parameters": [
-      "payload"
-    ],
     "item": {
       "type": "Video"
     }
@@ -1370,7 +1413,7 @@ static const char* EMPTY_MEDIA = R"apl({
 })apl";
 
 TEST_F(VisualContextTest, EmptyMedia) {
-    loadDocument(EMPTY_MEDIA, DATA);
+    loadDocument(EMPTY_MEDIA);
     ASSERT_EQ(kComponentTypeVideo, component->getType());
 
     // Check parent
@@ -1384,9 +1427,6 @@ static const char* DEEP = R"apl({
   "type": "APL",
   "version": "1.1",
   "mainTemplate": {
-    "parameters": [
-      "payload"
-    ],
     "item": {
       "type": "Container",
       "id": "ctr",
@@ -1412,7 +1452,7 @@ static const char* DEEP = R"apl({
 })apl";
 
 TEST_F(VisualContextTest, Deep) {
-    loadDocument(DEEP, DATA);
+    loadDocument(DEEP);
 
     ASSERT_EQ(kComponentTypeContainer, component->getType());
 
@@ -1449,9 +1489,6 @@ static const char* EMPTY = R"apl({
   "type": "APL",
   "version": "1.1",
   "mainTemplate": {
-    "parameters": [
-      "payload"
-    ],
     "item": {
       "type": "Container",
       "id": "ctr",
@@ -1469,7 +1506,7 @@ static const char* EMPTY = R"apl({
 })apl";
 
 TEST_F(VisualContextTest, Empty) {
-    loadDocument(EMPTY, DATA);
+    loadDocument(EMPTY);
 
     ASSERT_EQ(kComponentTypeContainer, component->getType());
 
@@ -1487,9 +1524,6 @@ static const char* INHERIT_STATE = R"apl({
   "type": "APL",
   "version": "1.1",
   "mainTemplate": {
-    "parameters": [
-      "payload"
-    ],
     "item": {
       "type": "TouchWrapper",
       "width": "100%",
@@ -1507,7 +1541,7 @@ static const char* INHERIT_STATE = R"apl({
 })apl";
 
 TEST_F(VisualContextTest, InheritState) {
-    loadDocument(INHERIT_STATE, DATA);
+    loadDocument(INHERIT_STATE);
 
     ASSERT_EQ(kComponentTypeTouchWrapper, component->getType());
 
@@ -1541,9 +1575,6 @@ static const char* STATES = R"apl({
   "type": "APL",
   "version": "1.1",
   "mainTemplate": {
-    "parameters": [
-      "payload"
-    ],
     "item": {
       "type": "Container",
       "id": "ctr",
@@ -1573,7 +1604,7 @@ static const char* STATES = R"apl({
 })apl";
 
 TEST_F(VisualContextTest, States) {
-    loadDocument(STATES, DATA);
+    loadDocument(STATES);
 
     ASSERT_EQ(kComponentTypeContainer, component->getType());
 
@@ -1644,9 +1675,6 @@ static const char* TYPE = R"apl({
   "type": "APL",
   "version": "1.1",
   "mainTemplate": {
-    "parameters": [
-      "payload"
-    ],
     "item":
     {
       "type": "Container",
@@ -1667,11 +1695,10 @@ static const char* TYPE = R"apl({
           "width": 716.8,
           "top": 10,
           "left": 100,
-          "autoplay": true,
           "audioTrack": "background",
           "source": [
             {
-              "url": "https://testsource.com/video-urls/video.mp4"
+              "url": "SAMPLE_SOURCE"
             }
           ],
           "entities": ["video"]
@@ -1706,7 +1733,12 @@ static const char* TYPE = R"apl({
 })apl";
 
 TEST_F(VisualContextTest, Type) {
-    loadDocument(TYPE, DATA);
+    mediaPlayerFactory->addFakeContent({
+        {"SOURCE0", 1000, 0, -1},
+        {"SAMPLE_SOURCE", 38000, 0, -1},
+    });
+
+    loadDocument(TYPE);
 
     ASSERT_EQ(kComponentTypeContainer, component->getType());
 
@@ -1739,9 +1771,6 @@ static const char* TYPE_PROPAGATE = R"apl({
   "type": "APL",
   "version": "1.1",
   "mainTemplate": {
-    "parameters": [
-      "payload"
-    ],
     "item":
     {
       "type": "Container",
@@ -1761,7 +1790,7 @@ static const char* TYPE_PROPAGATE = R"apl({
 })apl";
 
 TEST_F(VisualContextTest, TypePropagate) {
-    loadDocument(TYPE_PROPAGATE, DATA);
+    loadDocument(TYPE_PROPAGATE);
 
     ASSERT_EQ(kComponentTypeContainer, component->getType());
 
@@ -1783,9 +1812,6 @@ static const char* OPACITY = R"apl({
   "type": "APL",
   "version": "1.1",
   "mainTemplate": {
-    "parameters": [
-      "payload"
-    ],
     "item": {
       "type": "Container",
       "id": "ctr",
@@ -1815,7 +1841,7 @@ static const char* OPACITY = R"apl({
 })apl";
 
 TEST_F(VisualContextTest, Opacity) {
-    loadDocument(OPACITY, DATA);
+    loadDocument(OPACITY);
 
     ASSERT_EQ(kComponentTypeContainer, component->getType());
 
@@ -1837,9 +1863,6 @@ static const char* LAYERING_DEEP = R"apl({
   "type": "APL",
   "version": "1.1",
   "mainTemplate": {
-    "parameters": [
-      "payload"
-    ],
     "item": {
       "type": "Container",
       "id": "ctr",
@@ -1885,7 +1908,7 @@ static const char* LAYERING_DEEP = R"apl({
 })apl";
 
 TEST_F(VisualContextTest, LayeringDeep) {
-    loadDocument(LAYERING_DEEP, DATA);
+    loadDocument(LAYERING_DEEP);
 
     ASSERT_EQ(kComponentTypeContainer, component->getType());
 
@@ -1909,9 +1932,6 @@ static const char* LAYERING_ONE = R"apl({
   "type": "APL",
   "version": "1.1",
   "mainTemplate": {
-    "parameters": [
-      "payload"
-    ],
     "item": {
       "type": "Container",
       "id": "ctr",
@@ -1957,7 +1977,7 @@ static const char* LAYERING_ONE = R"apl({
 })apl";
 
 TEST_F(VisualContextTest, LayeringOne) {
-    loadDocument(LAYERING_ONE, DATA);
+    loadDocument(LAYERING_ONE);
 
     ASSERT_EQ(kComponentTypeContainer, component->getType());
 
@@ -1981,9 +2001,6 @@ static const char* LAYERING_SINGLE = R"apl({
   "type": "APL",
   "version": "1.1",
   "mainTemplate": {
-    "parameters": [
-      "payload"
-    ],
     "item": {
       "type": "Container",
       "id": "ctr",
@@ -2007,7 +2024,7 @@ static const char* LAYERING_SINGLE = R"apl({
 })apl";
 
 TEST_F(VisualContextTest, LayeringSingle) {
-    loadDocument(LAYERING_SINGLE, DATA);
+    loadDocument(LAYERING_SINGLE);
 
     ASSERT_EQ(kComponentTypeContainer, component->getType());
 
@@ -2027,9 +2044,6 @@ static const char* LAYERING_TWO = R"apl({
   "type": "APL",
   "version": "1.1",
   "mainTemplate": {
-    "parameters": [
-      "payload"
-    ],
     "item": {
       "type": "Container",
       "id": "ctr",
@@ -2075,7 +2089,7 @@ static const char* LAYERING_TWO = R"apl({
 })apl";
 
 TEST_F(VisualContextTest, LayeringTwo) {
-    loadDocument(LAYERING_TWO, DATA);
+    loadDocument(LAYERING_TWO);
 
     ASSERT_EQ(kComponentTypeContainer, component->getType());
 
@@ -2099,9 +2113,6 @@ static const char* LAYERING_INC = R"apl({
   "type": "APL",
   "version": "1.1",
   "mainTemplate": {
-    "parameters": [
-      "payload"
-    ],
     "item": {
       "type": "Container",
       "id": "ctr",
@@ -2145,7 +2156,7 @@ static const char* LAYERING_INC = R"apl({
 })apl";
 
 TEST_F(VisualContextTest, LayeringIncapsulated) {
-    loadDocument(LAYERING_INC, DATA);
+    loadDocument(LAYERING_INC);
 
     ASSERT_EQ(kComponentTypeContainer, component->getType());
 
@@ -2167,9 +2178,6 @@ static const char* OPACITY_CHANGE = R"apl({
   "type": "APL",
   "version": "1.1",
   "mainTemplate": {
-    "parameters": [
-      "payload"
-    ],
     "item": {
       "type": "Container",
       "id": "ctr",
@@ -2189,7 +2197,7 @@ static const char* OPACITY_CHANGE = R"apl({
 })apl";
 
 TEST_F(VisualContextTest, OpacityChange) {
-    loadDocument(OPACITY_CHANGE, DATA);
+    loadDocument(OPACITY_CHANGE);
 
     ASSERT_EQ(kComponentTypeContainer, component->getType());
 
@@ -2230,9 +2238,6 @@ static const char* DISPLAY_CHANGE = R"apl({
   "type": "APL",
   "version": "1.1",
   "mainTemplate": {
-    "parameters": [
-      "payload"
-    ],
     "item": {
       "type": "Container",
       "id": "ctr",
@@ -2251,7 +2256,7 @@ static const char* DISPLAY_CHANGE = R"apl({
 })apl";
 
 TEST_F(VisualContextTest, DisplayChange) {
-    loadDocument(DISPLAY_CHANGE, DATA);
+    loadDocument(DISPLAY_CHANGE);
 
     ASSERT_EQ(kComponentTypeContainer, component->getType());
 
@@ -2290,9 +2295,6 @@ static const char* LAYOUT_CHANGE = R"apl({
   "type": "APL",
   "version": "1.1",
   "mainTemplate": {
-    "parameters": [
-      "payload"
-    ],
     "item": {
       "type": "Container",
       "id": "ctr",
@@ -2312,26 +2314,8 @@ static const char* LAYOUT_CHANGE = R"apl({
   }
 })apl";
 
-class VCTextMeasure : public TextMeasurement {
-public:
-    LayoutSize measure(Component* component, float width, MeasureMode widthMode, float height,
-                       MeasureMode heightMode) override {
-        int symbols = component->getCalculated(kPropertyText).asString().size();
-        int line = std::min(static_cast<int>(width), symbols * 10);
-        int count = symbols * 10 / line;
-
-        float resultingWidth = line;
-        float resultingHeight = count * 10;
-
-        return LayoutSize({resultingWidth, resultingHeight});
-    }
-
-    float baseline(Component* component, float width, float height) override { return height; }
-};
-
 TEST_F(VisualContextTest, LayoutChange) {
-    config->measure(std::make_shared<VCTextMeasure>());
-    loadDocument(LAYOUT_CHANGE, DATA);
+    loadDocument(LAYOUT_CHANGE);
 
     ASSERT_EQ(kComponentTypeContainer, component->getType());
 
@@ -2363,16 +2347,14 @@ TEST_F(VisualContextTest, LayoutChange) {
     child = visualContext["children"][0];
     ASSERT_STREQ("item_0", child["id"].GetString());
     ASSERT_TRUE(child.HasMember("entities"));
-    ASSERT_EQ("50x30+0+0:0", child["position"]);
+    LOG(LogLevel::kError) << child["position"].GetString();
+    ASSERT_EQ("50x40+0+0:0", child["position"]);
 }
 
 static const char* EDIT_TEXT_LAYOUT_CHANGE = R"({
     "type":"APL",
     "version":"1.4",
     "mainTemplate":{
-        "parameters":[
-            "payload"
-        ],
         "item":{
             "type":"Container",
             "id":"ctr",
@@ -2395,8 +2377,7 @@ static const char* EDIT_TEXT_LAYOUT_CHANGE = R"({
 })";
 
 TEST_F(VisualContextTest, EditTextLayoutChange) {
-    config->measure(std::make_shared<VCTextMeasure>());
-    loadDocument(EDIT_TEXT_LAYOUT_CHANGE, DATA);
+    loadDocument(EDIT_TEXT_LAYOUT_CHANGE);
 
     ASSERT_EQ(kComponentTypeContainer, component->getType());
 
@@ -2541,7 +2522,7 @@ TEST_F(VisualContextTest, IsDirtyBasic) {
  * A dirty parent makes child dirty.
  */
 TEST_F(VisualContextTest, IsDirtySubTree) {
-    loadDocument(SEQUENCE, DATA);
+    loadDocument(SEQUENCE);
     ASSERT_EQ(kComponentTypeSequence, component->getType());
 
     auto txt0 = component->getCoreChildAt(0);
@@ -2560,7 +2541,7 @@ TEST_F(VisualContextTest, IsDirtySubTree) {
  * Serialize top component visual context clears the whole tree dirty state.
  */
 TEST_F(VisualContextTest, SerializeClearsTree) {
-    loadDocument(SEQUENCE, DATA);
+    loadDocument(SEQUENCE);
     ASSERT_EQ(kComponentTypeSequence, component->getType());
 
     auto txt0 = component->getCoreChildAt(0);
@@ -2612,35 +2593,35 @@ TEST_F(VisualContextTest, OddDPI) {
 }
 
 static const char* DYNAMIC_ENTITIES = R"apl({
-"type": "APL",
-"version": "1.1",
-"mainTemplate": {
-  "item": {
-    "type": "TouchWrapper",
-    "width": "100%",
-    "height": "100%",
-    "bind": {
-      "name": "COUNT",
-      "value": 0
-    },
-    "onPress": {
-      "type": "SetValue",
-      "property": "COUNT",
-      "value": "${COUNT + 1}"
-    },
+  "type": "APL",
+  "version": "1.1",
+  "mainTemplate": {
     "item": {
-      "type": "Text",
-      "id": "text",
-      "text": "Text.",
-      "entities": [
-        {
-          "id": "xyzzy",
-          "value": "${COUNT}"
-        }
-      ]
+      "type": "TouchWrapper",
+      "width": "100%",
+      "height": "100%",
+      "bind": {
+        "name": "COUNT",
+        "value": 0
+      },
+      "onPress": {
+        "type": "SetValue",
+        "property": "COUNT",
+        "value": "${COUNT + 1}"
+      },
+      "item": {
+        "type": "Text",
+        "id": "text",
+        "text": "Text.",
+        "entities": [
+          {
+            "id": "xyzzy",
+            "value": "${COUNT}"
+          }
+        ]
+      }
     }
   }
-}
 })apl";
 
 TEST_F(VisualContextTest, DynamicEntities)
@@ -2688,29 +2669,29 @@ TEST_F(VisualContextTest, DynamicEntities)
 }
 
 static const char* DYNAMIC_ENTITIES_DIRECT = R"apl({
-"type": "APL",
-"version": "1.1",
-"mainTemplate": {
-  "item": {
-    "type": "Text",
-    "id": "MAIN",
-    "text": "X is ${X}",
-    "bind": [
-      {
-        "name": "X",
-        "value": 13
-      },
-      {
-        "name": "ENTITIES",
-        "value": {
-          "name": "Original",
-          "value": "${X}"
+  "type": "APL",
+  "version": "1.1",
+  "mainTemplate": {
+    "item": {
+      "type": "Text",
+      "id": "MAIN",
+      "text": "X is ${X}",
+      "bind": [
+        {
+          "name": "X",
+          "value": 13
+        },
+        {
+          "name": "ENTITIES",
+          "value": {
+            "name": "Original",
+            "value": "${X}"
+          }
         }
-      }
-    ],
-    "entity": "${ENTITIES}"
+      ],
+      "entity": "${ENTITIES}"
+    }
   }
-}
 })apl";
 
 TEST_F(VisualContextTest, DynamicEntitiesDirect)

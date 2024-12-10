@@ -250,7 +250,8 @@ CoreCommand::calculateProperties()
             lm.flushLazyInflation();
             mTarget = Selector::resolve(id, mContext, mBase);
             if (mTarget == nullptr) {
-                CONSOLE(mContext) << "Illegal command " << name() << " - need to specify a target componentId";
+                CONSOLE(mContext) << "Illegal command " << name() << ": Could not resolve target '" << id << "'. Need to specify a valid target componentId";
+                logProperties();
                 return false;
             }
         }
@@ -304,6 +305,16 @@ CoreCommand::calculateProperties()
     }
 
     return true;
+}
+
+void CoreCommand::logProperties() {
+    if (mBase != nullptr) {
+        CONSOLE(mContext) << "Command provenance: " << mBase->provenance();
+    }
+    CONSOLE(mContext) << "Dumping all properties for " << name();
+    for (const auto& prop : mProperties) {
+        CONSOLE(mContext) << "  property: '" << prop.first << "', value: " << prop.second;
+    }
 }
 
 /*************************************************************/

@@ -32,12 +32,6 @@ Component::name() const
     return sComponentTypeBimap.at(getType());
 }
 
-void
-Component::updateMediaState(const MediaState& state, bool fromEvent)
-{
-    LOG(LogLevel::kError).session(mContext) << "updateMediaState called for component that does not support it.";
-}
-
 bool
 Component::updateGraphic(const GraphicContentPtr& json) {
     LOG(LogLevel::kError).session(mContext) << "updateGraphic called for component that does not support it.";
@@ -58,6 +52,18 @@ Component::clearDirty() {
     if (!changedChildren.empty() && changedChildren.isArray()) {
         changedChildren.getMutableArray().clear();
     }
+}
+
+const Object&
+Component::getCalculated(apl::PropertyKey key) const
+{
+    if (mFlags.isSet(kComponentFlagIsReleased)) {
+        LOG(LogLevel::kWarn) << "Trying to access released component: " << getUniqueId()
+                             << ", property: " << sComponentPropertyBimap.at(key);
+        return Object::NULL_OBJECT();
+    }
+
+    return mCalculated.get(key);
 }
 
 bool

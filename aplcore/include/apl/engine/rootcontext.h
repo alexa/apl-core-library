@@ -213,6 +213,13 @@ public:
     virtual void clearVisualContextDirty() = 0;
 
     /**
+     * Retrieve document state in terms of active actions in the document as a JSON object.
+     * @param allocator Rapidjson allocator
+     * @return The serialized actions
+     */
+    virtual rapidjson::Value serializeDocumentState(rapidjson::Document::AllocatorType& allocator) = 0;
+
+    /**
      * Retrieve top document's visual context as a JSON object. This method also clears
      * the visual context dirty flag
      * @param allocator Rapidjson allocator

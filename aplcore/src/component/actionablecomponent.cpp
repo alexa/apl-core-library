@@ -200,8 +200,8 @@ ActionableComponent::createTouchEventProperties(const Point &localPoint) const
     auto componentPropertyMap = std::make_shared<ObjectMap>();
     componentPropertyMap->emplace("x", localPoint.getX());
     componentPropertyMap->emplace("y", localPoint.getY());
-    componentPropertyMap->emplace("width", YGNodeLayoutGetWidth(mYGNodeRef));
-    componentPropertyMap->emplace("height", YGNodeLayoutGetHeight(mYGNodeRef));
+    componentPropertyMap->emplace("width", mYogaNode.getWidth());
+    componentPropertyMap->emplace("height", mYogaNode.getHeight());
     eventProps->emplace("component", componentPropertyMap);
 
     return eventProps;

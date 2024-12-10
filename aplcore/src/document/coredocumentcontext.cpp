@@ -380,6 +380,13 @@ CoreDocumentContext::clearVisualContextDirty()
 }
 
 rapidjson::Value
+CoreDocumentContext::serializeDocumentState(rapidjson::Document::AllocatorType& allocator)
+{
+    assert(mCore);
+    return mCore->sequencer().serialize(allocator);
+}
+
+rapidjson::Value
 CoreDocumentContext::serializeVisualContext(rapidjson::Document::AllocatorType& allocator)
 {
     clearVisualContextDirty();
@@ -501,7 +508,7 @@ CoreDocumentContext::invokeExtensionEventHandler(const std::string& uri, const s
     for (const auto& m : data)
         ctx->putConstant(m.first, m.second);
 
-    return mContext->sequencer().executeCommands(handler, ctx, comp, fastMode);
+    return mContext->sequencer().executeCommands(asCommand(*ctx, handler), ctx, comp, fastMode);
 }
 
 ComponentPtr
@@ -589,7 +596,7 @@ CoreDocumentContext::setup(const CoreComponentPtr& top)
                 auto oldHandler = em.findHandler(handler.second);
                 if (!oldHandler.isNull())
                     CONSOLE(mContext) << "Overwriting existing command handler " << handler.first;
-                em.addEventHandler(handler.second, asCommand(*mContext, evaluate(*mContext, h->value)));
+                em.addEventHandler(handler.second, h->value);
             }
         }
     }

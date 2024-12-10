@@ -28,6 +28,7 @@ namespace apl {
 
 // Forward declarations
 class ActionRef;
+class ActionData;
 
 using ActionList = std::vector<ActionPtr>;
 
@@ -199,6 +200,12 @@ public:
      * @return true if successful, false otherwise.
      */
     virtual bool rehydrate(const CoreDocumentContext& context);
+
+    /**
+     * Get details about this action
+     * @return ActionData including details about target component and command (if any).
+     */
+    virtual ActionData getActionData();
 
 protected:
     virtual void onFinish() {}

@@ -41,6 +41,7 @@ protected:
     void scroll(bool vertical, const Point& position);
 
     CoreComponentPtr mContainer;
+    ActionData getActionData() override;
 
 private:
     void advance();

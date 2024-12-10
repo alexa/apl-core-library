@@ -19,7 +19,12 @@
 
 using namespace apl;
 
-class SpeakItemAudioTest : public AudioTest {};
+class SpeakItemAudioTest : public AudioTest {
+public:
+    SpeakItemAudioTest() {
+        config->measure(std::make_shared<MyTestMeasurement>());
+    }
+};
 
 static const char *SPEAK_ITEM_TEST = R"apl(
 {
@@ -943,27 +948,10 @@ static const char *BOSS_KARAOKE = R"apl({
   }
 })apl";
 
-class FixedSizeMeasurement : public TextMeasurement {
-public:
-    // We'll assign a 10x10 block for each text square.
-    virtual LayoutSize measure( Component *component,
-                               float width,
-                               MeasureMode widthMode,
-                               float height,
-                               MeasureMode heightMode ) override {
-        return {640,351 };
-    }
-
-    virtual float baseline( Component *component, float width, float height ) override
-    {
-        return height;
-    }
-};
-
 ::testing::AssertionResult
 verifyLineUpdate(RootContextPtr root, const ComponentPtr& target, float offset, int rangeStart, int rangeEnd) {
     auto event = root->popEvent();
-    if (kEventTypeRequestLineBounds != event.getType())
+    if (kEventTypeLineHighlight != event.getType())
         return ::testing::AssertionFailure()
                << "Wrong event type " << event.getType();
     auto rs = event.getValue(apl::kEventPropertyRangeStart).getInteger();
@@ -971,27 +959,6 @@ verifyLineUpdate(RootContextPtr root, const ComponentPtr& target, float offset, 
         return ::testing::AssertionFailure()
                << "Wrong rangeStart " << rs;
     auto re = event.getValue(apl::kEventPropertyRangeEnd).getInteger();
-    if (rangeEnd != re)
-        return ::testing::AssertionFailure()
-               << "Wrong rangeEnd " << re;
-
-    if (target != event.getComponent()) {
-        return ::testing::AssertionFailure()
-               << "Wrong target.";
-    }
-
-    event.getActionRef().resolve({0, offset, 500, 70});
-
-    // Results in highlight
-    event = root->popEvent();
-    if (kEventTypeLineHighlight != event.getType())
-        return ::testing::AssertionFailure()
-               << "Wrong event type " << event.getType();
-    rs = event.getValue(apl::kEventPropertyRangeStart).getInteger();
-    if (rangeStart != rs)
-        return ::testing::AssertionFailure()
-               << "Wrong rangeStart " << rs;
-    re = event.getValue(apl::kEventPropertyRangeEnd).getInteger();
     if (rangeEnd != re)
         return ::testing::AssertionFailure()
                << "Wrong rangeEnd " << re;
@@ -1013,20 +980,13 @@ TEST_F(SpeakItemAudioTest, TransitionalRequests)
         }
     });
 
-    config->measure(std::make_shared<FixedSizeMeasurement>());
-
     loadDocument(BOSS_KARAOKE);
 
     executeSpeakItem("text1", kCommandScrollAlignFirst, apl::kCommandHighlightModeLine, 1000);
     ASSERT_TRUE(CheckPlayer("URL1", TestAudioPlayer::kPreroll));
     ASSERT_FALSE(factory->hasEvent());
 
-    // Preroll scroll should be here. With rect request
-    ASSERT_TRUE(root->hasEvent());
-    auto event = root->popEvent();
-    ASSERT_EQ(kEventTypeRequestLineBounds, event.getType());
     auto textFieldBoundary = root->findComponentById("text1")->getCalculated(apl::kPropertyBounds).get<Rect>();
-    event.getActionRef().resolve({0, 0, textFieldBoundary.getWidth(), 10});
 
     advanceTime(100);
     ASSERT_TRUE(CheckPlayer("URL1", TestAudioPlayer::kReady));
@@ -1065,7 +1025,120 @@ TEST_F(SpeakItemAudioTest, TransitionalRequests)
     ASSERT_FALSE(factory->hasEvent());
 
     // Highlight clean
-    event = root->popEvent();
+    auto event = root->popEvent();
+    ASSERT_EQ(kEventTypeLineHighlight, event.getType());
+    ASSERT_EQ(-1, event.getValue(apl::kEventPropertyRangeStart).getInteger());
+    ASSERT_EQ(-1, event.getValue(apl::kEventPropertyRangeEnd).getInteger());
+}
+
+static const char *BOSS_KARAOKE_WITH_COMPONENT_PADDING = R"apl({
+  "type": "APL",
+  "version": "2024.3",
+  "theme": "dark",
+  "styles": {
+    "flip": {
+      "values": [
+        { "when": "${state.karaoke}", "color": "blue" },
+        { "when": "${!state.karaoke}", "color": "white" },
+        { "when": "${state.karaokeTarget}", "color": "yellow" }
+      ]
+    }
+  },
+  "mainTemplate": {
+    "items": [
+      {
+        "type": "ScrollView",
+        "width": 800,
+        "height": 500,
+        "id": "scroll",
+        "item": {
+          "type": "Container",
+          "width": "100%",
+          "direction": "column",
+          "alignItems": "center",
+          "items": [
+            {
+              "type": "Text",
+              "when": "${viewport.pixelWidth > 350}",
+              "id": "text1",
+              "style": "flip",
+              "text": "Since <i>you</i> are not going <u>on a holiday this year Boss</u> I thought I should give your office a holiday look",
+              "speech": "URL1",
+              "textAlign": "center",
+              "fontSize": "56dp",
+              "width": "80%",
+              "paddingLeft": "72dp",
+              "paddingTop": "48dp"
+            }
+          ]
+        }
+      }
+    ]
+  }
+})apl";
+
+TEST_F(SpeakItemAudioTest, ScrollWithComponentPadding)
+{
+    // Limited subset of marks to avoid too much verification
+    factory->addFakeContent({
+        {"URL1", 3000, 100, -1,
+         {
+             {SpeechMarkType::kSpeechMarkWord, 0, 5, 0, "Since"},
+             {SpeechMarkType::kSpeechMarkWord, 42, 46, 1300, "year"},
+             {SpeechMarkType::kSpeechMarkWord, 64, 70, 1900, "should"},
+             {SpeechMarkType::kSpeechMarkWord, 90, 97, 2600, "holiday"},
+             {SpeechMarkType::kSpeechMarkWord, 98, 102, 2800, "look"}
+         }
+        }
+    });
+
+    loadDocument(BOSS_KARAOKE_WITH_COMPONENT_PADDING);
+
+    executeSpeakItem("text1", kCommandScrollAlignFirst, apl::kCommandHighlightModeLine, 1000);
+    ASSERT_TRUE(CheckPlayer("URL1", TestAudioPlayer::kPreroll));
+    ASSERT_FALSE(factory->hasEvent());
+
+    // Taking inner bounds to account for padding of 48dp in the unit test
+    auto textFieldBoundary = root->findComponentById("text1")->getCalculated(apl::kPropertyInnerBounds).get<Rect>();
+
+    advanceTime(100);
+    ASSERT_TRUE(CheckPlayer("URL1", TestAudioPlayer::kReady));
+
+    // Move forward a bit in time to finished scrolling.
+    advanceTime(900);
+    // Should start playing "Since you are not going"
+    ASSERT_TRUE(CheckPlayer("URL1", TestAudioPlayer::kPlay));
+    ASSERT_EQ(component->scrollPosition().getY(), textFieldBoundary.getY());
+
+    auto text = root->findComponentById("text1");
+
+    // Will also ask to scroll to the first line for play
+    ASSERT_TRUE(verifyLineUpdate(root, text, 0, 0, 4));
+
+    // "on a holiday this year"
+    advanceTime(1300);
+    ASSERT_TRUE(verifyLineUpdate(root, text, 70, 42, 45));
+
+    // "Boss I thought I should"
+    advanceTime(600);
+    ASSERT_TRUE(verifyLineUpdate(root, text, 140, 64, 69));
+
+    // "give your office a holiday"
+    advanceTime(700);
+    ASSERT_TRUE(verifyLineUpdate(root, text, 210, 90, 96));
+
+    // "look"
+    advanceTime(200);
+    ASSERT_TRUE(verifyLineUpdate(root, text, 280, 98, 101));
+
+    advanceTime(500);
+
+    ASSERT_TRUE(CheckPlayer("URL1", TestAudioPlayer::kDone));
+    ASSERT_TRUE(CheckPlayer("URL1", TestAudioPlayer::kRelease));
+    ASSERT_FALSE(factory->hasEvent());
+
+    // Highlight clean
+    auto event = root->popEvent();
     ASSERT_EQ(kEventTypeLineHighlight, event.getType());
     ASSERT_EQ(-1, event.getValue(apl::kEventPropertyRangeStart).getInteger());
     ASSERT_EQ(-1, event.getValue(apl::kEventPropertyRangeEnd).getInteger());
@@ -1117,8 +1190,6 @@ TEST_F(SpeakItemAudioTest, EmbeddedTestStages)
         }
     });
 
-    config->measure(std::make_shared<FixedSizeMeasurement>());
-
     std::shared_ptr<TestDocumentManager> documentManager = std::make_shared<TestDocumentManager>();
 
     config->documentManager(std::static_pointer_cast<DocumentManager>(documentManager));
@@ -1155,13 +1226,7 @@ TEST_F(SpeakItemAudioTest, EmbeddedTestStages)
     ASSERT_TRUE(CheckPlayer("URL1", TestAudioPlayer::kPreroll));
     ASSERT_FALSE(factory->hasEvent());
 
-    // Preroll scroll should be here. With rect request
-    ASSERT_TRUE(root->hasEvent());
-    auto event = root->popEvent();
-    ASSERT_EQ(kEventTypeRequestLineBounds, event.getType());
-    ASSERT_EQ(embeddedDocumentContext, event.getDocument());
     auto textFieldBoundary = root->findComponentById("text1")->getCalculated(apl::kPropertyBounds).get<Rect>();
-    event.getActionRef().resolve({0, 0, textFieldBoundary.getWidth(), 10});
 
     advanceTime(100);
     ASSERT_TRUE(CheckPlayer("URL1", TestAudioPlayer::kReady));
@@ -1200,7 +1265,7 @@ TEST_F(SpeakItemAudioTest, EmbeddedTestStages)
     ASSERT_FALSE(factory->hasEvent());
 
     // Highlight clean
-    event = root->popEvent();
+    auto event = root->popEvent();
     ASSERT_EQ(kEventTypeLineHighlight, event.getType());
     ASSERT_EQ(embeddedDocumentContext, event.getDocument());
     ASSERT_EQ(-1, event.getValue(apl::kEventPropertyRangeStart).getInteger());
@@ -1222,18 +1287,12 @@ TEST_F(SpeakItemAudioTest, LineRequestTerminated)
         }
     });
 
-    config->measure(std::make_shared<FixedSizeMeasurement>());
-
     loadDocument(BOSS_KARAOKE);
 
     auto commands = executeSpeakItem("text1", kCommandScrollAlignFirst, apl::kCommandHighlightModeLine, 1000);
     ASSERT_TRUE(CheckPlayer("URL1", TestAudioPlayer::kPreroll));
     ASSERT_FALSE(factory->hasEvent());
 
-    // Preroll scroll should be here. With rect request
-    ASSERT_TRUE(root->hasEvent());
-    auto event = root->popEvent();
-    ASSERT_EQ(kEventTypeRequestLineBounds, event.getType());
     root->cancelExecution();
 
     ASSERT_TRUE(commands->isTerminated());
@@ -1241,7 +1300,7 @@ TEST_F(SpeakItemAudioTest, LineRequestTerminated)
     ASSERT_FALSE(factory->hasEvent());  // No events pending because nothing was playing
 
     // Highlight clean
-    event = root->popEvent();
+    auto event = root->popEvent();
     ASSERT_EQ(kEventTypeLineHighlight, event.getType());
     ASSERT_EQ(-1, event.getValue(apl::kEventPropertyRangeStart).getInteger());
     ASSERT_EQ(-1, event.getValue(apl::kEventPropertyRangeEnd).getInteger());
@@ -1263,20 +1322,13 @@ TEST_F(SpeakItemAudioTest, PreserveTesting)
         }
     });
 
-    config->measure(std::make_shared<FixedSizeMeasurement>());
-
     loadDocument(BOSS_KARAOKE);
 
     auto action = executeSpeakItem("text1", kCommandScrollAlignFirst, apl::kCommandHighlightModeLine, 1000, "MAGIC");
     ASSERT_TRUE(CheckPlayer("URL1", TestAudioPlayer::kPreroll));
     ASSERT_FALSE(factory->hasEvent());
 
-    // Preroll scroll should be here. With rect request
-    ASSERT_TRUE(root->hasEvent());
-    auto event = root->popEvent();
-    ASSERT_EQ(kEventTypeRequestLineBounds, event.getType());
     auto textFieldBoundary = root->findComponentById("text1")->getCalculated(apl::kPropertyBounds).get<Rect>();
-    event.getActionRef().resolve({0, 0, textFieldBoundary.getWidth(), 10});
 
     advanceTime(100);
     ASSERT_TRUE(CheckPlayer("URL1", TestAudioPlayer::kReady));
@@ -1326,7 +1378,7 @@ TEST_F(SpeakItemAudioTest, PreserveTesting)
     ASSERT_FALSE(factory->hasEvent());
 
     // Highlight clean
-    event = root->popEvent();
+    auto event = root->popEvent();
     ASSERT_EQ(kEventTypeLineHighlight, event.getType());
     ASSERT_EQ(-1, event.getValue(apl::kEventPropertyRangeStart).getInteger());
     ASSERT_EQ(-1, event.getValue(apl::kEventPropertyRangeEnd).getInteger());
@@ -1347,20 +1399,13 @@ TEST_F(SpeakItemAudioTest, PreserveTestingNoTarget)
         }
     });
 
-    config->measure(std::make_shared<FixedSizeMeasurement>());
-
     loadDocument(BOSS_KARAOKE);
 
     auto action = executeSpeakItem("text1", kCommandScrollAlignFirst, apl::kCommandHighlightModeLine, 1000, "MAGIC");
     ASSERT_TRUE(CheckPlayer("URL1", TestAudioPlayer::kPreroll));
     ASSERT_FALSE(factory->hasEvent());
 
-    // Preroll scroll should be here. With rect request
-    ASSERT_TRUE(root->hasEvent());
-    auto event = root->popEvent();
-    ASSERT_EQ(kEventTypeRequestLineBounds, event.getType());
     auto textFieldBoundary = root->findComponentById("text1")->getCalculated(apl::kPropertyBounds).get<Rect>();
-    event.getActionRef().resolve({0, 0, textFieldBoundary.getWidth(), 10});
 
     advanceTime(100);
     ASSERT_TRUE(CheckPlayer("URL1", TestAudioPlayer::kReady));
@@ -1568,20 +1613,13 @@ TEST_F(SpeakItemAudioTest, MarksAfterText)
         }
     });
 
-    config->measure(std::make_shared<FixedSizeMeasurement>());
-
     loadDocument(BOSS_KARAOKE_WITH_HANDLER);
 
     executeSpeakItem("text1", kCommandScrollAlignFirst, apl::kCommandHighlightModeLine, 1000);
     ASSERT_TRUE(CheckPlayer("URL1", TestAudioPlayer::kPreroll));
     ASSERT_FALSE(factory->hasEvent());
 
-    // Preroll scroll should be here. With rect request
-    ASSERT_TRUE(root->hasEvent());
-    auto event = root->popEvent();
-    ASSERT_EQ(kEventTypeRequestLineBounds, event.getType());
     auto textFieldBoundary = root->findComponentById("text1")->getCalculated(apl::kPropertyBounds).get<Rect>();
-    event.getActionRef().resolve({0, 0, textFieldBoundary.getWidth(), 10});
 
     advanceTime(100);
     ASSERT_TRUE(CheckPlayer("URL1", TestAudioPlayer::kReady));
@@ -1628,7 +1666,7 @@ TEST_F(SpeakItemAudioTest, MarksAfterText)
     ASSERT_FALSE(factory->hasEvent());
 
     // Highlight clean
-    event = root->popEvent();
+    auto event = root->popEvent();
     ASSERT_EQ(kEventTypeLineHighlight, event.getType());
     ASSERT_EQ(-1, event.getValue(apl::kEventPropertyRangeStart).getInteger());
     ASSERT_EQ(-1, event.getValue(apl::kEventPropertyRangeEnd).getInteger());

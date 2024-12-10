@@ -15,22 +15,59 @@
 
 #include "apl/component/textmeasurement.h"
 
+#include "apl/scenegraph/textlayout.h"
+#include "apl/scenegraph/edittextbox.h"
+
 namespace apl {
 
 class DummyTextMeasurement : public TextMeasurement {
 public:
-    LayoutSize measure( Component *component,
-                        float width,
-                        MeasureMode widthMode,
-                        float height,
-                        MeasureMode heightMode ) override {
-        return { 10, 10 };
+    class DummyTextLayout : public sg::TextLayout {
+    public:
+        explicit DummyTextLayout(float height): mHeight(height) {}
+        bool empty() const override { return false; }
+        Size getSize() const override { return {10, 10}; }
+        float getBaseline() const override { return mHeight * 0.5f; }
+        int getLineCount() const override { return 1; }
+        std::string toDebugString() const override { return ""; }
+        unsigned int getByteLength() const override { return 1; }
+        Range getLineRangeFromByteRange(Range byteRange) const override { return {}; }
+        Rect getBoundingBoxForLines(Range lineRange) const override { return {}; }
+        std::string getLaidOutText() const override { return ""; }
+        bool isTruncated() const override { return false; }
+
+    private:
+        float mHeight;
+    };
+
+    class DummyTextBox : public sg::EditTextBox {
+    public:
+        explicit DummyTextBox(float height): mHeight(height) {}
+        Size getSize() const override { return {10, 10}; }
+        float getBaseline() const override { return mHeight * 0.5f; }
+
+    private:
+        float mHeight;
+    };
+
+    sg::TextLayoutPtr layout(Component *component,
+                             const sg::TextChunkPtr& chunk,
+                             const sg::TextPropertiesPtr& textProperties,
+                             float width,
+                             MeasureMode widthMode,
+                             float height,
+                             MeasureMode heightMode) override {
+        return std::make_shared<DummyTextLayout>(height);
     }
 
-    float baseline( Component *component,
-                    float width,
-                    float height ) override {
-        return height * 0.5;
+    sg::EditTextBoxPtr box(Component *component,
+                           int size,
+                           const sg::TextPropertiesPtr& textProperties,
+                           float width,
+                           MeasureMode widthMode,
+                           float height,
+                           MeasureMode heightMode) override {
+        return std::make_shared<DummyTextBox>(height);
     }
 };
 

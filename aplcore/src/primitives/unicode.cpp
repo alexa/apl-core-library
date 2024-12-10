@@ -16,8 +16,9 @@
 #include "apl/primitives/unicode.h"
 
 #include <algorithm>
-#include <locale>
 #include <codecvt>
+#include <locale>
+#include <unordered_set>
 
 namespace apl {
 
@@ -76,6 +77,25 @@ utf8AdvanceCodePointsUnsafe(uint8_t *ptr, int n)
 }
 
 /**
+ * UNSAFE function to reverse over a number n of code points. This function does not check
+ * for a valid UTF-8 string, nor does it check to see if you've walked past the beginning of
+ * the string.
+ */
+inline uint8_t *
+utf8ReverseCodePointsUnsafe(uint8_t *ptr, int n)
+{
+    while (n > 0) {
+        // byte-by-byte until we reach the start of the previous char
+        do {
+            ptr -= 1;
+        } while (!isValidUTF8StartingByte(*ptr));
+
+        n -= 1;
+    }
+    return ptr;
+}
+
+/**
  * Compare two UTF-8 characters for smaller, equal, or larger.
  * The UTF-8 encoding conveniently allows for direct byte-to-byte comparisons.
  * @param lhs The first character
@@ -93,6 +113,23 @@ compareUTF8(const uint8_t *lhs, const uint8_t *rhs, const int trailing)
             return 1;
     }
     return 0;
+}
+
+/**
+ * Checks if a character is considered a white space character
+ * according to the JavaScript/ECMAScript convention, as described in
+ * Section 4.10 of the APL Specification.
+ */
+bool
+utf8IsWhiteSpace(const std::string& utf8Char) {
+    static const std::unordered_set<std::string> whiteSpaceChars = {
+        "\u0009", "\u000B", "\u000C", "\u0020", "\u00A0", "\uFEFF",
+        "\u000A", "\u000D", "\u2028", "\u2029",
+        "\u2000", "\u2001", "\u2002", "\u2003", "\u2004", "\u2005",
+        "\u2006", "\u2007", "\u2008", "\u2009", "\u200A",
+        "\u202F", "\u205F", "\u3000"
+    };
+    return whiteSpaceChars.find(utf8Char) != whiteSpaceChars.end();
 }
 
 int
@@ -164,6 +201,115 @@ utf8StringCharAt(const std::string& utf8String, int index)
     return std::string((char *)startPtr, endPtr - startPtr);
 }
 
+int
+utf8StringIndexOf(const std::string& utf8String, const std::string& utf8SearchString, int index, bool forwardSearch)
+{
+    auto targetLen = utf8StringLength(utf8String);
+    if (targetLen < 0)
+        return -1;
+
+    // Special case empty strings
+    if (targetLen == 0 && index == 0 && utf8StringLength(utf8SearchString) == 0) {
+        return 0;
+    }
+
+    auto searchLen = utf8StringLength(utf8SearchString);
+    if (searchLen > targetLen)
+        return -1;
+
+    // Handle a negative starting offset
+    if (index < 0)
+        index += targetLen;
+
+    if (index < 0 || index >= targetLen)
+        return -1;
+
+    // For backwards search, snap to the last index where the match could start
+    if (!forwardSearch && index > (targetLen - searchLen))
+        index = targetLen - searchLen;
+
+    auto targetPtr = utf8AdvanceCodePointsUnsafe((uint8_t*)utf8String.c_str(), index);
+    auto searchPtr = (uint8_t*)utf8SearchString.c_str();
+    while (targetPtr && index <= (targetLen - searchLen) && index >= 0) {
+        if (compareUTF8(targetPtr, searchPtr, utf8SearchString.length()-1) == 0) {
+            return index;
+        }
+
+        if (forwardSearch) {
+            targetPtr = utf8AdvanceCodePointsUnsafe(targetPtr, 1);
+            index++;
+        } else {
+            targetPtr = utf8ReverseCodePointsUnsafe(targetPtr, 1);
+            index--;
+        }
+    }
+    return -1;
+}
+
+std::string
+utf8StringReplace(const std::string& utf8String, const std::string& utf8SearchString, const std::string& utf8ReplaceString, int startIndex) {
+    if (utf8String.empty() || utf8SearchString.empty() || utf8SearchString == utf8ReplaceString) {
+        return utf8String;
+    }
+
+    int targetLen = utf8StringLength(utf8String);
+
+    // Adjust startIndex for negative values
+    if (startIndex < 0) {
+        startIndex = std::max(0, targetLen + startIndex);
+    }
+
+    int foundIndex = utf8StringIndexOf(utf8String, utf8SearchString, startIndex, true);
+
+    if (foundIndex == -1) {
+        return utf8String;
+    }
+
+    int searchStringLen = utf8StringLength(utf8SearchString);
+
+    std::string result = utf8StringSlice(utf8String, 0, foundIndex);
+    result += utf8ReplaceString;
+    result += utf8StringSlice(utf8String, foundIndex + searchStringLen);
+
+    return result;
+}
+
+std::string
+utf8StringReplaceAll(const std::string& utf8String, const std::string& utf8SearchString, const std::string& utf8ReplaceString) {
+    if (utf8String.empty() || utf8SearchString.empty() || utf8SearchString == utf8ReplaceString) {
+        return utf8String;
+    }
+
+    std::string result = utf8String;
+    size_t pos = 0;
+    while ((pos = result.find(utf8SearchString, pos)) != std::string::npos) {
+        result.replace(pos, utf8SearchString.length(), utf8ReplaceString);
+        pos += utf8ReplaceString.length();
+    }
+    return result;
+}
+
+std::string utf8StringTrimWhiteSpace(const std::string& utf8String) {
+    if (utf8String.empty()) {
+        return utf8String;
+    }
+
+    int start = 0;
+    int end = utf8StringLength(utf8String) - 1;
+
+    while (start <= end && utf8IsWhiteSpace(utf8StringCharAt(utf8String, start))) {
+        start++;
+    }
+
+    while (end >= start && utf8IsWhiteSpace(utf8StringCharAt(utf8String, end))) {
+        end--;
+    }
+
+    if (start > end) {
+        return "";
+    }
+    return utf8StringSlice(utf8String, start, end + 1);
+}
 /**
  * Internal method to check a single UTF-8 character and see if it appears in a
  * string of valid characters.  This method assumes that the inputs are valid UTF-8 strings

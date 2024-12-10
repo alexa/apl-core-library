@@ -16,12 +16,19 @@
 #include "../testeventloop.h"
 
 #include "apl/engine/event.h"
-#include "apl/primitives/mediastate.h"
 
 using namespace apl;
 
 class CommandMediaTest : public CommandTest {
 public:
+    CommandMediaTest() : CommandTest() {
+        mediaPlayerFactory->addFakeContent({
+            { "URL1", 1000, 0, -1 },
+            { "URL2", 1000, 0, -1 },
+            { "URL3", 1000, 0, -1 }
+        });
+    }
+
     ActionPtr executeControlMedia(const std::string& component, const std::string& command, int value, bool fastMode) {
         rapidjson::Value cmd(rapidjson::kObjectType);
         auto& alloc = doc.GetAllocator();
@@ -47,9 +54,29 @@ public:
     rapidjson::Document doc;
 };
 
-static const char *VIDEO = R"({
+static const char *VIDEO = R"apl({
   "type": "APL",
-  "version": "1.1",
+  "version": "2024.3",
+  "commands": {
+    "DUMP": {
+      "command": {
+        "type": "SendEvent",
+        "sequencer": "FOO",
+        "arguments": [
+          "Handler: ${event.source.handler}",
+          "URL: ${event.source.url}",
+          "Position: ${event.source.currentTime} (${event.currentTime})",
+          "Duration: ${event.source.duration} (${event.duration})",
+          "Ended: ${event.source.ended ? 'YES' : 'NO'} (${event.ended ? 'YES' : 'NO'})",
+          "Paused: ${event.source.paused ? 'YES' : 'NO'} (${event.paused ? 'YES' : 'NO'})",
+          "Muted: ${event.source.muted ? 'YES' : 'NO'} (${event.muted ? 'YES' : 'NO'})",
+          "TrackCount: ${event.source.trackCount} (${event.trackCount})",
+          "TrackIndex: ${event.source.trackIndex} (${event.trackIndex})",
+          "TrackState: ${event.source.trackState} (${event.trackState})"
+        ]
+      }
+    }
+  },
   "mainTemplate": {
     "items": {
       "type": "Container",
@@ -59,33 +86,58 @@ static const char *VIDEO = R"({
           "id": "myVideo",
           "width": 100,
           "height": 100,
-          "source": ["URL1", "URL2"]
+          "source": ["URL1", "URL2", "URL3"],
+          "onEnd":         { "type": "DUMP" },
+          "onPause":       { "type": "DUMP" },
+          "onPlay":        { "type": "DUMP" },
+          "onTimeUpdate":  { "type": "DUMP" },
+          "onTrackUpdate": { "type": "DUMP" },
+          "onTrackReady":  { "type": "DUMP" },
+          "onTrackFail":   { "type": "DUMP" }
         },
         {
           "type": "Video",
           "id": "myVideo3",
           "width": 100,
           "height": 100,
-          "source": "URL1"
+          "source": "URL1",
+          "onEnd":         { "type": "DUMP" },
+          "onPause":       { "type": "DUMP" },
+          "onPlay":        { "type": "DUMP" },
+          "onTimeUpdate":  { "type": "DUMP" },
+          "onTrackUpdate": { "type": "DUMP" },
+          "onTrackReady":  { "type": "DUMP" },
+          "onTrackFail":   { "type": "DUMP" }
         }
       ]
     }
   }
-})";
+})apl";
 
 TEST_F(CommandMediaTest, Control)
 {
     loadDocument(VIDEO);
 
+    // Preloads
+    mediaPlayerFactory->advanceTime(100);
+    clearEvents();
+
     // Play in normal mode
     executeControlMedia("myVideo", "play", 0, false);
-    ASSERT_TRUE(root->hasEvent());
-    auto event = root->popEvent();
-    ASSERT_EQ(kEventTypeControlMedia, event.getType());
-    ASSERT_EQ(kEventControlMediaPlay, event.getValue(kEventPropertyCommand).asInt());
-    ASSERT_EQ(component->getCoreChildAt(0), event.getComponent());
-    ASSERT_FALSE(event.getActionRef().empty());
-    ASSERT_FALSE(root->hasEvent());
+    ASSERT_TRUE(CheckSendEvent(root,
+                               "Handler: Play",
+                               "URL: URL1",
+                               "Position: 0 (0)",
+                               "Duration: 0 (0)",
+                               "Ended: NO (NO)",
+                               "Paused: NO (NO)",
+                               "Muted: NO (NO)",
+                               "TrackCount: 3 (3)",
+                               "TrackIndex: 0 (0)",
+                               "TrackState: ready (ready)"));
+    // Advance playback a bit
+    mediaPlayerFactory->advanceTime(100);
+    clearEvents();
 
     // Play in fast mode ignored
     ASSERT_FALSE(ConsoleMessage());
@@ -95,91 +147,191 @@ TEST_F(CommandMediaTest, Control)
 
     // Pause in normal mode
     executeControlMedia("myVideo", "pause", 0, false);
-    ASSERT_TRUE(root->hasEvent());
-    event = root->popEvent();
-    ASSERT_EQ(kEventControlMediaPause, event.getValue(kEventPropertyCommand).asInt());
-    ASSERT_FALSE(root->hasEvent());
+    ASSERT_TRUE(CheckSendEvent(root,
+                               "Handler: Pause",
+                               "URL: URL1",
+                               "Position: 100 (100)",
+                               "Duration: 0 (0)",
+                               "Ended: NO (NO)",
+                               "Paused: YES (YES)",
+                               "Muted: NO (NO)",
+                               "TrackCount: 3 (3)",
+                               "TrackIndex: 0 (0)",
+                               "TrackState: ready (ready)"));
+    clearEvents();
 
     // Pause in fast mode
+    executeControlMedia("myVideo", "play", 0, false);
+    clearEvents();
     executeControlMedia("myVideo", "pause", 0, true);
-    ASSERT_TRUE(root->hasEvent());
-    event = root->popEvent();
-    ASSERT_EQ(kEventControlMediaPause, event.getValue(kEventPropertyCommand).asInt());
-    ASSERT_FALSE(root->hasEvent());
+    ASSERT_TRUE(CheckSendEvent(root,
+                               "Handler: Pause",
+                               "URL: URL1",
+                               "Position: 100 (100)",
+                               "Duration: 0 (0)",
+                               "Ended: NO (NO)",
+                               "Paused: YES (YES)",
+                               "Muted: NO (NO)",
+                               "TrackCount: 3 (3)",
+                               "TrackIndex: 0 (0)",
+                               "TrackState: ready (ready)"));
+    clearEvents();
 
     // Next in normal mode
     executeControlMedia("myVideo", "next", 0, false);
-    ASSERT_TRUE(root->hasEvent());
-    event = root->popEvent();
-    ASSERT_EQ(kEventControlMediaNext, event.getValue(kEventPropertyCommand).asInt());
-    ASSERT_FALSE(root->hasEvent());
+    ASSERT_TRUE(CheckSendEvent(root,
+                               "Handler: TrackUpdate",
+                               "URL: URL2",
+                               "Position: 0 (0)",
+                               "Duration: 0 (0)",
+                               "Ended: NO (NO)",
+                               "Paused: YES (YES)",
+                               "Muted: NO (NO)",
+                               "TrackCount: 3 (3)",
+                               "TrackIndex: 1 (1)",
+                               "TrackState: ready (ready)"));
+    clearEvents();
 
     // Next in fast mode
     executeControlMedia("myVideo", "next", 0, true);
-    ASSERT_TRUE(root->hasEvent());
-    event = root->popEvent();
-    ASSERT_EQ(kEventControlMediaNext, event.getValue(kEventPropertyCommand).asInt());
-    ASSERT_FALSE(root->hasEvent());
+    ASSERT_TRUE(CheckSendEvent(root,
+                               "Handler: TrackUpdate",
+                               "URL: URL3",
+                               "Position: 0 (0)",
+                               "Duration: 0 (0)",
+                               "Ended: NO (NO)",
+                               "Paused: YES (YES)",
+                               "Muted: NO (NO)",
+                               "TrackCount: 3 (3)",
+                               "TrackIndex: 2 (2)",
+                               "TrackState: ready (ready)"));
+    clearEvents();
 
     // Previous in normal mode
     executeControlMedia("myVideo", "previous", 0, false);
-    ASSERT_TRUE(root->hasEvent());
-    event = root->popEvent();
-    ASSERT_EQ(kEventControlMediaPrevious, event.getValue(kEventPropertyCommand).asInt());
-    ASSERT_FALSE(root->hasEvent());
+    ASSERT_TRUE(CheckSendEvent(root,
+                               "Handler: TrackUpdate",
+                               "URL: URL2",
+                               "Position: 0 (0)",
+                               "Duration: 0 (0)",
+                               "Ended: NO (NO)",
+                               "Paused: YES (YES)",
+                               "Muted: NO (NO)",
+                               "TrackCount: 3 (3)",
+                               "TrackIndex: 1 (1)",
+                               "TrackState: ready (ready)"));
+    clearEvents();
 
     // Previous in fast mode
     executeControlMedia("myVideo", "previous", 0, true);
-    ASSERT_TRUE(root->hasEvent());
-    event = root->popEvent();
-    ASSERT_EQ(kEventControlMediaPrevious, event.getValue(kEventPropertyCommand).asInt());
-    ASSERT_FALSE(root->hasEvent());
+    ASSERT_TRUE(CheckSendEvent(root,
+                               "Handler: TrackUpdate",
+                               "URL: URL1",
+                               "Position: 0 (0)",
+                               "Duration: 0 (0)",
+                               "Ended: NO (NO)",
+                               "Paused: YES (YES)",
+                               "Muted: NO (NO)",
+                               "TrackCount: 3 (3)",
+                               "TrackIndex: 0 (0)",
+                               "TrackState: ready (ready)"));
+    clearEvents();
 
     // Rewind in normal mode
     executeControlMedia("myVideo", "rewind", 0, false);
-    ASSERT_TRUE(root->hasEvent());
-    event = root->popEvent();
-    ASSERT_EQ(kEventControlMediaRewind, event.getValue(kEventPropertyCommand).asInt());
-    ASSERT_FALSE(root->hasEvent());
+    executeControlMedia("myVideo", "play", 0, false);
+    mediaPlayerFactory->advanceTime(150);
+    clearEvents();
+
+    executeControlMedia("myVideo", "pause", 0, false);
+    ASSERT_TRUE(CheckSendEvent(root,
+                               "Handler: Pause",
+                               "URL: URL1",
+                               "Position: 150 (150)",
+                               "Duration: 0 (0)",
+                               "Ended: NO (NO)",
+                               "Paused: YES (YES)",
+                               "Muted: NO (NO)",
+                               "TrackCount: 3 (3)",
+                               "TrackIndex: 0 (0)",
+                               "TrackState: ready (ready)"));
+
+    clearEvents();
 
     // Rewind in fast mode
     executeControlMedia("myVideo", "rewind", 0, true);
-    ASSERT_TRUE(root->hasEvent());
-    event = root->popEvent();
-    ASSERT_EQ(kEventControlMediaRewind, event.getValue(kEventPropertyCommand).asInt());
-    ASSERT_FALSE(root->hasEvent());
+    ASSERT_TRUE(CheckSendEvent(root,
+                               "Handler: TimeUpdate",
+                               "URL: URL1",
+                               "Position: 0 (0)",
+                               "Duration: 0 (0)",
+                               "Ended: NO (NO)",
+                               "Paused: YES (YES)",
+                               "Muted: NO (NO)",
+                               "TrackCount: 3 (3)",
+                               "TrackIndex: 0 (0)",
+                               "TrackState: ready (ready)"));
+    clearEvents();
 
     // Seek in normal mode
     executeControlMedia("myVideo", "seek", 70, false);
-    ASSERT_TRUE(root->hasEvent());
-    event = root->popEvent();
-    ASSERT_EQ(kEventControlMediaSeek, event.getValue(kEventPropertyCommand).asInt());
-    ASSERT_EQ(70, event.getValue(kEventPropertyValue).asInt());
-    ASSERT_FALSE(root->hasEvent());
+    ASSERT_TRUE(CheckSendEvent(root,
+                               "Handler: TimeUpdate",
+                               "URL: URL1",
+                               "Position: 70 (70)",
+                               "Duration: 0 (0)",
+                               "Ended: NO (NO)",
+                               "Paused: YES (YES)",
+                               "Muted: NO (NO)",
+                               "TrackCount: 3 (3)",
+                               "TrackIndex: 0 (0)",
+                               "TrackState: ready (ready)"));
+    clearEvents();
 
     // Seek in fast mode
-    executeControlMedia("myVideo", "seek", 70, true);
-    ASSERT_TRUE(root->hasEvent());
-    event = root->popEvent();
-    ASSERT_EQ(kEventControlMediaSeek, event.getValue(kEventPropertyCommand).asInt());
-    ASSERT_EQ(70, event.getValue(kEventPropertyValue).asInt());
-    ASSERT_FALSE(root->hasEvent());
+    executeControlMedia("myVideo", "seek", 140, true);
+    ASSERT_TRUE(CheckSendEvent(root,
+                               "Handler: TimeUpdate",
+                               "URL: URL1",
+                               "Position: 140 (140)",
+                               "Duration: 0 (0)",
+                               "Ended: NO (NO)",
+                               "Paused: YES (YES)",
+                               "Muted: NO (NO)",
+                               "TrackCount: 3 (3)",
+                               "TrackIndex: 0 (0)",
+                               "TrackState: ready (ready)"));
+    clearEvents();
 
     // SetTrack in normal mode
     executeControlMedia("myVideo", "setTrack", 1, false);
-    ASSERT_TRUE(root->hasEvent());
-    event = root->popEvent();
-    ASSERT_EQ(kEventControlMediaSetTrack, event.getValue(kEventPropertyCommand).asInt());
-    ASSERT_EQ(1, event.getValue(kEventPropertyValue).asInt());
-    ASSERT_FALSE(root->hasEvent());
+    ASSERT_TRUE(CheckSendEvent(root,
+                               "Handler: TrackUpdate",
+                               "URL: URL2",
+                               "Position: 0 (0)",
+                               "Duration: 0 (0)",
+                               "Ended: NO (NO)",
+                               "Paused: YES (YES)",
+                               "Muted: NO (NO)",
+                               "TrackCount: 3 (3)",
+                               "TrackIndex: 1 (1)",
+                               "TrackState: ready (ready)"));
+    clearEvents();
 
     // SetTrack in fast mode
-    executeControlMedia("myVideo", "setTrack", 1, true);
-    ASSERT_TRUE(root->hasEvent());
-    event = root->popEvent();
-    ASSERT_EQ(kEventControlMediaSetTrack, event.getValue(kEventPropertyCommand).asInt());
-    ASSERT_EQ(1, event.getValue(kEventPropertyValue).asInt());
-    ASSERT_FALSE(root->hasEvent());
+    executeControlMedia("myVideo", "setTrack", 2, true);
+    ASSERT_TRUE(CheckSendEvent(root,
+                               "Handler: TrackUpdate",
+                               "URL: URL3",
+                               "Position: 0 (0)",
+                               "Duration: 0 (0)",
+                               "Ended: NO (NO)",
+                               "Paused: YES (YES)",
+                               "Muted: NO (NO)",
+                               "TrackCount: 3 (3)",
+                               "TrackIndex: 2 (2)",
+                               "TrackState: ready (ready)"));
+    clearEvents();
 }
 
 TEST_F(CommandMediaTest, ControlMalformed)
@@ -207,55 +359,88 @@ TEST_F(CommandMediaTest, ControlMalformed)
 TEST_F(CommandMediaTest, Play)
 {
     loadDocument(VIDEO);
+    mediaPlayerFactory->advanceTime(10);
+    clearEvents();
 
-    executePlayMedia("myVideo", "foreground", Object::EMPTY_ARRAY(), false);
-    ASSERT_TRUE(root->hasEvent());
-    auto event = root->popEvent();
-    ASSERT_EQ(kEventTypePlayMedia, event.getType());
-    ASSERT_EQ(kEventAudioTrackForeground, event.getValue(kEventPropertyAudioTrack).getInteger());
-    ASSERT_EQ(component->getCoreChildAt(0), event.getComponent());
-    ASSERT_FALSE(event.getActionRef().empty());
-    event.getActionRef().resolve();
+    executePlayMedia("myVideo", "foreground", "URL1", false);
+    ASSERT_TRUE(CheckSendEvent(root,
+                               "Handler: Play",
+                               "URL: URL1",
+                               "Position: 0 (0)",
+                               "Duration: 0 (0)",
+                               "Ended: NO (NO)",
+                               "Paused: NO (NO)",
+                               "Muted: NO (NO)",
+                               "TrackCount: 1 (1)",
+                               "TrackIndex: 0 (0)",
+                               "TrackState: ready (ready)"));
+    // Advance playback a bit
+    mediaPlayerFactory->advanceTime(1500);
+    clearEvents();
 
     // Play background audio
-    executePlayMedia("myVideo", "background", Object::EMPTY_ARRAY(), false);
-    ASSERT_TRUE(root->hasEvent());
-    event = root->popEvent();
-    ASSERT_EQ(kEventTypePlayMedia, event.getType());
-    ASSERT_EQ(kEventAudioTrackBackground, event.getValue(kEventPropertyAudioTrack).getInteger());
-    ASSERT_EQ(component->getCoreChildAt(0), event.getComponent());
-    ASSERT_FALSE(event.getActionRef().empty());
+    executePlayMedia("myVideo", "background", "URL1", false);
+    ASSERT_TRUE(CheckSendEvent(root,
+                               "Handler: Play",
+                               "URL: URL1",
+                               "Position: 0 (0)",
+                               "Duration: 0 (0)",
+                               "Ended: NO (NO)",
+                               "Paused: NO (NO)",
+                               "Muted: NO (NO)",
+                               "TrackCount: 1 (1)",
+                               "TrackIndex: 0 (0)",
+                               "TrackState: ready (ready)"));
+    // Advance playback a bit
+    mediaPlayerFactory->advanceTime(1500);
+    clearEvents();
 
     // Play without audio
-    executePlayMedia("myVideo", "none", Object::EMPTY_ARRAY(), false);
-    ASSERT_TRUE(root->hasEvent());
-    event = root->popEvent();
-    ASSERT_EQ(kEventTypePlayMedia, event.getType());
-    ASSERT_EQ(kEventAudioTrackNone, event.getValue(kEventPropertyAudioTrack).getInteger());
-    ASSERT_EQ(component->getCoreChildAt(0), event.getComponent());
-    ASSERT_FALSE(event.getActionRef().empty());
+    executePlayMedia("myVideo", "none", "URL1", false);
+    ASSERT_TRUE(CheckSendEvent(root,
+                               "Handler: Play",
+                               "URL: URL1",
+                               "Position: 0 (0)",
+                               "Duration: 0 (0)",
+                               "Ended: NO (NO)",
+                               "Paused: NO (NO)",
+                               "Muted: NO (NO)",
+                               "TrackCount: 1 (1)",
+                               "TrackIndex: 0 (0)",
+                               "TrackState: ready (ready)"));
+    // Advance playback a bit
+    mediaPlayerFactory->advanceTime(1500);
+    clearEvents();
 
     // Test the "mute" alias
-    executePlayMedia("myVideo", "mute", Object::EMPTY_ARRAY(), false);
-    ASSERT_TRUE(root->hasEvent());
-    event = root->popEvent();
-    ASSERT_EQ(kEventTypePlayMedia, event.getType());
-    ASSERT_EQ(kEventAudioTrackNone, event.getValue(kEventPropertyAudioTrack).getInteger());
-    ASSERT_EQ(component->getCoreChildAt(0), event.getComponent());
-    ASSERT_FALSE(event.getActionRef().empty());
+    executePlayMedia("myVideo", "mute", "URL1", false);
+    ASSERT_TRUE(CheckSendEvent(root,
+                               "Handler: Play",
+                               "URL: URL1",
+                               "Position: 0 (0)",
+                               "Duration: 0 (0)",
+                               "Ended: NO (NO)",
+                               "Paused: NO (NO)",
+                               "Muted: NO (NO)",
+                               "TrackCount: 1 (1)",
+                               "TrackIndex: 0 (0)",
+                               "TrackState: ready (ready)"));
+    // Advance playback a bit
+    mediaPlayerFactory->advanceTime(1500);
+    clearEvents();
 
     // Play in fast mode
     ASSERT_FALSE(ConsoleMessage());
 
-    executePlayMedia("myVideo", "foreground", Object::EMPTY_ARRAY(), true);
+    executePlayMedia("myVideo", "foreground", "URL1", true);
     ASSERT_FALSE(root->hasEvent());
     ASSERT_TRUE(ConsoleMessage());
 
-    executePlayMedia("myVideo", "background", Object::EMPTY_ARRAY(), true);
+    executePlayMedia("myVideo", "background", "URL1", true);
     ASSERT_FALSE(root->hasEvent());
     ASSERT_TRUE(ConsoleMessage());
 
-    executePlayMedia("myVideo", "none", Object::EMPTY_ARRAY(), true);
+    executePlayMedia("myVideo", "none", "URL1", true);
     ASSERT_FALSE(root->hasEvent());
     ASSERT_TRUE(ConsoleMessage());
 }
@@ -276,19 +461,21 @@ TEST_F(CommandMediaTest, PlayMalformed)
 
 const static char *COMMAND_SERIES = R"([
   {
-    "type": "PlayMedia",
+    "type": "ControlMedia",
     "componentId": "myVideo",
-    "source": "URLX"
+    "command": "play"
   },
   {
     "type": "ControlMedia",
     "componentId": "myVideo",
-    "command": "next"
+    "command": "next",
+    "delay": 100
   },
   {
     "type": "ControlMedia",
     "componentId": "myVideo",
-    "command": "previous"
+    "command": "previous",
+    "delay": 100
   }
 ])";
 
@@ -305,58 +492,61 @@ TEST_F(CommandMediaTest, ControlSeries)
     ASSERT_TRUE(action);
     ASSERT_TRUE(action->isPending());
 
-    // There should be exactly one event on the stack
-    ASSERT_TRUE(root->hasEvent());
-    auto event = root->popEvent();
-    ASSERT_FALSE(root->hasEvent());
+    ASSERT_TRUE(CheckSendEvent(root,
+                               "Handler: Play",
+                               "URL: URL1",
+                               "Position: 0 (0)",
+                               "Duration: 0 (0)",
+                               "Ended: NO (NO)",
+                               "Paused: NO (NO)",
+                               "Muted: NO (NO)",
+                               "TrackCount: 3 (3)",
+                               "TrackIndex: 0 (0)",
+                               "TrackState: ready (ready)"));
 
-    // The first event should be a play with an action reference
-    ASSERT_EQ(kEventTypePlayMedia, event.getType());
-    ASSERT_FALSE(event.getActionRef().empty());
-    ASSERT_EQ(video, event.getComponent());
+    clearEvents();
 
-    // Update the video state
-    MediaState state(0, 3, 0, 1000, false, false, false);
-    video->updateMediaState(state, true);
-    CheckMediaState(state, video->getCalculated());
-    event.getActionRef().resolve();
+    advanceTime(1000);
+    mediaPlayerFactory->advanceTime(1000);
+    advanceTime(50);
 
-    // The next command should run
-    ASSERT_TRUE(root->hasEvent());
-    event = root->popEvent();
-    ASSERT_FALSE(root->hasEvent());
-    ASSERT_TRUE(action->isPending());
+    ASSERT_TRUE(CheckSendEvent(root,
+                               "Handler: TrackUpdate",
+                               "URL: URL2",
+                               "Position: 0 (0)",
+                               "Duration: 0 (0)",
+                               "Ended: NO (NO)",
+                               "Paused: YES (YES)",
+                               "Muted: NO (NO)",
+                               "TrackCount: 3 (3)",
+                               "TrackIndex: 1 (1)",
+                               "TrackState: ready (ready)"));
 
-    // The second event should be a control media with an action reference
-    ASSERT_EQ(kEventTypeControlMedia, event.getType());
-    ASSERT_EQ(kEventControlMediaNext, event.getValue(kEventPropertyCommand).asInt());
-    ASSERT_FALSE(event.getActionRef().empty());
-    ASSERT_EQ(video, event.getComponent());
+    advanceTime(100);
+    ASSERT_TRUE(CheckSendEvent(root,
+                               "Handler: TrackUpdate",
+                               "URL: URL1",
+                               "Position: 0 (0)",
+                               "Duration: 0 (0)",
+                               "Ended: NO (NO)",
+                               "Paused: YES (YES)",
+                               "Muted: NO (NO)",
+                               "TrackCount: 3 (3)",
+                               "TrackIndex: 0 (0)",
+                               "TrackState: ready (ready)"));
 
-    // Update the video state.  It's paused because the control media commands pause it
-    state = MediaState(1, 3, 0, 1000, true, false, false);
-    video->updateMediaState(state, true);
-    CheckMediaState(state, video->getCalculated());
-    event.getActionRef().resolve();
+    advanceTime(100);
+    ASSERT_TRUE(CheckSendEvent(root,
+                               "Handler: TrackReady",
+                               "URL: URL1",
+                               "Position: 0 (0)",
+                               "Duration: 0 (0)",
+                               "Ended: NO (NO)",
+                               "Paused: YES (YES)",
+                               "Muted: NO (NO)",
+                               "TrackCount: 3 (3)",
+                               "TrackIndex: 0 (0)",
+                               "TrackState: ready (ready)"));
 
-    // The third command should run
-    ASSERT_TRUE(root->hasEvent());
-    event = root->popEvent();
-    ASSERT_FALSE(root->hasEvent());
-    ASSERT_TRUE(action->isPending());
-
-    // The third event should be a control media with an action reference
-    ASSERT_EQ(kEventTypeControlMedia, event.getType());
-    ASSERT_EQ(kEventControlMediaPrevious, event.getValue(kEventPropertyCommand).asInt());
-    ASSERT_FALSE(event.getActionRef().empty());
-    ASSERT_EQ(video, event.getComponent());
-
-    // Update the video state.  It's paused because the control media commands pause it
-    state = MediaState(0, 3, 0, 1000, true, false, false);
-    video->updateMediaState(state, true);
-    CheckMediaState(state, video->getCalculated());
-    event.getActionRef().resolve();
-
-    ASSERT_FALSE(root->hasEvent());
-    ASSERT_FALSE(action->isPending());
+    clearEvents();
 }

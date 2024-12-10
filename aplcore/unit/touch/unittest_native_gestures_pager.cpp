@@ -3502,7 +3502,7 @@ TEST_F(NativeGesturesPagerTest, LiveDataPagerFullReplacement)
     ASSERT_TRUE(root->hasEvent());
     root->popEvent();
     ASSERT_EQ(1, component->getDisplayedChildCount());
-    ASSERT_EQ("black1", component->getDisplayedChildAt(0)->getId());
+    ASSERT_EQ("white0", component->getDisplayedChildAt(0)->getId());
     ASSERT_EQ(2, component->getChildCount());
     ASSERT_EQ(Object(Transform2D()), component->getDisplayedChildAt(0)->getCalculated(kPropertyTransform));
 }

@@ -23,6 +23,16 @@ public:
     AudioHighlightTest() : AudioTest() {
         config->measure(std::make_shared<MyTestMeasurement>());
     }
+
+    void TearDown() override
+    {
+        // Clear out unused highlight events
+        while (root->hasEvent()) {
+            ASSERT_EQ(root->popEvent().getType(), EventType::kEventTypeLineHighlight)
+                << "Unexpected event type";
+        }
+        AudioTest::TearDown();
+    }
 };
 
 static const char *BASIC = R"apl(
@@ -155,6 +165,7 @@ TEST_F(AudioHighlightTest, BasicSceneGraph)
 
     ASSERT_TRUE(CheckSceneGraph(
         sg, IsLayer(Rect{0, 0, 100, 100}, "...Text")
+                .characteristic(sg::Layer::kCharacteristicHasText)
                 .content(IsTransformNode().child(
                     IsTextNode().text("Fuzzy duck").pathOp(IsFillOp(IsColorPaint(Color::BLUE)))))));
 
@@ -168,6 +179,7 @@ TEST_F(AudioHighlightTest, BasicSceneGraph)
     sg = root->getSceneGraph();
     ASSERT_TRUE(CheckSceneGraph(
         sg, IsLayer(Rect{0, 0, 100, 100}, "...Text")
+                .characteristic(sg::Layer::kCharacteristicHasText)
                 .dirty(sg::Layer::kFlagRedrawContent)
                 .content(IsTransformNode().child(
                     IsTextNode().text("Fuzzy duck").pathOp(IsFillOp(IsColorPaint(Color::RED)))))));
@@ -182,6 +194,7 @@ TEST_F(AudioHighlightTest, BasicSceneGraph)
     sg = root->getSceneGraph();
     ASSERT_TRUE(
         CheckSceneGraph(sg, IsLayer(Rect{0, 0, 100, 100}, "...Text")
+                                .characteristic(sg::Layer::kCharacteristicHasText)
                                 .dirty(sg::Layer::kFlagRedrawContent)
                                 .content(IsTransformNode().child(
                                     IsTextNode()
@@ -201,6 +214,7 @@ TEST_F(AudioHighlightTest, BasicSceneGraph)
     sg = root->getSceneGraph();
     ASSERT_TRUE(CheckSceneGraph(
         sg, IsLayer(Rect{0, 0, 100, 100}, "...Text")
+                .characteristic(sg::Layer::kCharacteristicHasText)
                 .dirty(sg::Layer::kFlagRedrawContent)
                 .content(IsTransformNode().child(
                     IsTextNode()
@@ -222,6 +236,7 @@ TEST_F(AudioHighlightTest, BasicSceneGraph)
     sg = root->getSceneGraph();
     ASSERT_TRUE(CheckSceneGraph(
         sg, IsLayer(Rect{0, 0, 100, 100}, "...Text")
+                .characteristic(sg::Layer::kCharacteristicHasText)
                 .dirty(sg::Layer::kFlagRedrawContent)
                 .content(IsTransformNode().child(
                     IsTextNode().text("Fuzzy duck").pathOp(IsFillOp(IsColorPaint(Color::BLUE)))))));
@@ -308,6 +323,7 @@ TEST_F(AudioHighlightTest, Scrolling) {
         sg, IsLayer(Rect{0, 0, 100, 60}, "...ScrollView")
                 .vertical()
                 .child(IsLayer(Rect{0, 0, 100, 100}, "...Text")
+                           .characteristic(sg::Layer::kCharacteristicHasText)
                            .content(IsTransformNode().child(
                                IsTextNode()
                                    .text("Line1Line2Line3Line4Line5")
@@ -339,6 +355,7 @@ TEST_F(AudioHighlightTest, Scrolling) {
         CheckSceneGraph(sg, IsLayer(Rect{0, 0, 100, 60}, "...ScrollView")
                                 .vertical()
                                 .child(IsLayer(Rect{0, 0, 100, 100}, "...Text")
+                                           .characteristic(sg::Layer::kCharacteristicHasText)
                                            .dirty(sg::Layer::kFlagRedrawContent)
                                            .content(IsTransformNode().child(
                                                IsTextNode()
@@ -368,6 +385,7 @@ TEST_F(AudioHighlightTest, Scrolling) {
         CheckSceneGraph(sg, IsLayer(Rect{0, 0, 100, 60}, "...ScrollView")
                                 .vertical()
                                 .child(IsLayer(Rect{0, 0, 100, 100}, "...Text")
+                                           .characteristic(sg::Layer::kCharacteristicHasText)
                                            .content(IsTransformNode().child(
                                                IsTextNode()
                                                    .text("Line1Line2Line3Line4Line5")
@@ -389,6 +407,7 @@ TEST_F(AudioHighlightTest, Scrolling) {
         sg, IsLayer(Rect{0, 0, 100, 60}, "...ScrollView")
                 .vertical()
                 .child(IsLayer(Rect{0, 0, 100, 100}, "...Text")
+                           .characteristic(sg::Layer::kCharacteristicHasText)
                            .dirty(sg::Layer::kFlagRedrawContent)
                            .content(IsTransformNode().child(
                                IsTextNode()
@@ -420,6 +439,7 @@ TEST_F(AudioHighlightTest, Scrolling) {
             .vertical()
             .child(
                 IsLayer(Rect{0, 0, 100, 100}, "...Text")
+                    .characteristic(sg::Layer::kCharacteristicHasText)
                     .dirty(sg::Layer::kFlagRedrawContent)
                     .content(IsTransformNode().child(
                         IsTextNode()
@@ -454,6 +474,7 @@ TEST_F(AudioHighlightTest, Scrolling) {
             .childOffset(Point(0, 20))
             .child(
                 IsLayer(Rect{0, 0, 100, 100}, "...Text")
+                    .characteristic(sg::Layer::kCharacteristicHasText)
                     .content(IsTransformNode().child(
                         IsTextNode()
                             .text("Line1Line2Line3Line4Line5")
@@ -492,6 +513,7 @@ TEST_F(AudioHighlightTest, Scrolling) {
                 .dirty(sg::Layer::kFlagChildOffsetChanged)
                 .childOffset(Point(0, 40))
                 .child(IsLayer(Rect{0, 0, 100, 100}, "...Text")
+                           .characteristic(sg::Layer::kCharacteristicHasText)
                            .dirty(sg::Layer::kFlagRedrawContent)
                            .content(IsTransformNode().child(
                                IsTextNode()
@@ -531,6 +553,7 @@ TEST_F(AudioHighlightTest, ScrollingWithPreserve)
         sg, IsLayer(Rect{0, 0, 100, 60}, "...ScrollView")
                 .vertical()
                 .child(IsLayer(Rect{0, 0, 100, 100}, "...Text")
+                           .characteristic(sg::Layer::kCharacteristicHasText)
                            .content(IsTransformNode().child(
                                IsTextNode()
                                    .text("Line1Line2Line3Line4Line5")
@@ -562,6 +585,7 @@ TEST_F(AudioHighlightTest, ScrollingWithPreserve)
         CheckSceneGraph(sg, IsLayer(Rect{0, 0, 100, 60}, "...ScrollView")
                                 .vertical()
                                 .child(IsLayer(Rect{0, 0, 100, 100}, "...Text")
+                                           .characteristic(sg::Layer::kCharacteristicHasText)
                                            .dirty(sg::Layer::kFlagRedrawContent)
                                            .content(IsTransformNode().child(
                                                IsTextNode()
@@ -591,6 +615,7 @@ TEST_F(AudioHighlightTest, ScrollingWithPreserve)
         CheckSceneGraph(sg, IsLayer(Rect{0, 0, 100, 60}, "...ScrollView")
                                 .vertical()
                                 .child(IsLayer(Rect{0, 0, 100, 100}, "...Text")
+                                           .characteristic(sg::Layer::kCharacteristicHasText)
                                            .content(IsTransformNode().child(
                                                IsTextNode()
                                                    .text("Line1Line2Line3Line4Line5")
@@ -612,6 +637,7 @@ TEST_F(AudioHighlightTest, ScrollingWithPreserve)
         sg, IsLayer(Rect{0, 0, 100, 60}, "...ScrollView")
                 .vertical()
                 .child(IsLayer(Rect{0, 0, 100, 100}, "...Text")
+                           .characteristic(sg::Layer::kCharacteristicHasText)
                            .dirty(sg::Layer::kFlagRedrawContent)
                            .content(IsTransformNode().child(
                                IsTextNode()
@@ -643,6 +669,7 @@ TEST_F(AudioHighlightTest, ScrollingWithPreserve)
             .vertical()
             .child(
                 IsLayer(Rect{0, 0, 100, 100}, "...Text")
+                    .characteristic(sg::Layer::kCharacteristicHasText)
                     .dirty(sg::Layer::kFlagRedrawContent)
                     .content(IsTransformNode().child(
                         IsTextNode()
@@ -677,6 +704,7 @@ TEST_F(AudioHighlightTest, ScrollingWithPreserve)
             .childOffset(Point(0, 20))
             .child(
                 IsLayer(Rect{0, 0, 100, 100}, "...Text")
+                    .characteristic(sg::Layer::kCharacteristicHasText)
                     .content(IsTransformNode().child(
                         IsTextNode()
                             .text("Line1Line2Line3Line4Line5")
@@ -701,6 +729,9 @@ TEST_F(AudioHighlightTest, ScrollingWithPreserve)
     auto playerTimer = factory->getPlayers().at(0).lock()->getTimeoutId();
     loop->freeze(playerTimer);
 
+    // Clear out fallback karaoke events
+    while (root->hasEvent()) root->popEvent();
+
     configChange(ConfigurationChange(1000, 1000));
     processReinflate();
 
@@ -722,6 +753,7 @@ TEST_F(AudioHighlightTest, ScrollingWithPreserve)
                 .vertical()
                 .childOffset(Point(0, 40))
                 .child(IsLayer(Rect{0, 0, 100, 100}, "...Text")
+                           .characteristic(sg::Layer::kCharacteristicHasText)
                            .content(IsTransformNode().child(
                                IsTextNode()
                                    .text("Line1Line2Line3Line4Line5")

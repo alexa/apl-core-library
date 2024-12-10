@@ -19,6 +19,7 @@
 
 #include "apl/component/containercomponent.h"
 #include "apl/component/edittextcomponent.h"
+#include "apl/component/flexsequencecomponent.h"
 #include "apl/component/framecomponent.h"
 #include "apl/component/gridsequencecomponent.h"
 #include "apl/component/hostcomponent.h"
@@ -63,19 +64,20 @@ const char* WHEN_FIELD = "when";
 const char* ITEM_INDEX = "__itemIndex";
 
 static const std::map<std::string, MakeComponentFunc> sComponentMap = {
-    {"Container",     ContainerComponent::create},
-    {"Text",          TextComponent::create},
-    {"Image",         ImageComponent::create},
-    {"ScrollView",    ScrollViewComponent::create},
-    {"EditText",      EditTextComponent::create},
-    {"Frame",         FrameComponent::create},
-    {"Sequence",      SequenceComponent::create},
-    {"GridSequence",  GridSequenceComponent::create},
-    {"TouchWrapper",  TouchWrapperComponent::create},
-    {"Pager",         PagerComponent::create},
-    {"VectorGraphic", VectorGraphicComponent::create},
-    {"Video",         VideoComponent::create},
-    {"Host",          HostComponent::create}
+    {"Container",              ContainerComponent::create},
+    {"Text",                   TextComponent::create},
+    {"Image",                  ImageComponent::create},
+    {"ScrollView",             ScrollViewComponent::create},
+    {"EditText",               EditTextComponent::create},
+    {"Frame",                  FrameComponent::create},
+    {"Sequence",               SequenceComponent::create},
+    {"GridSequence",           GridSequenceComponent::create},
+    {"TouchWrapper",           TouchWrapperComponent::create},
+    {"Pager",                  PagerComponent::create},
+    {"VectorGraphic",          VectorGraphicComponent::create},
+    {"Video",                  VideoComponent::create},
+    {"Host",                   HostComponent::create},
+    {"FlexSequence",           FlexSequenceComponent::create}
 };
 
 

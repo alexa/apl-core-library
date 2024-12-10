@@ -147,6 +147,7 @@ public_apl_headers=(
     "apl/touch/pointerevent.h"
     "apl/utils/bimap.h"
     "apl/utils/counter.h"
+    "apl/utils/dataurl.h"
     "apl/utils/deprecated.h"
     "apl/utils/flags.h"
     "apl/utils/localemethods.h"

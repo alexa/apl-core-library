@@ -587,28 +587,28 @@ static const char *GRADIENT_ANGLE = R"({
   ]
 })";
 
-static const std::vector<std::vector<Object>> GRADIENT_ANGLE_TESTS = {
-    {"@l0",    0,    0.5, 0, 0.5, 1},
+static const std::vector<std::vector<Object>> GRADIENT_ANGLE_Y_FLIPPED_VERTICALLY_TESTS = {
+    {"@l0",    0,    0.5, 1, 0.5, 0},
     {"@l90",   90,   0, 0.5, 1, 0.5},
-    {"@l180",  180,  0.5, 1, 0.5, 0},
+    {"@l180",  180,  0.5, 0, 0.5, 1},
     {"@l270",  270,  1, 0.5, 0, 0.5},
-    {"@l360",  360,  0.5, 0, 0.5, 1},
-    {"@l45",   45,   0, 0, 1, 1},
+    {"@l360",  360,  0.5, 1, 0.5, 0},
+    {"@l45",   45,   0, 1, 1, 0},
 
-    {"@l30",   30,   0.1585, -0.0915, 0.8415, 1.0915},
-    {"@l120",  120,  -0.0915, 0.8415, 1.0915, 0.1584},
-    {"@l210",  210,  0.8415, 1.09150, 0.1584, -0.0915},
-    {"@l300",  300,  1.0915, 0.1584, -0.0915, 0.8415},
-    {"@l390",  390,  0.1585, -0.0915, 0.8415, 1.0915},
-    {"@ln60",  -60,  1.0915, 0.1584, -0.0915, 0.8415},
-    {"@ln150", -150, 0.8415, 1.0915, 0.1584, -0.0915},
+    {"@l30",   30,   0.1585, 1.0915, 0.8415, -0.0915},
+    {"@l120",  120,  -0.0915, 0.1584, 1.0915, 0.8415},
+    {"@l210",  210,  0.8415, -0.0915, 0.1584, 1.09150},
+    {"@l300",  300,  1.0915, 0.8415, -0.0915, 0.1584},
+    {"@l390",  390,  0.1585, 1.0915, 0.8415, -0.0915},
+    {"@ln60",  -60,  1.0915, 0.8415, -0.0915, 0.1584},
+    {"@ln150", -150, 0.8415, -0.0915, 0.1584, 1.0915},
 };
 
-TEST_F(ResourceTest, GradientAngle)
+TEST_F(ResourceTest, GradientAngleWithYFlippedVertically)
 {
     loadDocument(GRADIENT_ANGLE);
 
-    for (auto& t : GRADIENT_ANGLE_TESTS) {
+    for (auto& t : GRADIENT_ANGLE_Y_FLIPPED_VERTICALLY_TESTS) {
         LOG(LogLevel::kWarn) << t.at(0).toDebugString();
         auto object = context->opt(t.at(0).asString());
         ASSERT_TRUE(object.is<Gradient>());

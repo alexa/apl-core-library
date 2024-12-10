@@ -78,6 +78,8 @@ PathOpTest IsStrokeOp( PaintTest paintTest,
            GraphicLineCap lineCap, GraphicLineJoin lineJoin, std::vector<float> dashes, const std::string& msg="");
 PathOpTest IsFillOp( PaintTest paintTest, const std::string& msg="" );
 
+PathOpTest IsFillOp( PaintTest paintTest, apl::sg::FillType fillType, const std::string& msg="" );
+
 ShadowTest IsShadow( Color color, Point offset, float radius, const std::string& msg="");
 
 class IsAccessibility {

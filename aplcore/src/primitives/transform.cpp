@@ -23,8 +23,6 @@
 
 namespace apl {
 
-// TODO: Comparisons here should not use dynamic_casts.
-
 // Evaluate this object as a dimension.  If relative, use the side length to convert to a DP value.
 inline float
 evalDim(const Dimension& object, float side)
@@ -105,6 +103,36 @@ private:
     Dimension mY;
 };
 
+TransformPtr
+Transform::rotate(float angle)
+{
+    return std::make_unique<ScalarTransform>(Transform2D::rotate, Transform::ROTATE, angle);
+}
+
+TransformPtr
+Transform::skewX(float x)
+{
+    return std::make_unique<ScalarTransform>(Transform2D::skewX, Transform::SKEW_X, x);
+}
+
+TransformPtr
+Transform::skewY(float y)
+{
+    return std::make_unique<ScalarTransform>(Transform2D::skewY, Transform::SKEW_Y, y);
+}
+
+TransformPtr
+Transform::scale(float sx, float sy)
+{
+    return std::make_unique<ScaleTransform>(sx, sy);
+}
+
+TransformPtr
+Transform::translate(Dimension tx, Dimension ty)
+{
+    return std::make_unique<TranslateTransform>(tx, ty);
+}
+
 /**
  * Convert from an object to a transform.  The objects are of the form { "rotate": VALUE } or
  * { "scale": 2, "scaleY": 3 }.
@@ -112,7 +140,7 @@ private:
  * @param element The object to be converted into a transform.
  * @return The transform.
  */
-static std::unique_ptr<Transform> transformFromElement(const Context& context, const Object& element)
+static TransformPtr transformFromElement(const Context& context, const Object& element)
 {
     if (!element.isMap()) {
         CONSOLE(context) << "Illegal transform element " << element;
@@ -121,7 +149,7 @@ static std::unique_ptr<Transform> transformFromElement(const Context& context, c
 
     auto rotate = propertyAsObject(context, element, "rotate");
     if (rotate != Object::NULL_OBJECT())
-        return std::make_unique<ScalarTransform>(Transform2D::rotate, Transform::ROTATE, rotate.asNumber());
+        return Transform::rotate(rotate.asNumber());
 
     auto scaleX = propertyAsObject(context, element, "scaleX");
     auto scaleY = propertyAsObject(context, element, "scaleY");
@@ -135,16 +163,16 @@ static std::unique_ptr<Transform> transformFromElement(const Context& context, c
             sx = scaleX.asNumber();
         if (scaleY != Object::NULL_OBJECT())
             sy = scaleY.asNumber();
-        return std::make_unique<ScaleTransform>(sx, sy);
+        return Transform::scale(sx, sy);
     }
 
     auto skewX = propertyAsObject(context, element, "skewX");
     if (skewX != Object::NULL_OBJECT())
-        return std::make_unique<ScalarTransform>(Transform2D::skewX, Transform::SKEW_X, skewX.asNumber());
+        return Transform::skewX(skewX.asNumber());
 
     auto skewY = propertyAsObject(context, element, "skewY");
     if (skewY != Object::NULL_OBJECT())
-        return std::make_unique<ScalarTransform>(Transform2D::skewY, Transform::SKEW_Y, skewY.asNumber());
+        return Transform::skewY(skewY.asNumber());
 
     auto translateX = propertyAsObject(context, element, "translateX");
     auto translateY = propertyAsObject(context, element, "translateY");
@@ -155,7 +183,7 @@ static std::unique_ptr<Transform> transformFromElement(const Context& context, c
             tx = translateX.asNonAutoDimension(context);
         if (translateY != Object::NULL_OBJECT())
             ty = translateY.asNonAutoDimension(context);
-        return std::make_unique<TranslateTransform>(tx, ty);
+        return Transform::translate(tx, ty);
     }
 
     CONSOLE(context) << "Transform element doesn't have a valid property" << element;
@@ -207,7 +235,7 @@ public:
     }
 
 private:
-    std::vector<std::unique_ptr<Transform>> mArray;
+    std::vector<TransformPtr> mArray;
 
     // Minor optimizations to avoid recalculating the matrix.
     Transform2D mTransform2D;
@@ -246,8 +274,8 @@ public:
                 continue;
             }
 
-            mFrom.push_back(std::move(fromTransform));
-            mTo.push_back(std::move(toTransform));
+            mFrom.push_back(fromTransform);
+            mTo.push_back(toTransform);
 
             if (fromType != Transform::TRANSLATE)
                 mNeedsCentering = true;
@@ -293,8 +321,8 @@ public:
     }
 
 private:
-    std::vector<std::unique_ptr<Transform>> mFrom;
-    std::vector<std::unique_ptr<Transform>> mTo;
+    std::vector<TransformPtr> mFrom;
+    std::vector<TransformPtr> mTo;
 
     // Minor optimizations to avoid recalculating the matrix.
     Transform2D mTransform2D;

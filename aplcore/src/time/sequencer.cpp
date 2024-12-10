@@ -20,6 +20,7 @@
 #include "apl/document/documentcontext.h"
 #include "apl/time/timemanager.h"
 #include "apl/utils/log.h"
+#include "apl/utils/actiondata.h"
 
 namespace apl {
 
@@ -367,6 +368,20 @@ Sequencer::reattachSequencer(const std::string& sequencerName, const ActionPtr& 
     if (!action->rehydrate(context)) return false;
     attachToSequencer(action, sequencerName);
     return true;
+}
+
+rapidjson::Value
+Sequencer::serialize(rapidjson::Document::AllocatorType& allocator) const
+{
+    rapidjson::Value actionHints(rapidjson::kArrayType);
+    for (auto &it: mResourcesByAction) {
+        rapidjson::Value sequencer(rapidjson::kObjectType);
+        auto action = it.second.lock();
+        if (action) {
+            actionHints.PushBack(action->getActionData().serialize(allocator), allocator);
+        }
+    }
+    return actionHints;
 }
 
 } // namespace apl

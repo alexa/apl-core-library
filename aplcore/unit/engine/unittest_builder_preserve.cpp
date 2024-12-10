@@ -867,9 +867,9 @@ static const char *VIDEO_COMPONENT_PLAY_STATE = R"apl(
           "width": "100%",
           "height": "100%",
           "source": [
-            "URL1",
-            "URL2",
-            "URL3"
+            {"url": "URL1", "duration": 3003},
+            {"url": "URL2", "duration": 3003},
+            {"url": "URL3", "duration": 3003}
           ],
           "preserve": [
             "playingState"
@@ -885,22 +885,32 @@ static const char *VIDEO_COMPONENT_PLAY_STATE = R"apl(
  */
 TEST_F(BuilderPreserveTest, VideoComponentPlayState)
 {
+    mediaPlayerFactory->addFakeContent({
+        {"URL1", 3003, 0, -1},
+        {"URL2", 3003, 0, -1},
+        {"URL3", 3003, 0, -1},
+    });
     metrics.size(300,300);
     loadDocument(VIDEO_COMPONENT_PLAY_STATE);
     ASSERT_TRUE(component);
     ASSERT_TRUE(IsEqual(Rect(0,0,300,300), component->getCalculated(kPropertyBounds)));
     auto oldId = component->getUniqueId();
 
-    MediaState ms{
-        1,      // Track index
-        3,      // Track count
-        1003,   // Current time
-        3003,   // Duration
-        false,  // Paused
-        false,  // Ended
-        false   // Muted
-    };
-    component->updateMediaState(ms, false);
+    executeCommand("ControlMedia", {{"componentId", "MY_VIDEO"}, {"command", "next"}}, false);
+    executeCommand("ControlMedia", {{"componentId", "MY_VIDEO"}, {"command", "play"}}, false);
+    mediaPlayerFactory->advanceTime(1003);
+
+//    MediaState ms{
+//        1,      // Track index
+//        3,      // Track count
+//        1003,   // Current time
+//        3003,   // Duration
+//        false,  // Paused
+//        false,  // Ended
+//        false   // Muted
+//    };
+//    component->updateMediaState(ms, false);
+
     ASSERT_TRUE(IsEqual(1, component->getCalculated(kPropertyTrackIndex)));
     ASSERT_TRUE(IsEqual(3, component->getCalculated(kPropertyTrackCount)));
     ASSERT_TRUE(IsEqual(1003, component->getCalculated(kPropertyTrackCurrentTime)));

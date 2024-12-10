@@ -19,6 +19,8 @@
 #include "apl/component/pagercomponent.h"
 #include "apl/time/sequencer.h"
 
+#include "apl/utils/actiondata.h"
+
 namespace apl {
 
 inline int clamp(int v, int minV, int maxV)
@@ -138,6 +140,12 @@ SetPageAction::rehydrate(const CoreDocumentContext& context)
     mTarget->setProperty(kPropertyPageIndex, Object(mTargetIndex));
 
     return true;
+}
+
+ActionData
+SetPageAction::getActionData()
+{
+    return ActionData().target(mTarget).actionHint("Paging");
 }
 
 } // namespace apl

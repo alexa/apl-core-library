@@ -26,12 +26,12 @@ public:
     SequenceComponent(const ContextPtr& context, Properties&& properties, const Path& path);
 
     ComponentType getType() const override { return kComponentTypeSequence; };
+    bool isSingleChildOnCrossAxis() override { return true; };
 
 protected:
     const ComponentPropDefSet& propDefSet() const override;
     const ComponentPropDefSet* layoutPropDefSet() const override;
     bool childrenUseSpacingProperty() const override { return true; }
-    size_t estimateChildrenToCover(float distance, size_t baseChild) override;
 
 };
 

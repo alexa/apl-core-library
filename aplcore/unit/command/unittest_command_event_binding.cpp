@@ -217,6 +217,7 @@ static const char *VIDEO_COMPONENT_EVENT_INTERPOLATION = R"apl(
       "mainTemplate": {
         "item": {
           "type": "Video",
+          "id": "MyVideo",
           "bind": [
             {
               "name": "OTHER",
@@ -256,6 +257,12 @@ static const char *VIDEO_COMPONENT_EVENT_INTERPOLATION = R"apl(
  */
 TEST_F(CommandEventBinding, VideoComponentEventInterpolation)
 {
+    mediaPlayerFactory->addFakeContent({
+        { "track2", 12000, 0, -1 },
+        { "track13", 12000, 0, -1 },
+        { "track3", 12000, 0, -1 },
+    });
+
     loadDocument(VIDEO_COMPONENT_EVENT_INTERPOLATION);
     ASSERT_TRUE(component);
 
@@ -265,23 +272,14 @@ TEST_F(CommandEventBinding, VideoComponentEventInterpolation)
     ASSERT_EQ("track13", array.at(1).get<MediaSource>().getUrl());
     ASSERT_EQ("track3", array.at(2).get<MediaSource>().getUrl());
 
-    // Start playback
-    component->updateMediaState(MediaState(0,
-                                           3,
-                                           0,
-                                           12000,
-                                           false,
-                                           false,
-                                           false));
+    executeCommand("ControlMedia", {{"componentId", "MyVideo"}, {"command", "play"}}, false);
 
-    // Pause the video
-    component->updateMediaState(MediaState(0,
-                                           3,
-                                           230,
-                                           12000,
-                                           true,
-                                           false,
-                                           false));
+    mediaPlayerFactory->advanceTime(230);
+    advanceTime(230);
+
+    executeCommand("ControlMedia", {{"componentId", "MyVideo"}, {"command", "pause"}}, false);
+
+
     root->clearPending();
     ASSERT_TRUE(CheckDirty(component, kPropertySource, kPropertyVisualHash));
     ASSERT_TRUE(CheckDirty(root, component));

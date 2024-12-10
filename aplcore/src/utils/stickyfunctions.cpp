@@ -16,7 +16,7 @@
 #include "apl/utils/stickyfunctions.h"
 
 #include "apl/component/corecomponent.h"
-#include "apl/component/yogaproperties.h"
+#include "apl/yoga/yogaproperties.h"
 
 namespace apl {
 

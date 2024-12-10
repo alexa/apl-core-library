@@ -1677,6 +1677,10 @@ TEST_F(DynamicTokenListTest, DeepProgressive) {
     metrics.size(750, 750);
     config->dataSourceProvider("testList", source);
 
+    audioPlayerFactory->addFakeContent({
+        { "https://example.com/test.mp3", 1000, 0, -1, {} }, // 1000 ms long, 1000 ms buffer delay
+    });
+
     loadDocument(BIT_BY_A_BIT_DEEP, BIT_BY_A_BIT_DATA);
     auto sequence = CoreComponent::cast(root->findComponentById("dynamicSequence"));
     ASSERT_TRUE(sequence);
@@ -1685,13 +1689,9 @@ TEST_F(DynamicTokenListTest, DeepProgressive) {
     ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "101", "forwardPageToken1"));
     ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "102", "backwardsPageToken1"));
 
-    ASSERT_TRUE(root->hasEvent());
-    auto event = root->popEvent();
-    ASSERT_EQ(kEventTypePreroll, event.getType());
-
-    ASSERT_TRUE(root->hasEvent());
-    event = root->popEvent();
-    ASSERT_EQ(kEventTypeSpeak, event.getType());
+    ASSERT_TRUE(CheckPlayer("https://example.com/test.mp3", TestAudioPlayer::kPreroll));
+    ASSERT_TRUE(CheckPlayer("https://example.com/test.mp3", TestAudioPlayer::kReady));
+    ASSERT_TRUE(CheckPlayer("https://example.com/test.mp3", TestAudioPlayer::kPlay));
 
     auto checker = [sequence](int sIdx, int eIdx) {
         int shift = 0;
@@ -1748,11 +1748,9 @@ TEST_F(DynamicTokenListTest, DeepProgressive) {
     ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "108", "backwardsPageToken4"));
 
     ASSERT_EQ(19, sequence->getChildCount());
-    ASSERT_EQ(Point(0, 900), sequence->scrollPosition());
 
-    ASSERT_TRUE(CheckChildrenLaidOut(sequence, {0, 2}, false));
-    ASSERT_TRUE(CheckChildrenLaidOut(sequence, {3, 18}, true));
-    ASSERT_TRUE(checker(3, 18));
+    ASSERT_TRUE(CheckChildrenLaidOut(sequence, {0, 15}, true));
+    ASSERT_TRUE(checker(0, 15));
 
     advanceTime(600);
     ASSERT_TRUE(source->processUpdate(createLazyLoad(107, "forwardPageToken4", "forwardPageToken5", "110, 111, 112")));
@@ -1765,32 +1763,28 @@ TEST_F(DynamicTokenListTest, DeepProgressive) {
 
     ASSERT_EQ(25, sequence->getChildCount());
     ASSERT_EQ(Point(0, 900), sequence->scrollPosition());
-    ASSERT_TRUE(CheckChildrenLaidOut(sequence, {0, 5}, false));
-    ASSERT_TRUE(CheckChildrenLaidOut(sequence, {6, 22}, true));
-    ASSERT_TRUE(CheckChildrenLaidOut(sequence, {23, 24}, false));
-    ASSERT_TRUE(checker(6, 22));
+    ASSERT_TRUE(CheckChildrenLaidOut(sequence, {0, 18}, true));
+    ASSERT_TRUE(CheckChildrenLaidOut(sequence, {19, 24}, false));
+    ASSERT_TRUE(checker(0, 18));
 
-    event.getActionRef().resolve();
     ASSERT_EQ(Point(0, 900), sequence->scrollPosition());
 
     advanceTime(500);
 
-    ASSERT_TRUE(CheckChildrenLaidOut(sequence, {0, 22}, true));
-    ASSERT_TRUE(CheckChildrenLaidOut(sequence, {23, 24}, false));
+    ASSERT_TRUE(CheckChildrenLaidOut(sequence, {0, 18}, true));
+    ASSERT_TRUE(CheckChildrenLaidOut(sequence, {19, 24}, false));
 
-    ASSERT_EQ(Point(0, 1800), sequence->scrollPosition());
-    ASSERT_TRUE(checker(0, 22));
-
-    advanceTime(1000);
-
-    ASSERT_EQ(Point(0, 0), sequence->scrollPosition()); // Current 0 index effectively
     ASSERT_TRUE(source->processUpdate(createLazyLoad(109, "forwardPageToken5", "", "113, 114, 115")));
     ASSERT_TRUE(source->processUpdate(createLazyLoad(110, "backwardsPageToken5", "", "85, 86, 87")));
 
     advanceTime(16);
-    ASSERT_TRUE(CheckChildrenLaidOut(sequence, {0, 25}, true));
-    ASSERT_TRUE(CheckChildrenLaidOut(sequence, {26, 28}, false));
-    ASSERT_TRUE(checker(0, 25));
+    ASSERT_TRUE(CheckChildrenLaidOut(sequence, {0, 2}, false));
+    ASSERT_TRUE(CheckChildrenLaidOut(sequence, {3, 21}, true));
+    ASSERT_TRUE(CheckChildrenLaidOut(sequence, {22, 28}, false));
+    ASSERT_TRUE(checker(3, 21));
+
+    ASSERT_TRUE(CheckPlayer("https://example.com/test.mp3", TestAudioPlayer::kDone));
+    ASSERT_TRUE(CheckPlayer("https://example.com/test.mp3", TestAudioPlayer::kRelease));
 }
 
 static const char *DOUBLE_PAGER_GALORE = R"({

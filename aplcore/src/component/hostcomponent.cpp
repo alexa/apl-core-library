@@ -19,7 +19,6 @@
 #include <memory>
 #include <utility>
 
-#include "apl/component/yogaproperties.h"
 #include "apl/content/content.h"
 #include "apl/content/viewport.h"
 #include "apl/datasource/datasourceprovider.h"
@@ -30,6 +29,7 @@
 #include "apl/engine/sharedcontextdata.h"
 #include "apl/engine/tickscheduler.h"
 #include "apl/time/sequencer.h"
+#include "apl/yoga/yogaproperties.h"
 
 namespace {
 

@@ -108,6 +108,7 @@ bool
 TopAtPosition::universalCondition(const CoreComponent& component, const Point& pointInCurrent) {
     return component.containsLocalPosition(pointInCurrent)
            && component.getCalculated(kPropertyDisplay).asInt() == kDisplayNormal
-           && component.getCalculated(kPropertyOpacity).asNumber() > 0.0;
+           && component.getCalculated(kPropertyOpacity).asNumber() > 0.0
+           && component.isValid();
 }
 }

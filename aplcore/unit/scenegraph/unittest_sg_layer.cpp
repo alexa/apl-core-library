@@ -146,7 +146,7 @@ TEST_F(SGLayerTest, Rich)
                     "op": [
                         {
                             "type": "fill",
-                            "fillType": "even-odd",
+                            "fillType": "non-zero",
                             "paint": {
                                 "type": "colorPaint",
                                 "color": "#008000ff",

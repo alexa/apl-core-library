@@ -16,7 +16,7 @@
 #include "apl/component/containercomponent.h"
 
 #include "apl/component/componentpropdef.h"
-#include "apl/component/yogaproperties.h"
+#include "apl/yoga/yogaproperties.h"
 
 namespace apl {
 
@@ -85,17 +85,17 @@ ContainerComponent::layoutPropDefSet() const
     // TODO: Break these into two sets so we don't calculate everything all of the time.
     static ComponentPropDefSet sContainerChildProperties = ComponentPropDefSet().add({
          {kPropertyAlignSelf,     kFlexboxAlignAuto,                 sFlexboxAlignMap,    kPropIn | kPropStyled | kPropDynamic | kPropResetOnRemove, yn::setAlignSelf },
-         {kPropertyBottom,        Dimension(DimensionType::Auto, 0), asDimension,         kPropIn | kPropStyled | kPropDynamic | kPropResetOnRemove, yn::setPosition<YGEdgeBottom> },
-         {kPropertyEnd,           Object::NULL_OBJECT(),             asNonAutoDimension,  kPropIn | kPropStyled | kPropDynamic | kPropResetOnRemove, yn::setPosition<YGEdgeEnd> },
+         {kPropertyBottom,        Dimension(DimensionType::Auto, 0), asDimension,         kPropIn | kPropStyled | kPropDynamic | kPropResetOnRemove, yn::setPosition<Edge::Bottom> },
+         {kPropertyEnd,           Object::NULL_OBJECT(),             asNonAutoDimension,  kPropIn | kPropStyled | kPropDynamic | kPropResetOnRemove, yn::setPosition<Edge::End> },
          {kPropertyGrow,          0,                                 asNonNegativeNumber, kPropIn | kPropStyled | kPropDynamic | kPropResetOnRemove, yn::setPropertyGrow },
-         {kPropertyLeft,          Dimension(DimensionType::Auto, 0), asDimension,         kPropIn | kPropStyled | kPropDynamic | kPropResetOnRemove, yn::setPosition<YGEdgeLeft> },
+         {kPropertyLeft,          Dimension(DimensionType::Auto, 0), asDimension,         kPropIn | kPropStyled | kPropDynamic | kPropResetOnRemove, yn::setPosition<Edge::Left> },
          {kPropertyNumbering,     kNumberingNormal,                  sNumberingMap,       kPropIn },
          {kPropertyPosition,      kPositionRelative,                 sPositionMap,        kPropIn | kPropStyled | kPropDynamic | kPropResetOnRemove, yn::setPositionType },
-         {kPropertyRight,         Dimension(DimensionType::Auto, 0), asDimension,         kPropIn | kPropStyled | kPropDynamic | kPropResetOnRemove, yn::setPosition<YGEdgeRight> },
+         {kPropertyRight,         Dimension(DimensionType::Auto, 0), asDimension,         kPropIn | kPropStyled | kPropDynamic | kPropResetOnRemove, yn::setPosition<Edge::Right> },
          {kPropertyShrink,        0,                                 asNonNegativeNumber, kPropIn | kPropStyled | kPropDynamic | kPropResetOnRemove, yn::setPropertyShrink },
          {kPropertySpacing,       Dimension(0),                      asAbsoluteDimension, kPropIn | kPropStyled | kPropDynamic | kPropNeedsNode | kPropResetOnRemove, yn::setSpacing },
-         {kPropertyStart,         Object::NULL_OBJECT(),             asNonAutoDimension,  kPropIn | kPropStyled | kPropDynamic | kPropResetOnRemove, yn::setPosition<YGEdgeStart> },
-         {kPropertyTop,           Dimension(DimensionType::Auto, 0), asDimension,         kPropIn | kPropStyled | kPropDynamic | kPropResetOnRemove, yn::setPosition<YGEdgeTop> }
+         {kPropertyStart,         Object::NULL_OBJECT(),             asNonAutoDimension,  kPropIn | kPropStyled | kPropDynamic | kPropResetOnRemove, yn::setPosition<Edge::Start> },
+         {kPropertyTop,           Dimension(DimensionType::Auto, 0), asDimension,         kPropIn | kPropStyled | kPropDynamic | kPropResetOnRemove, yn::setPosition<Edge::Top> }
      });
     return &sContainerChildProperties;
 }

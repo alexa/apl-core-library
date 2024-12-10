@@ -3567,4 +3567,246 @@ TEST_F(ExtensionClientTest, DefaultPropertyValues) {
     ASSERT_EQ(apl::ObjectArray({"Math", "CS", "Physics"}), payload["classes"].getArray());
 }
 
+static const char* NESTED_DYNAMIC_DATA_DOC = R"({
+    "type": "APL",
+    "version": "1.7",
+    "theme": "dark",
+    "extensions": [{
+        "uri": "aplext:hello:10",
+        "name": "FakeDataStore"
+    }],
+    "mainTemplate": {
+        "items": {
+            "type": "Container",
+            "items": [{
+                "type": "Text",
+                "id": "MyText",
+                "text": "${environment.extension.FakeDataStore ? 'Present' : 'Missing'}"
+            }, {
+                "type": "Container",
+                "id": "TopLevelContainer",
+                "data": "${outerItems}",
+                "items": {
+                    "type": "Container",
+                    "id": "OuterContainer",
+                    "items": [{
+                        "type": "Text",
+                        "id": "OuterText",
+                        "text": "${data.name}"
+                    }, {
+                        "type": "Container",
+                        "id": "InnerContainer",
+                        "data": "${innerItems}",
+                        "items": [{
+                            "type": "Text",
+                            "id": "InnerText",
+                            "text": "${data.name}"
+                        }]
+                    }]
+                }
+            }]
+        }
+    }
+})";
+
+static const char* NESTED_REGISTER_SUCCESS = R"({
+    "method": "RegisterSuccess",
+    "version": "1.0",
+    "token": "fc982c79-8644-4fd0-9b02-501ded9d9f44",
+    "environment": {
+        "version": "aplext-datastore-1.0"
+    },
+    "schema": {
+        "type": "Schema",
+        "version": "1.0",
+        "uri": "aplext:hello:10",
+        "types": [{
+            "name": "ItemData",
+            "properties": {
+                "dataModel": {
+                    "type": "object",
+                    "required": true,
+                    "default": "{}"
+                }
+            }
+        }],
+        "events": [],
+        "commands": [],
+        "liveData": [{
+            "name": "outerItems",
+            "type": "ItemData[]"
+        }, {
+            "name": "innerItems",
+            "type": "ItemData[]"
+        }]
+    }
+})";
+
+static const char* OUTER_LIVE_DATA_UPDATE = R"({
+    "version": "1.0",
+    "method": "LiveDataUpdate",
+    "name": "outerItems",
+    "target": "aplext:hello:10",
+    "operations": [{
+        "type": "Clear"
+    }, {
+        "type": "Insert",
+        "index": 0,
+        "item": [{
+            "dataModel": {
+                "name": "Outer1"
+            },
+            "name": "Outer1"
+        }, {
+            "dataModel": {
+                "name": "Outer2"
+            },
+            "name": "Outer2"
+        }]
+    }]
+})";
+
+static const char* INNER_LIVE_DATA_UPDATE = R"({
+    "version": "1.0",
+    "method": "LiveDataUpdate",
+    "name": "innerItems",
+    "target": "aplext:hello:10",
+    "operations": [{
+        "type": "Clear"
+    }, {
+        "type": "Insert",
+        "index": 0,
+        "item": [{
+            "dataModel": {
+                "name": "Inner1"
+            },
+            "name": "Inner1"
+        }, {
+            "dataModel": {
+                "name": "Inner2"
+            },
+            "name": "Inner2"
+        }]
+    }]
+})";
+
+static const char* OUTER_LIVE_DATA_UPDATE2 = R"({
+    "version": "1.0",
+    "method": "LiveDataUpdate",
+    "name": "outerItems",
+    "target": "aplext:hello:10",
+    "operations": [{
+        "type": "Clear"
+    }, {
+        "type": "Insert",
+        "index": 0,
+        "item": [{
+            "dataModel": {
+                "name": "Outer3"
+            },
+            "name": "Outer3"
+        }, {
+            "dataModel": {
+                "name": "Outer4"
+            },
+            "name": "Outer4"
+        }]
+    }]
+})";
+
+static const char* INNER_LIVE_DATA_UPDATE2 = R"({
+    "version": "1.0",
+    "method": "LiveDataUpdate",
+    "name": "innerItems",
+    "target": "aplext:hello:10",
+    "operations": [{
+        "type": "Clear"
+    }, {
+        "type": "Insert",
+        "index": 0,
+        "item": [{
+            "dataModel": {
+                "name": "Inner3"
+            },
+            "name": "Inner3"
+        }, {
+            "dataModel": {
+                "name": "Inner4"
+            },
+            "name": "Inner4"
+        }]
+    }]
+})";
+
+void assertDynamicContent(const ComponentPtr& topLevelContainer, const std::string& outerA, const std::string& outerB, const std::string& innerA, const std::string& innerB) {
+    ASSERT_EQ(2, topLevelContainer->getChildCount());
+    auto outerContainerA = topLevelContainer->getChildAt(0);
+    auto outerContainerB = topLevelContainer->getChildAt(1);
+    ASSERT_EQ(2, outerContainerA->getChildCount());
+    ASSERT_EQ(2, outerContainerB->getChildCount());
+
+    auto innerContainerA = outerContainerA->getChildAt(1);
+    auto innerContainerB = outerContainerB->getChildAt(1);
+    ASSERT_EQ(2, innerContainerA->getChildCount());
+    ASSERT_EQ(2, innerContainerB->getChildCount());
+
+    ASSERT_STREQ(outerA.c_str(), outerContainerA->getChildAt(0)->getCalculated(kPropertyText).asString().c_str());
+    ASSERT_STREQ(outerB.c_str(), outerContainerB->getChildAt(0)->getCalculated(kPropertyText).asString().c_str());
+    ASSERT_STREQ(innerA.c_str(), innerContainerA->getChildAt(0)->getCalculated(kPropertyText).asString().c_str());
+    ASSERT_STREQ(innerB.c_str(), innerContainerA->getChildAt(1)->getCalculated(kPropertyText).asString().c_str());
+    ASSERT_STREQ(innerA.c_str(), innerContainerB->getChildAt(0)->getCalculated(kPropertyText).asString().c_str());
+    ASSERT_STREQ(innerB.c_str(), innerContainerB->getChildAt(1)->getCalculated(kPropertyText).asString().c_str());
+}
+
+TEST_F(ExtensionClientTest, NestedExtensionLiveData) {
+    createConfigAndClient(NESTED_DYNAMIC_DATA_DOC);
+
+    // Check what document wants.
+    auto extRequests = content->getExtensionRequests();
+    ASSERT_EQ(1, extRequests.size());
+    auto extRequest = *extRequests.begin();
+    ASSERT_EQ("aplext:hello:10", extRequest);
+
+    // Pass request and settings to connection request creation.
+    auto connectionRequest = client->createRegistrationRequest(doc.GetAllocator(), *content);
+    ASSERT_STREQ("aplext:hello:10", connectionRequest["uri"].GetString());
+
+    // Runtime asked for connection. Process Schema message
+    ASSERT_TRUE(client->processMessage(nullptr, NESTED_REGISTER_SUCCESS));
+    initializeContext();
+
+    ASSERT_TRUE(client->processMessage(nullptr, OUTER_LIVE_DATA_UPDATE));
+    ASSERT_TRUE(client->processMessage(nullptr, INNER_LIVE_DATA_UPDATE));
+    advanceTime(10);
+    assertDynamicContent(root->findComponentById("TopLevelContainer"), "Outer1", "Outer2", "Inner1", "Inner2");
+
+    ASSERT_TRUE(client->processMessage(nullptr, OUTER_LIVE_DATA_UPDATE2));
+    ASSERT_TRUE(client->processMessage(nullptr, INNER_LIVE_DATA_UPDATE2));
+    advanceTime(10);
+
+    ASSERT_TRUE(client->processMessage(nullptr, OUTER_LIVE_DATA_UPDATE));
+    ASSERT_TRUE(client->processMessage(nullptr, INNER_LIVE_DATA_UPDATE));
+    advanceTime(10);
+
+    ASSERT_TRUE(client->processMessage(nullptr, OUTER_LIVE_DATA_UPDATE2));
+    ASSERT_TRUE(client->processMessage(nullptr, INNER_LIVE_DATA_UPDATE2));
+    advanceTime(10);
+
+    ASSERT_TRUE(client->processMessage(nullptr, OUTER_LIVE_DATA_UPDATE));
+    advanceTime(10);
+
+    ASSERT_TRUE(client->processMessage(nullptr, INNER_LIVE_DATA_UPDATE));
+    ASSERT_TRUE(client->processMessage(nullptr, OUTER_LIVE_DATA_UPDATE2));
+    ASSERT_TRUE(client->processMessage(nullptr, INNER_LIVE_DATA_UPDATE2));
+    advanceTime(10);
+
+    ASSERT_TRUE(client->processMessage(nullptr, INNER_LIVE_DATA_UPDATE));
+    advanceTime(10);
+
+    ASSERT_TRUE(client->processMessage(nullptr, OUTER_LIVE_DATA_UPDATE));
+    ASSERT_TRUE(client->processMessage(nullptr, OUTER_LIVE_DATA_UPDATE2));
+    ASSERT_TRUE(client->processMessage(nullptr, INNER_LIVE_DATA_UPDATE2));
+    advanceTime(10);
+}
+
 #endif

@@ -315,6 +315,7 @@ fill(PaintPtr paint, FillType fillType)
 {
     auto op = std::make_shared<FillPathOp>();
     op->paint = std::move(paint);
+    op->fillType = fillType;
     return op;
 }
 
@@ -383,8 +384,11 @@ filter(MediaObjectPtr mediaObject)
 FilterPtr
 blend(FilterPtr back, FilterPtr front, BlendMode blendMode)
 {
-    if (!front || !back)
+    if (!front || !front->visible())
         return back;
+
+    if (!back || !back->visible())
+        return front;
 
     auto result = std::make_shared<BlendFilter>();
     result->back = std::move(back);
@@ -437,7 +441,7 @@ noise(FilterPtr filter, NoiseFilterKind kind, bool useColor, float sigma )
 FilterPtr
 saturate(FilterPtr filter, float amount)
 {
-    if (amount <= 0 || !filter)
+    if (amount < 0 || !filter)
         return filter;
 
     auto result = std::make_shared<SaturateFilter>();
@@ -449,9 +453,6 @@ saturate(FilterPtr filter, float amount)
 FilterPtr
 solid(PaintPtr paint)
 {
-    if (!paint->visible())
-        return nullptr;
-
     auto result = std::make_shared<SolidFilter>();
     result->paint = std::move(paint);
     return result;

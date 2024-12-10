@@ -43,6 +43,7 @@ public:
      * @param context data binding context.
      * @param commonName name to be used if none specified in *value*.
      * @param commonVersion version to be used if none specified in *value*.
+     * @param commonDomain domain to be used if none specified in *value*.
      * @param commonLoadAfter loadAfter to be used if none specified in *value*.
      * @param commonAccept accept to be used if none specified in *value*.
      * @param session session for reporting errors parsing version and accept
@@ -53,12 +54,21 @@ public:
                                 const SessionPtr& session,
                                 const std::string& commonName = "",
                                 const std::string& commonVersion = "",
+                                const std::string& commonDomain = "",
                                 const std::set<std::string>& commonLoadAfter = {},
                                 const std::string& commonAccept = "");
 
     ImportRequest(const std::string& name,
                   const std::string& version,
                   const std::string& source,
+                  const std::set<std::string>& loadAfter,
+                  const SemanticVersionPtr& semanticVersion,
+                  const SemanticPatternPtr& acceptPattern);
+
+    ImportRequest(const std::string& name,
+                  const std::string& version,
+                  const std::string& source,
+                  const std::string& domain,
                   const std::set<std::string>& loadAfter,
                   const SemanticVersionPtr& semanticVersion,
                   const SemanticPatternPtr& acceptPattern);
@@ -92,6 +102,7 @@ public:
     bool isAcceptableReplacementFor(const ImportRequest& other) const { return mReference.isAcceptableReplacementFor(other.reference()); }
 
     static std::pair<std::string, std::string> extractNameAndVersion(const rapidjson::Value& value, const ContextPtr& context);
+    static std::string extractDomain(const rapidjson::Value& value, const ContextPtr& context);
     static std::set<std::string> extractLoadAfter(const rapidjson::Value& value, const ContextPtr& context);
     static std::string extractAccept(const rapidjson::Value& value, const ContextPtr& context);
 

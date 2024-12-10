@@ -46,6 +46,27 @@ TEST_F(SGPathOpTest, Fill)
                 StringToMapObject(R"apl(
         {
             "type": "fill",
+            "fillType": "non-zero",
+            "paint": {
+                "type": "colorPaint",
+                "opacity": 1,
+                "color": "#000000ff"
+            }
+        }
+    )apl")));
+}
+
+TEST_F(SGPathOpTest, FillWithEvenOdd)
+{
+    auto op = sg::fill(sg::paint(Color(Color::BLACK)), apl::sg::kFillTypeEvenOdd);
+
+    ASSERT_EQ(op->toDebugString(), "Fill");
+
+    rapidjson::Document doc;
+    ASSERT_TRUE(IsEqual(op->serialize(doc.GetAllocator()),
+                StringToMapObject(R"apl(
+        {
+            "type": "fill",
             "fillType": "even-odd",
             "paint": {
                 "type": "colorPaint",

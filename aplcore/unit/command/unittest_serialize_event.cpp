@@ -406,6 +406,11 @@ static const char *TOUCH_DOCUMENT = R"(
             "event": "${event}",
             "name": "cursorenter"
           },
+          "onCursorMove": {
+            "type": "E:Validate",
+            "event": "${event}",
+            "name": "cursormove"
+          },
           "onCursorExit": {
             "type": "E:Validate",
             "event": "${event}",
@@ -469,6 +474,42 @@ TEST_F(SerializeEventTest, TouchDocument) {
             "value": false,
             "handler": "CursorEnter",
             "uid": "[EXISTS]"
+          },
+          "component": {
+            "height": 800,
+            "width": 1024,
+            "x": 10,
+            "y": 10
+          }
+        }
+    )"));
+
+    // Cursor enter
+    root->handlePointerEvent(PointerEvent(PointerEventType::kPointerMove, Point(15, 15)));
+    ASSERT_TRUE(CheckValidate("cursormove", R"(
+        {
+          "source": {
+            "bind": {},
+            "checked": false,
+            "disabled": false,
+            "focused": false,
+            "height": 800.0,
+            "id": "",
+            "layoutDirection": "LTR",
+            "opacity": 1.0,
+            "pressed": false,
+            "type": "TouchWrapper",
+            "width": 1024.0,
+            "source": "TouchWrapper",
+            "value": false,
+            "handler": "CursorMove",
+            "uid": "[EXISTS]"
+          },
+          "component": {
+            "height": 800,
+            "width": 1024,
+            "x": 15,
+            "y": 15
           }
         }
     )"));
@@ -1244,10 +1285,11 @@ static const char *VIDEO_DOCUMENT = R"(
       "mainTemplate": {
         "items": {
           "type": "Video",
+          "id": "MyVideo",
           "source": [
-            "Video1",
-            "Video2",
-            "Video3"
+            {"url": "Video1", "duration": 1000},
+            {"url": "Video2", "duration": 1000},
+            {"url": "Video3", "duration": 1000}
           ],
           "width": 720,
           "height": 480,
@@ -1292,14 +1334,22 @@ static const char *VIDEO_DOCUMENT = R"(
 )";
 
 TEST_F(SerializeEventTest, VideoDocument) {
+    mediaPlayerFactory->addFakeContent({
+        {"Video1", 1000, 0, -1},
+        {"Video2", 1000, 0, 500},
+        {"Video3", 1000, 0, -1},
+    });
+
     loadDocument(VIDEO_DOCUMENT);
     ASSERT_TRUE(component);
     ASSERT_FALSE(root->hasEvent());
 
+    // Prepare and ready
+    mediaPlayerFactory->advanceTime(100);
+    advanceTime(100);
+
     // Start playing
-    auto state = MediaState(0, 3, 100, 1000, false, false, false)
-                     .withTrackState(kTrackReady);  // Track 0 of 3, @100 ms of 1000 ms, not paused/ended, ready
-    component->updateMediaState(state);
+    executeCommand("ControlMedia", {{"componentId", "MyVideo"}, {"command", "play"}}, false);
 
     // The first event we should get is "Ready"
     ASSERT_TRUE(CheckValidate("readyit", R"(
@@ -1307,14 +1357,14 @@ TEST_F(SerializeEventTest, VideoDocument) {
               "source": {
                 "bind": {},
                 "checked": false,
-                "currentTime": 100.0,
+                "currentTime": 0.0,
                 "disabled": false,
                 "duration": 1000.0,
                 "ended": false,
                 "muted": false,
                 "focused": false,
                 "height": 480.0,
-                "id": "",
+                "id": "MyVideo",
                 "layoutDirection": "LTR",
                 "opacity": 1.0,
                 "paused": false,
@@ -1330,6 +1380,13 @@ TEST_F(SerializeEventTest, VideoDocument) {
                 "value": null,
                 "handler": "TrackReady"
               },
+              "currentTime": 0,
+              "duration": 1000,
+              "ended": false,
+              "errorCode": 0,
+              "muted": false,
+              "paused": true,
+              "trackCount": 3,
               "trackIndex": 0.0,
               "trackState": "ready"
             }
@@ -1338,22 +1395,17 @@ TEST_F(SerializeEventTest, VideoDocument) {
     // The next event we should get is "Play"
     ASSERT_TRUE(CheckValidate("playit", R"(
         {
-          "currentTime": 100.0,
-          "duration": 1000.0,
-          "ended": false,
-          "muted": false,
-          "paused": false,
           "source": {
             "bind": {},
             "checked": false,
-            "currentTime": 100.0,
+            "currentTime": 0.0,
             "disabled": false,
             "duration": 1000.0,
             "ended": false,
             "muted": false,
             "focused": false,
             "height": 480.0,
-            "id": "",
+            "id": "MyVideo",
             "layoutDirection": "LTR",
             "opacity": 1.0,
             "paused": false,
@@ -1369,20 +1421,24 @@ TEST_F(SerializeEventTest, VideoDocument) {
             "value": null,
             "handler": "Play"
           },
+          "currentTime": 0.0,
+          "duration": 1000.0,
+          "ended": false,
+          "errorCode": 0,
+          "muted": false,
+          "paused": false,
           "trackCount": 3.0,
           "trackIndex": 0.0,
           "trackState": "ready"
         }
     )"));
 
+    mediaPlayerFactory->advanceTime(100);
+    advanceTime(100);
+
     // We should also receive a "TimeUpdate" event since we've moved time forwards
     ASSERT_TRUE(CheckValidate("timeit", R"(
         {
-          "currentTime": 100.0,
-          "duration": 1000.0,
-          "ended": false,
-          "muted": false,
-          "paused": false,
           "source": {
             "bind": {},
             "checked": false,
@@ -1394,7 +1450,7 @@ TEST_F(SerializeEventTest, VideoDocument) {
             "focused": false,
             "height": 480.0,
             "layoutDirection": "LTR",
-            "id": "",
+            "id": "MyVideo",
             "opacity": 1.0,
             "paused": false,
             "pressed": false,
@@ -1409,6 +1465,12 @@ TEST_F(SerializeEventTest, VideoDocument) {
             "value": 100.0,
             "handler": "TimeUpdate"
           },
+          "currentTime": 100.0,
+          "duration": 1000.0,
+          "ended": false,
+          "muted": false,
+          "paused": false,
+          "errorCode": 0,
           "trackCount": 3.0,
           "trackIndex": 0.0,
           "trackState": "ready"
@@ -1418,17 +1480,11 @@ TEST_F(SerializeEventTest, VideoDocument) {
     ASSERT_FALSE(root->hasEvent());
 
     // Move forward 100 milliseconds
-    state = MediaState(0, 3, 200, 1000, false, false, false)
-                .withTrackState(kTrackReady);  // Track 0 of 3, @200 ms of 1000 ms, not paused/ended and ready
-    component->updateMediaState(state);
+    mediaPlayerFactory->advanceTime(100);
+    advanceTime(100);
 
     ASSERT_TRUE(CheckValidate("timeit", R"(
         {
-          "currentTime": 200.0,
-          "duration": 1000.0,
-          "ended": false,
-          "muted": false,
-          "paused": false,
           "source": {
             "bind": {},
             "checked": false,
@@ -1439,7 +1495,7 @@ TEST_F(SerializeEventTest, VideoDocument) {
             "muted": false,
             "focused": false,
             "height": 480.0,
-            "id": "",
+            "id": "MyVideo",
             "layoutDirection": "LTR",
             "opacity": 1.0,
             "paused": false,
@@ -1455,30 +1511,30 @@ TEST_F(SerializeEventTest, VideoDocument) {
             "value": 200.0,
             "handler": "TimeUpdate"
           },
+          "currentTime": 200.0,
+          "duration": 1000.0,
+          "ended": false,
+          "muted": false,
+          "paused": false,
+          "errorCode": 0,
           "trackCount": 3.0,
           "trackIndex": 0.0,
           "trackState": "ready"
         }
     )"));
 
-    // Mute the audio
-    state = MediaState(0, 3, 200, 1000, false, false, true)
-                .withTrackState(kTrackReady);  // Track 0 of 3, @200 ms of 1000 ms, not paused/ended and ready
-    component->updateMediaState(state);
+    clearEvents();
 
+    // Mute the audio
+    executeCommand("SetValue", {{"componentId", "MyVideo"}, {"property", "muted"}, {"value", true}}, false);
     // Jump to the next track
-    state = MediaState(1, 3, 0, 1000, false, false, true)
-                .withTrackState(kTrackNotReady);  // Track 1 of 3, @0 ms of 1000 ms, not paused/ended, not ready
-    component->updateMediaState(state);
+    executeCommand("ControlMedia", {{"componentId", "MyVideo"}, {"command", "next"}}, false);
+    advanceTime(100);
 
     // The onTrackUpdate fires - note that value=1.0 (the new track)
+    // Player still muted. Switch to the next track implicitly pauses.
     ASSERT_TRUE(CheckValidate("trackit", R"(
         {
-          "currentTime": 0.0,
-          "duration": 1000.0,
-          "ended": false,
-          "muted": true,
-          "paused": false,
           "source": {
             "bind": {},
             "checked": false,
@@ -1489,90 +1545,7 @@ TEST_F(SerializeEventTest, VideoDocument) {
             "muted": true,
             "focused": false,
             "height": 480.0,
-            "id": "",
-            "layoutDirection": "LTR",
-            "opacity": 1.0,
-            "paused": false,
-            "pressed": false,
-            "source": "Video2",
-            "trackCount": 3.0,
-            "trackIndex": 1.0,
-            "trackState": "notReady",
-            "type": "Video",
-            "uid": "[EXISTS]",
-            "url": "Video2",
-            "width": 720.0,
-            "value": 1.0,
-            "handler": "TrackUpdate"
-          },
-          "trackCount": 3.0,
-          "trackIndex": 1.0,
-          "trackState": "notReady"
-        }
-    )"));
-
-    // The onTimeUpdate fires - note that value=0.0
-    ASSERT_TRUE(CheckValidate("timeit", R"(
-        {
-          "currentTime": 0.0,
-          "duration": 1000.0,
-          "ended": false,
-          "muted": true,
-          "paused": false,
-          "source": {
-            "bind": {},
-            "checked": false,
-            "currentTime": 0.0,
-            "disabled": false,
-            "duration": 1000.0,
-            "ended": false,
-            "muted": true,
-            "focused": false,
-            "height": 480.0,
-            "id": "",
-            "layoutDirection": "LTR",
-            "opacity": 1.0,
-            "paused": false,
-            "pressed": false,
-            "source": "Video2",
-            "trackCount": 3.0,
-            "trackIndex": 1.0,
-            "trackState": "notReady",
-            "type": "Video",
-            "uid": "[EXISTS]",
-            "url": "Video2",
-            "width": 720.0,
-            "value": 0.0,
-            "handler": "TimeUpdate"
-          },
-          "trackCount": 3.0,
-          "trackIndex": 1.0,
-          "trackState": "notReady"
-        }
-    )"));
-
-    // Pause the video playback
-    state = MediaState(1, 3, 0, 1000, true, false, false);  // Track 1 of 3, @0 ms of 1000 ms, paused/not ended, not ready
-    component->updateMediaState(state);
-
-    ASSERT_TRUE(CheckValidate("pauseit", R"(
-        {
-          "currentTime": 0.0,
-          "duration": 1000.0,
-          "ended": false,
-          "muted": false,
-          "paused": true,
-          "source": {
-            "bind": {},
-            "checked": false,
-            "currentTime": 0.0,
-            "disabled": false,
-            "duration": 1000.0,
-            "ended": false,
-            "muted": false,
-            "focused": false,
-            "height": 480.0,
-            "id": "",
+            "id": "MyVideo",
             "layoutDirection": "LTR",
             "opacity": 1.0,
             "paused": true,
@@ -1580,7 +1553,94 @@ TEST_F(SerializeEventTest, VideoDocument) {
             "source": "Video2",
             "trackCount": 3.0,
             "trackIndex": 1.0,
-            "trackState": "notReady",
+            "trackState": "ready",
+            "type": "Video",
+            "uid": "[EXISTS]",
+            "url": "Video2",
+            "width": 720.0,
+            "value": 1.0,
+            "handler": "TrackUpdate"
+          },
+          "currentTime": 0.0,
+          "duration": 1000.0,
+          "ended": false,
+          "muted": true,
+          "paused": true,
+          "errorCode": 0,
+          "trackCount": 3.0,
+          "trackIndex": 1.0,
+          "trackState": "ready"
+        }
+    )"));
+
+    // Start playing
+    executeCommand("ControlMedia", {{"componentId", "MyVideo"}, {"command", "play"}}, false);
+
+    // The first event we should get is "Ready"
+    ASSERT_TRUE(CheckValidate("playit", R"(
+        {
+          "source": {
+            "bind": {},
+            "checked": false,
+            "currentTime": 0.0,
+            "disabled": false,
+            "duration": 1000.0,
+            "ended": false,
+            "muted": true,
+            "focused": false,
+            "height": 480.0,
+            "id": "MyVideo",
+            "layoutDirection": "LTR",
+            "opacity": 1.0,
+            "paused": false,
+            "pressed": false,
+            "source": "Video2",
+            "trackIndex": 1.0,
+            "trackCount": 3.0,
+            "trackState": "ready",
+            "type": "Video",
+            "uid": "[EXISTS]",
+            "url": "Video2",
+            "width": 720.0,
+            "value": null,
+            "handler": "Play"
+          },
+          "currentTime": 0.0,
+          "duration": 1000.0,
+          "ended": false,
+          "errorCode": 0,
+          "muted": true,
+          "paused": false,
+          "trackCount": 3.0,
+          "trackIndex": 1.0,
+          "trackState": "ready"
+        }
+    )"));
+
+    // Pause the video playback
+    executeCommand("ControlMedia", {{"componentId", "MyVideo"}, {"command", "pause"}}, false);
+
+    ASSERT_TRUE(CheckValidate("pauseit", R"(
+        {
+          "source": {
+            "bind": {},
+            "checked": false,
+            "currentTime": 0.0,
+            "disabled": false,
+            "duration": 1000.0,
+            "ended": false,
+            "muted": true,
+            "focused": false,
+            "height": 480.0,
+            "id": "MyVideo",
+            "layoutDirection": "LTR",
+            "opacity": 1.0,
+            "paused": true,
+            "pressed": false,
+            "source": "Video2",
+            "trackCount": 3.0,
+            "trackIndex": 1.0,
+            "trackState": "ready",
             "type": "Video",
             "uid": "[EXISTS]",
             "url": "Video2",
@@ -1588,60 +1648,31 @@ TEST_F(SerializeEventTest, VideoDocument) {
             "value": null,
             "handler": "Pause"
           },
+          "currentTime": 0.0,
+          "duration": 1000.0,
+          "ended": false,
+          "muted": true,
+          "paused": true,
+          "errorCode": 0,
           "trackCount": 3.0,
           "trackIndex": 1.0,
-          "trackState": "notReady"
+          "trackState": "ready"
         }
     )"));
 
-    // Track gets ready at paused state
-    state = MediaState(1, 3, 0, 1000, true, false, false)
-                .withTrackState(kTrackReady);  // Track 1 of 3, @0 ms of 1000 ms, paused/not ended, ready
-    component->updateMediaState(state);
+    // Play again and advance to error
+    executeCommand("ControlMedia", {{"componentId", "MyVideo"}, {"command", "play"}}, false);
+    clearEvents();
+    mediaPlayerFactory->advanceTime(100);
+    advanceTime(100);
+    clearEvents();
 
-    ASSERT_TRUE(CheckValidate("readyit", R"(
-            {
-              "source": {
-                "bind": {},
-                "checked": false,
-                "currentTime": 0.0,
-                "disabled": false,
-                "duration": 1000.0,
-                "ended": false,
-                "muted": false,
-                "focused": false,
-                "height": 480.0,
-                "id": "",
-                "layoutDirection": "LTR",
-                "opacity": 1.0,
-                "paused": true,
-                "pressed": false,
-                "source": "Video2",
-                "trackCount": 3.0,
-                "trackIndex": 1.0,
-                "trackState": "ready",
-                "type": "Video",
-                "uid": "[EXISTS]",
-                "url": "Video2",
-                "width": 720.0,
-                "value": null,
-                "handler": "TrackReady"
-              },
-              "trackIndex": 1.0,
-              "trackState": "ready"
-            }
-        )"));
+    mediaPlayerFactory->advanceTime(400);
+    advanceTime(400);
 
     // Error occurred while playing track
-    state = MediaState(1, 3, 500, 1000, false, false, false)
-                .withTrackState(kTrackFailed)
-                .withErrorCode(99);  // Track 1 of 3, @500 ms of 1000 ms, not paused/not ended and not ready
-    component->updateMediaState(state);
-
     ASSERT_TRUE(CheckValidate("failit", R"(
             {
-              "currentTime": 500.0,
-              "errorCode": 99,
               "source": {
                 "bind": {},
                 "checked": false,
@@ -1649,13 +1680,13 @@ TEST_F(SerializeEventTest, VideoDocument) {
                 "disabled": false,
                 "duration": 1000.0,
                 "ended": false,
-                "muted": false,
+                "muted": true,
                 "focused": false,
                 "height": 480.0,
-                "id": "",
+                "id": "MyVideo",
                 "layoutDirection": "LTR",
                 "opacity": 1.0,
-                "paused": false,
+                "paused": true,
                 "pressed": false,
                 "source": "Video2",
                 "trackCount": 3.0,
@@ -1668,51 +1699,65 @@ TEST_F(SerializeEventTest, VideoDocument) {
                 "value": null,
                 "handler": "TrackFail"
               },
+              "currentTime": 500.0,
+              "duration": 1000.0,
+              "ended": false,
+              "muted": true,
+              "paused": true,
+              "errorCode": 99,
+              "trackCount": 3.0,
               "trackIndex": 1.0,
               "trackState": "failed"
             }
         )"));
 
-    // End the video playback
-    state = MediaState(1,3,500,1000,false,true,false);
-    component->updateMediaState(state);
+    // Ok, to end - switch to the next track, play it and advance to the end.
+    executeCommand("ControlMedia", {{"componentId", "MyVideo"}, {"command", "next"}}, false);
+    executeCommand("ControlMedia", {{"componentId", "MyVideo"}, {"command", "play"}}, false);
+    mediaPlayerFactory->advanceTime(100);
+    advanceTime(100);
+    clearEvents();
+
+    mediaPlayerFactory->advanceTime(900);
+    advanceTime(900);
 
     ASSERT_TRUE(CheckValidate("endit", R"(
         {
-          "currentTime": 500.0,
-          "duration": 1000.0,
-          "ended": true,
-          "muted": false,
-          "paused": false,
           "source": {
             "bind": {},
             "checked": false,
-            "currentTime": 500.0,
+            "currentTime": 1000.0,
             "disabled": false,
             "duration": 1000.0,
             "ended": true,
-            "muted": false,
+            "muted": true,
             "focused": false,
             "height": 480.0,
-            "id": "",
+            "id": "MyVideo",
             "layoutDirection": "LTR",
             "opacity": 1.0,
-            "paused": false,
+            "paused": true,
             "pressed": false,
-            "source": "Video2",
+            "source": "Video3",
             "trackCount": 3.0,
-            "trackIndex": 1.0,
-            "trackState": "notReady",
+            "trackIndex": 2.0,
+            "trackState": "ready",
             "type": "Video",
             "uid": "[EXISTS]",
-            "url": "Video2",
+            "url": "Video3",
             "width": 720.0,
             "value": null,
             "handler": "End"
           },
+          "currentTime": 1000.0,
+          "duration": 1000.0,
+          "ended": true,
+          "muted": true,
+          "paused": true,
+          "errorCode": 0,
           "trackCount": 3.0,
-          "trackIndex": 1.0,
-          "trackState": "notReady"
+          "trackIndex": 2.0,
+          "trackState": "ready"
         }
     )"));
 }

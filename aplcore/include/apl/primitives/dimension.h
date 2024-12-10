@@ -236,6 +236,14 @@ public:
             return std::llround(dataHolder.value);
         }
 
+        std::pair<int, bool> asValidInt(const Object::DataHolder& dataHolder, int base) const override {
+            return { static_cast<int>(std::lround(dataHolder.value)), true };
+        }
+
+        std::pair<int64_t, bool> asValidInt64(const Object::DataHolder& dataHolder, int base) const override {
+            return { std::llround(dataHolder.value), true };
+        }
+
         Dimension asDimension(const Object::DataHolder& dataHolder, const Context&) const override {
             return Dimension(DimensionType::Absolute, dataHolder.value);
         }

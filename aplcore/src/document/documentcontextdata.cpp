@@ -116,12 +116,10 @@ MediaManager& DocumentContextData::mediaManager() const { return mSharedData->me
 MediaPlayerFactory& DocumentContextData::mediaPlayerFactory() const { return mSharedData->mediaPlayerFactory(); }
 DependantManager& DocumentContextData::dependantManager() const { return mSharedData->dependantManager(); }
 VisibilityManager& DocumentContextData::visibilityManager() const { return mSharedData->visibilityManager(); }
-const YGConfigRef& DocumentContextData::ygconfig() const { return mSharedData->ygconfig(); }
+const YogaConfig& DocumentContextData::ygconfig() const { return mSharedData->ygconfig(); }
 const TextMeasurementPtr& DocumentContextData::measure() const { return mSharedData->measure(); }
 void DocumentContextData::takeScreenLock() { mSharedData->takeScreenLock(); }
 void DocumentContextData::releaseScreenLock() { mSharedData->releaseScreenLock(); }
-LruCache<TextMeasureRequest, YGSize>& DocumentContextData::cachedMeasures() { return mSharedData->cachedMeasures(); }
-LruCache<TextMeasureRequest, float>& DocumentContextData::cachedBaselines() { return mSharedData->cachedBaselines(); }
 void DocumentContextData::setDirty(const ComponentPtr& component) { mSharedData->dirtyComponents().emplace(shared_from_this(), component); }
 void DocumentContextData::clearDirty(const ComponentPtr& component) { mSharedData->dirtyComponents().eraseValue(component); }
 sg::TextLayoutCache& DocumentContextData::textLayoutCache() { return mSharedData->textLayoutCache(); }

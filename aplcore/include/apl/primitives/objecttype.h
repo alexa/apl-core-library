@@ -87,6 +87,12 @@ public:
     }
     virtual int asInt(const Object::DataHolder&, int base) const { return 0; }
     virtual int64_t asInt64(const Object::DataHolder&, int base) const { return 0; }
+    virtual std::pair<int, bool> asValidInt(const Object::DataHolder&, int base) const {
+        return { 0, false };
+    }
+    virtual std::pair<int64_t, bool> asValidInt64(const Object::DataHolder&, int base) const {
+        return { 0, false };
+    }
     virtual Color asColor(const Object::DataHolder&, const SessionPtr&) const;
     virtual Dimension asDimension(const Object::DataHolder&, const Context&) const;
     virtual Dimension asAbsoluteDimension(const Object::DataHolder&, const Context&) const;
@@ -460,6 +466,14 @@ public:
             return static_cast<std::int64_t>(dataHolder.value);
         }
 
+        std::pair<int, bool> asValidInt(const Object::DataHolder& dataHolder, int base) const override {
+            return { static_cast<int>(dataHolder.value), true };
+        }
+
+        std::pair<int64_t, bool> asValidInt64(const Object::DataHolder& dataHolder, int base) const override {
+            return { static_cast<std::int64_t>(dataHolder.value), true };
+        }
+
         bool getBoolean(const Object::DataHolder& dataHolder) const override {
             return dataHolder.value != 0;
         }
@@ -507,6 +521,14 @@ public:
 
         int64_t asInt64(const Object::DataHolder& dataHolder, int base) const override {
             return std::llround(dataHolder.value);
+        }
+
+        std::pair<int, bool> asValidInt(const Object::DataHolder& dataHolder, int base) const override {
+            return { static_cast<int>(std::lround(dataHolder.value)), true };
+        }
+
+        std::pair<int64_t, bool> asValidInt64(const Object::DataHolder& dataHolder, int base) const override {
+            return { std::llround(dataHolder.value), true };
         }
 
         Color asColor(const Object::DataHolder& dataHolder, const SessionPtr&) const override;
@@ -579,6 +601,18 @@ public:
 
         int64_t asInt64(const Object::DataHolder& dataHolder, int base) const override {
             return sutil::stoll(dataHolder.string, nullptr, base);
+        }
+
+        std::pair<int, bool> asValidInt(const Object::DataHolder& dataHolder, int base) const override {
+            std::size_t pos = 0;
+            auto result = sutil::stoi(dataHolder.string, &pos, base);
+            return { result, pos != 0 };
+        }
+
+        std::pair<int64_t, bool> asValidInt64(const Object::DataHolder& dataHolder, int base) const override {
+            std::size_t pos = 0;
+            auto result = sutil::stoll(dataHolder.string, &pos, base);
+            return { result, pos != 0 };
         }
 
         Color asColor(const Object::DataHolder& dataHolder, const SessionPtr& session) const override;

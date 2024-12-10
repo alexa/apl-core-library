@@ -283,14 +283,7 @@ const char *LAYOUT_CACHE_TEST = R"({
       "type": "Sequence",
       "height": 100,
       "width": "auto",
-      "data": [
-        "One",
-        "Two",
-        "Three",
-        "Four",
-        "Five",
-        "Six"
-      ],
+      "data": [0, 1, 2, 3, 4, 5, 6],
       "items": [
         {
           "type": "Text",
@@ -310,10 +303,10 @@ TEST_F(BuilderTestSequence, LayoutCache)
 
     ASSERT_EQ(kComponentTypeSequence, component->getType());
 
-    ASSERT_EQ(6, component->getChildCount());
+    ASSERT_EQ(7, component->getChildCount());
 
     ASSERT_TRUE(CheckChildrenLaidOut(component, Range(0, 4), true));
-    ASSERT_TRUE(CheckChildrenLaidOut(component, Range(5, 5), false));
+    ASSERT_TRUE(CheckChildrenLaidOut(component, Range(5, 6), false));
 }
 
 const char *LAYOUT_CACHE_TEST_HORIZONTAL = R"({
@@ -325,14 +318,7 @@ const char *LAYOUT_CACHE_TEST_HORIZONTAL = R"({
       "width": 200,
       "scrollDirection": "horizontal",
       "height": "auto",
-      "data": [
-        "One",
-        "Two",
-        "Three",
-        "Four",
-        "Five",
-        "Six"
-      ],
+      "data": [0, 1, 2, 3, 4, 5],
       "items": [
         {
           "type": "Text",
@@ -517,13 +503,12 @@ const char *NONE_SEQUENCE = R"({
 
 TEST_F(BuilderTestSequence, DisplayNone)
 {
-    auto ctm = std::make_shared<CountingTextMeasurement>();
-    config->measure(ctm);
     loadDocument(NONE_SEQUENCE);
 
+    auto measurement = std::static_pointer_cast<MyTestMeasurement>(config->getMeasure());
+
     // Nothing should try laying out
-    ASSERT_EQ(0, ctm->measures);
-    ASSERT_EQ(0, ctm->baselines);
+    ASSERT_EQ(0, measurement->getLayoutCount());
 
     auto sequence = component->getCoreChildAt(0);
 
@@ -531,8 +516,7 @@ TEST_F(BuilderTestSequence, DisplayNone)
     sequence->update(kUpdateScrollPosition, 100);
 
     // Nothing should have happened
-    ASSERT_EQ(0, ctm->measures);
-    ASSERT_EQ(0, ctm->baselines);
+    ASSERT_EQ(0, measurement->getLayoutCount());
     ASSERT_EQ(0, sequence->scrollPosition().getY());
 
     // Now make it appear
@@ -540,8 +524,7 @@ TEST_F(BuilderTestSequence, DisplayNone)
     root->clearPending();
 
     // We now require some measures.
-    ASSERT_EQ(21, ctm->measures);
-    ASSERT_EQ(0, ctm->baselines);
+    ASSERT_EQ(21, measurement->getLayoutCount());
 
     // And scrolling works
     sequence->update(kUpdateScrollPosition, 100);
@@ -576,13 +559,11 @@ const char *NONE_NESTED_SEQUENCE = R"({
 
 TEST_F(BuilderTestSequence, DisplayNoneNested)
 {
-    auto ctm = std::make_shared<CountingTextMeasurement>();
-    config->measure(ctm);
     loadDocument(NONE_NESTED_SEQUENCE);
+    auto measurement = std::static_pointer_cast<MyTestMeasurement>(config->getMeasure());
 
     // Nothing should try laying out
-    ASSERT_EQ(0, ctm->measures);
-    ASSERT_EQ(0, ctm->baselines);
+    ASSERT_EQ(0, measurement->getLayoutCount());
 
     auto sequence = component->getCoreChildAt(0)->getCoreChildAt(0);
 
@@ -590,8 +571,7 @@ TEST_F(BuilderTestSequence, DisplayNoneNested)
     sequence->update(kUpdateScrollPosition, 100);
 
     // Nothing should have happened
-    ASSERT_EQ(0, ctm->measures);
-    ASSERT_EQ(0, ctm->baselines);
+    ASSERT_EQ(0, measurement->getLayoutCount());
     ASSERT_EQ(0, sequence->scrollPosition().getY());
 
     // Now make it appear
@@ -599,8 +579,7 @@ TEST_F(BuilderTestSequence, DisplayNoneNested)
     root->clearPending();
 
     // We now require some measures.
-    ASSERT_EQ(21, ctm->measures);
-    ASSERT_EQ(0, ctm->baselines);
+    ASSERT_EQ(21, measurement->getLayoutCount());
 
     // And scrolling works
     sequence->update(kUpdateScrollPosition, 100);
@@ -965,4 +944,58 @@ TEST_F(BuilderTestSequence, SequenceRebuildLiveDataFirstChildRemovedHorizontalRT
 
     ASSERT_EQ(component->getCalculated(apl::kPropertyScrollPosition).asNumber(), 0);
     ASSERT_EQ(component->getChildCount(), 49);
+}
+
+static const char *SEQUENCE_SCROLL_OFFSET = R"({
+  "type": "APL",
+  "version": "1.7",
+  "onConfigChange": {
+    "type": "Reinflate"
+  },
+  "mainTemplate": {
+    "item": {
+      "type": "Sequence",
+      "id": "testSequence",
+      "width": 100,
+      "height": 100,
+      "preserve": [
+         "scrollOffset"
+      ],
+      "data": "${TestArray}",
+      "item": {
+        "type": "Frame",
+        "width": "100%",
+        "height": 60
+      }
+    }
+  }
+})";
+
+TEST_F(BuilderTestSequence, ScrollOffsetReinflate) {
+    auto myArray = LiveArray::create(ObjectArray{0, 1, 2, 3, 4, 5});
+    config->liveData("TestArray", myArray);
+
+    metrics.size(200,200);
+    loadDocument(SEQUENCE_SCROLL_OFFSET);
+    ASSERT_TRUE(component);
+    ASSERT_EQ(6, component->getChildCount());
+    ASSERT_TRUE(CheckChildrenLaidOut(component, {0,1}, true));
+    ASSERT_TRUE(CheckChildrenLaidOut(component, {2,3}, false));
+    root->clearDirty();
+
+    advanceTime(10);
+    ASSERT_TRUE(CheckChildrenLaidOut(component, {0,3}, true));
+
+    // Trigger reinflate
+    configChangeReinflate(ConfigurationChange(200,200));
+    ASSERT_TRUE(component);
+
+    ASSERT_EQ(6, component->getChildCount());
+    ASSERT_TRUE(CheckChildrenLaidOut(component, {0,1}, true));
+    ASSERT_TRUE(CheckChildrenLaidOut(component, {2,3}, false));
+    root->clearDirty();
+
+    // Validate second layout pass when scroll position need not to be adjusted after re-inflation
+    advanceTime(10);
+    ASSERT_TRUE(CheckChildrenLaidOut(component, {0,3}, true));
 }

@@ -16,7 +16,6 @@
 #include "apl/extension/extensioncomponent.h"
 
 #include "apl/component/componentpropdef.h"
-#include "apl/component/yogaproperties.h"
 #include "apl/extension/extensionmanager.h"
 #include "apl/time/sequencer.h"
 #include "apl/utils/random.h"

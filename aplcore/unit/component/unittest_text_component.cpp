@@ -154,7 +154,7 @@ TEST_F(TextComponentTest, TextAlignParseCheck) {
 
     auto et = CoreComponent::cast(root->topComponent());
 
-    ASSERT_EQ(kTextAlignAuto,   et->getCoreChildAt(0)->getCalculated(kPropertyTextAlign).asInt());
+    ASSERT_EQ(kTextAlignLeft,   et->getCoreChildAt(0)->getCalculated(kPropertyTextAlign).asInt());
     ASSERT_EQ(kTextAlignAuto,   et->getCoreChildAt(0)->getCalculated(kPropertyTextAlignAssigned).asInt());
     ASSERT_EQ(kTextAlignLeft,   et->getCoreChildAt(1)->getCalculated(kPropertyTextAlign).asInt());
     ASSERT_EQ(kTextAlignLeft,   et->getCoreChildAt(1)->getCalculated(kPropertyTextAlignAssigned).asInt());
@@ -170,7 +170,7 @@ TEST_F(TextComponentTest, TextAlignParseCheck) {
     et->setProperty(kPropertyLayoutDirectionAssigned, "RTL");
     root->clearPending(); // force layout changes
 
-    ASSERT_EQ(kTextAlignAuto,   et->getCoreChildAt(0)->getCalculated(kPropertyTextAlign).asInt());
+    ASSERT_EQ(kTextAlignRight,  et->getCoreChildAt(0)->getCalculated(kPropertyTextAlign).asInt());
     ASSERT_EQ(kTextAlignAuto,   et->getCoreChildAt(0)->getCalculated(kPropertyTextAlignAssigned).asInt());
     ASSERT_EQ(kTextAlignLeft,   et->getCoreChildAt(1)->getCalculated(kPropertyTextAlign).asInt());
     ASSERT_EQ(kTextAlignLeft,   et->getCoreChildAt(1)->getCalculated(kPropertyTextAlignAssigned).asInt());
@@ -324,15 +324,13 @@ const char *AUTO_SEQUENCED_TEXT = R"({
 
 TEST_F(TextComponentTest, AutoSequencedText)
 {
-    auto ctm = std::make_shared<CountingTextMeasurement>();
-    config->measure(ctm);
     loadDocument(AUTO_SEQUENCED_TEXT);
     advanceTime(10);
 
+    auto measurement = std::static_pointer_cast<MyTestMeasurement>(config->getMeasure());
 
-    // Should have not more than 5 measurements == number of text fields.
-    ASSERT_EQ(5, ctm->measures);
-    ASSERT_EQ(0, ctm->baselines);
+    // Should have not more than 5 measurements == number of unique text fields.
+    ASSERT_EQ(5, measurement->getLayoutCount());
 }
 
 const char *AUTO_SEQUENCED_SAME_TEXT = R"({
@@ -343,7 +341,7 @@ const char *AUTO_SEQUENCED_SAME_TEXT = R"({
       "type": "Container",
       "items": {
         "type": "Sequence",
-        "direction": "horizontal",
+        "scrollDirection": "vertical",
         "width": "100%",
         "height": "auto",
         "items": {
@@ -358,15 +356,59 @@ const char *AUTO_SEQUENCED_SAME_TEXT = R"({
 
 TEST_F(TextComponentTest, AutoSequencedSameText)
 {
-    auto ctm = std::make_shared<CountingTextMeasurement>();
-    config->measure(ctm);
     loadDocument(AUTO_SEQUENCED_SAME_TEXT);
     advanceTime(10);
 
+    auto measurement = std::static_pointer_cast<MyTestMeasurement>(config->getMeasure());
+
 
     // Should have not more than 1 measurements == all text are the same.
-    ASSERT_EQ(1, ctm->measures);
-    ASSERT_EQ(0, ctm->baselines);
+    ASSERT_EQ(1, measurement->getLayoutCount());
+}
+
+const char * MULTI_SEQUENCE_TEXTS_DIFFERENT_ORIENTATIONS_AUTO_DIMENSIONS = R"({
+    "type": "APL",
+    "version": "1.6",
+    "mainTemplate": {
+      "items": {
+        "type": "Container",
+        "items": [
+                {
+                  "type": "Sequence",
+                  "scrollDirection": "vertical",
+                  "width": "100%",
+                  "height": "auto",
+                  "items": {
+                      "type": "Text",
+                      "text": "auto height"
+                  },
+                  "data": [1,1]
+                },
+                {
+                  "type": "Sequence",
+                  "scrollDirection": "horizontal",
+                  "width": "auto",
+                  "height": "100%",
+                  "items": {
+                      "type": "Text",
+                      "text": "auto width"
+                  },
+                  "data": [1,1]
+                }
+          ]
+      }
+    }
+})";
+
+TEST_F(TextComponentTest, MultiSequenceDifferentOrientationAutoDimensions)
+{
+    loadDocument(MULTI_SEQUENCE_TEXTS_DIFFERENT_ORIENTATIONS_AUTO_DIMENSIONS);
+    advanceTime(10);
+
+    auto measurement = std::static_pointer_cast<MyTestMeasurement>(config->getMeasure());
+
+    // Should have 2 measurements, once for each Text in each Sequence
+    ASSERT_EQ(2, measurement->getLayoutCount());
 }
 
 const char *SINGLE_TEXT_MEASUREMENT_GALORE = R"({
@@ -376,7 +418,7 @@ const char *SINGLE_TEXT_MEASUREMENT_GALORE = R"({
   "mainTemplate": {
     "items": {
       "type": "Container",
-	  "width": "100%",
+      "width": "100%",
       "height": "100%",
       "items": {
         "type": "Text",
@@ -390,13 +432,12 @@ const char *SINGLE_TEXT_MEASUREMENT_GALORE = R"({
 
 TEST_F(TextComponentTest, ParametersChangeMeasurement)
 {
-    auto ctm = std::make_shared<CountingTextMeasurement>();
-    config->measure(ctm);
     loadDocument(SINGLE_TEXT_MEASUREMENT_GALORE);
     advanceTime(10);
 
-    ASSERT_EQ(1, ctm->measures);
-    ASSERT_EQ(0, ctm->baselines);
+    auto measurement = std::static_pointer_cast<MyTestMeasurement>(config->getMeasure());
+
+    ASSERT_EQ(1, measurement->getLayoutCount());
 
     auto text = component->getCoreChildAt(0);
 
@@ -405,20 +446,36 @@ TEST_F(TextComponentTest, ParametersChangeMeasurement)
     root->clearDirty();
 
     // No change expected
-    ASSERT_EQ(1, ctm->measures);
+    ASSERT_EQ(1, measurement->getLayoutCount());
 
     // Change one of the text style props
     text->setProperty(kPropertyFontWeight, 800);
     root->clearPending();
     root->clearDirty();
 
-    ASSERT_EQ(2, ctm->measures);
+    ASSERT_EQ(2, measurement->getLayoutCount());
 
     // Change text itself
     text->setProperty(kPropertyText, "Bananas");
     root->clearPending();
 
-    ASSERT_EQ(3, ctm->measures);
+    ASSERT_EQ(3, measurement->getLayoutCount());
+
+    // Few more props
+    text->setProperty(apl::kPropertyMaxLines, 2);
+    root->clearPending();
+
+    ASSERT_EQ(4, measurement->getLayoutCount());
+
+    text->setProperty(apl::kPropertyLineHeight, 1.5);
+    root->clearPending();
+
+    ASSERT_EQ(5, measurement->getLayoutCount());
+
+    text->setProperty(apl::kPropertyLetterSpacing, 2);
+    root->clearPending();
+
+    ASSERT_EQ(6, measurement->getLayoutCount());
 }
 
 const char *TEXT_HORIZONTAL_GROWTH = R"({
@@ -475,8 +532,6 @@ const char *TEXT_HORIZONTAL_GROWTH = R"({
 
 TEST_F(TextComponentTest, TextHorizontalGrowth)
 {
-    auto ctm = std::make_shared<CountingTextMeasurement>();
-    config->measure(ctm);
     loadDocument(TEXT_HORIZONTAL_GROWTH);
     advanceTime(10);
 

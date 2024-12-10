@@ -214,6 +214,8 @@ public:
     float asFloat() const;
     int asInt(int base=10) const;
     int64_t asInt64(int base = 10) const;
+    std::pair<int, bool> asValidInt(int base=10) const;
+    std::pair<int64_t, bool> asValidInt64(int base = 10) const;
     Dimension asDimension(const Context& ) const;
     Dimension asAbsoluteDimension(const Context&) const;
     Dimension asNonAutoDimension(const Context&) const;

@@ -726,22 +726,34 @@ TEST_F(EditTextComponentTest, Styled) {
     ASSERT_FALSE(IsEqual("1234", et->getCalculated(kPropertyText)));
 }
 
-class DummyTextMeasure : public TextMeasurement {
+class DummyTextMeasure : public sg::TextMeasurement {
 public:
-    LayoutSize measure(Component *component, float width, MeasureMode widthMode, float height,
-                       MeasureMode heightMode) override {
-        int size = component->getCalculated(kPropertySize).asInt();
+    sg::TextLayoutPtr layout(Component *component,
+                             const sg::TextChunkPtr& chunk,
+                             const sg::TextPropertiesPtr& textProperties,
+                             float width,
+                             MeasureMode widthMode,
+                             float height,
+                             MeasureMode heightMode) override {
+        return std::make_shared<FixedTestTextLayout>(Size{10, 10}, 8);
+    }
+
+    sg::EditTextBoxPtr box(Component *component,
+                           int size,
+                           const sg::TextPropertiesPtr& textProperties,
+                           float width,
+                           MeasureMode widthMode,
+                           float height,
+                           MeasureMode heightMode) override {
         int componentWidth = component->getCalculated(kPropertyWidth).asInt();
         int componentHeight = component->getCalculated(kPropertyHeight).asInt();
 
         float resultingWidth = size > 0 ? size*20 : componentWidth;
         float resultingHeight = componentHeight > 0 ? componentHeight : 120;
 
-        return LayoutSize({ resultingWidth, resultingHeight});
-    }
-
-    float baseline(Component *component, float width, float height) override {
-        return 0;
+        auto editBox = std::make_shared<MyTestBox>(Size{resultingWidth, resultingHeight}, 0);
+        component->setUserData(editBox.get());
+        return editBox;
     }
 };
 

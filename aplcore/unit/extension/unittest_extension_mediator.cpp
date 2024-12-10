@@ -2008,7 +2008,10 @@ public:
 
     bool sendComponentMessage(const std::string &uri, const rapidjson::Value &message) override { return false; }
 
-    void registerEventCallback(Extension::EventCallback callback) override {}
+    void registerEventCallback(const alexaext::ActivityDescriptor &activity, Extension::EventActivityCallback &&callback) override {
+        mActivity.emplace_back(activity);
+        mEventActivityCallback = std::move(callback);
+    }
 
     void registerLiveDataUpdateCallback(Extension::LiveDataUpdateCallback callback) override {}
 
@@ -2043,6 +2046,10 @@ public:
         return mPendingRegistrations.find(uri)->second;
     }
 
+    void sendEvent(const rapidjson::Value& event) {
+        mEventActivityCallback(*mActivity.begin(), event);
+    }
+
 private:
     std::set<std::string> mURIs;
     std::set<std::string> mInitialized;
@@ -2052,6 +2059,9 @@ private:
     RegistrationFailureCallback mRegistrationError;
     std::map<std::string, std::string> mRegistered;
     std::map<std::string, std::string> mPendingRegistrations;
+
+    Extension::EventActivityCallback mEventActivityCallback;
+    std::vector<alexaext::ActivityDescriptor> mActivity;
 };
 
 static const char* SIMPLE_EXT_DOC = R"({
@@ -2112,6 +2122,91 @@ TEST_F(ExtensionMediatorTest, TestRegistrationSchema) {
     ASSERT_STREQ("MAGIC", settings["authorizationCode"].GetString());
     ASSERT_TRUE(requestJson.HasMember("flags"));
     ASSERT_STREQ("--testflag", requestJson["flags"].GetString());
+}
+
+static const char* DATA_DEFINED_HANDLER_DOC = R"({
+  "type": "APL",
+  "version": "2024.2",
+  "extensions": [
+    {
+      "name": "TestControl",
+      "uri": "alexaext:testcontrol:10"
+    }
+  ],
+  "settings": {
+    "FragmentControl": {
+      "respondToPress": true
+    }
+  },
+  "TestControl:OnPress": "${testEvent}",
+  "mainTemplate": {
+    "parameters": [
+      "testEvent"
+    ],
+    "item": [
+      {
+        "type": "Frame",
+        "background": "red",
+        "width": "100vw",
+        "height": "10vh",
+        "item": {
+          "type": "Text",
+          "text": "Fragment"
+        }
+      }
+    ]
+  }
+})";
+
+static const char* DATA_DEFINED_HANDLER_DATA = R"({
+  "testEvent": {
+    "type": "SendEvent",
+    "arguments": [
+      "Good morning"
+    ]
+  }
+})";
+
+TEST_F(ExtensionMediatorTest, PolymorphicExtensionEventDefinition) {
+    const char* uri = "alexaext:testcontrol:10";
+
+    createProvider();
+
+    auto adapter = std::make_shared<ExtensionCommunicationTestAdapter>(uri, true, true);
+    extensionProvider->registerExtension(adapter);
+
+    // Experimental feature required
+    config->enableExperimentalFeature(RootConfig::kExperimentalFeatureExtensionProvider)
+        .extensionProvider(extensionProvider)
+        .extensionMediator(mediator);
+
+    createContent(DATA_DEFINED_HANDLER_DOC, DATA_DEFINED_HANDLER_DATA, true);
+    auto flagsMap = ObjectMap{{uri, "--testflag"}};
+    mediator->initializeExtensions(flagsMap, content);
+    mediator->loadExtensions(flagsMap, content, [](){});
+
+    ASSERT_TRUE(adapter->hasPendingRequest(uri));
+    auto registerRequest = adapter->getPendingRequest(uri);
+
+    rapidjson::Document schemaDoc;
+    auto schema = ExtensionSchema(&schemaDoc.GetAllocator(), "1.0").uri(uri)
+                      .event("OnPress", [](EventSchema& eventSchema) {
+                          eventSchema.fastMode(false);
+                      });
+    auto success = RegistrationSuccess("1.0").token("MAGIC_TOKEN").schema(schema);
+    adapter->registrationSuccess(uri, success.getDocument());
+
+    ASSERT_TRUE(adapter->isRegistered(uri));
+
+    inflate();
+    ASSERT_TRUE(root);
+    advanceTime(10);
+
+    auto event = alexaext::Event("1.0").name("OnPress").target(uri);
+    adapter->sendEvent(event);
+    advanceTime(16);
+
+    ASSERT_TRUE(CheckSendEvent(root, "Good morning"));
 }
 
 TEST_F(ExtensionMediatorTest, FastInitialization) {

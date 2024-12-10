@@ -34,7 +34,6 @@ public:
     void releaseSelf() override;
     bool remove() override;
 
-    void updateMediaState(const MediaState& state, bool fromEvent) override;
     bool getTags(rapidjson::Value& outMap, rapidjson::Document::AllocatorType& allocator) override;
 
     rapidjson::Value serialize(rapidjson::Document::AllocatorType& allocator) const override;
@@ -74,9 +73,6 @@ protected:
 
 private:
     void saveMediaState(const MediaState& state);
-    std::shared_ptr<ObjectMap> createDefaultEventProperties();
-    std::shared_ptr<ObjectMap> createErrorEventProperties(int errorCode);
-    std::shared_ptr<ObjectMap> createReadyEventProperties();
     void playerCallback(MediaPlayerEventType eventType, const MediaState& mediaState);
     void updateScreenLock();
 

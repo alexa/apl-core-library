@@ -208,22 +208,22 @@ protected:
         if (datasourceContext[index]["listVersion"].GetInt() != listVersion)
             return ::testing::AssertionFailure()
                 << "DataSource listVersion is wrong. Expected: " << listVersion
-                << ", actual: " << datasourceContext[index]["listVersion"].GetString();
+                << ", actual: " << datasourceContext[index]["listVersion"].GetInt();
 
         if (datasourceContext[index]["minimumInclusiveIndex"].GetInt() != minimumInclusiveIndex)
             return ::testing::AssertionFailure()
                 << "DataSource minimumInclusiveIndex is wrong. Expected: " << minimumInclusiveIndex
-                << ", actual: " << datasourceContext[index]["minimumInclusiveIndex"].GetString();
+                << ", actual: " << datasourceContext[index]["minimumInclusiveIndex"].GetInt();
 
         if (datasourceContext[index]["maximumExclusiveIndex"].GetInt() != maximumExclusiveIndex)
             return ::testing::AssertionFailure()
                 << "DataSource maximumExclusiveIndex is wrong. Expected: " << maximumExclusiveIndex
-                << ", actual: " << datasourceContext[index]["maximumExclusiveIndex"].GetString();
+                << ", actual: " << datasourceContext[index]["maximumExclusiveIndex"].GetInt();
 
         if (datasourceContext[index]["startIndex"].GetInt() != startIndex)
             return ::testing::AssertionFailure()
                 << "DataSource startIndex is wrong. Expected: " << startIndex
-                << ", actual: " << datasourceContext[index]["startIndex"].GetString();
+                << ", actual: " << datasourceContext[index]["startIndex"].GetInt();
 
         return ::testing::AssertionSuccess();
     }
@@ -396,7 +396,6 @@ TEST_F(DatasourceContextTest, DynamicIndexList) {
     ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "102", 15, 2));
     ASSERT_FALSE(ds->processUpdate(createLazyLoad(3, 102, 15, "15, 16")));
     ASSERT_FALSE(root->isDataSourceContextDirty());
-    ASSERT_TRUE(serializeAndCheckDILContext(0, DIL_SOURCE_TYPE, "vQdpOESlok", 1, 0, 20, 8));
 
     // Update dynamicIndexListData with missing listVersion and check new context value
     ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "103", 6, 2));

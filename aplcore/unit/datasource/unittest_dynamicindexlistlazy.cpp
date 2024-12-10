@@ -262,6 +262,52 @@ TEST_F(DynamicIndexListLazyTest, BasicRTL)
     ASSERT_FALSE(root->hasEvent());
 }
 
+static const char *DATA_BACK = R"({
+  "dynamicSource": {
+    "type": "dynamicIndexList",
+    "listId": "vQdpOESlok",
+    "startIndex": 0,
+    "minimumInclusiveIndex": -15,
+    "maximumExclusiveIndex": 2,
+    "items": [0, 1]
+  }
+})";
+
+TEST_F(DynamicIndexListLazyTest, BasicBackwardsRTL)
+{
+    loadDocument(BASIC_HORIZONTAL_RTL, DATA_BACK);
+    advanceTime(10);
+
+    ASSERT_EQ(kComponentTypeSequence, component->getType());
+
+    ASSERT_EQ(2, component->getChildCount());
+
+    ASSERT_TRUE(CheckChildrenLaidOut(component, {0, 1}, true));
+
+    ASSERT_TRUE(CheckBounds(-15, 2));
+
+    ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "101", -5, 5));
+    ASSERT_TRUE(ds->processUpdate(createLazyLoad(-1, 101, -5, "-5, -4, -3, -2, -1")));
+    root->clearPending();
+
+    ASSERT_EQ(7, component->getChildCount());
+
+    ASSERT_TRUE(CheckChildrenLaidOut(component, Range(0, 0), false));
+    ASSERT_TRUE(CheckChildrenLaidOut(component, Range(1, 6), true));
+
+    ASSERT_EQ("id-5", component->getChildAt(0)->getId());
+    ASSERT_EQ("id1", component->getChildAt(6)->getId());
+
+    ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "102", -10, 5));
+    ASSERT_TRUE(ds->processUpdate(createLazyLoad(-1, 102, -10, "-10, -9, -8, -7, -6")));
+
+    ASSERT_EQ(7, component->getChildCount());
+
+    // Check that timeout is not there
+    loop->advanceToEnd();
+    ASSERT_FALSE(root->hasEvent());
+}
+
 TEST_F(DynamicIndexListLazyTest, BasicAsMapRTL)
 {
     loadDocument(BASIC_HORIZONTAL_RTL, DATA);
@@ -751,15 +797,15 @@ TEST_F(DynamicIndexListLazyTest, WithLastOneWay)
 
     ASSERT_TRUE(CheckDirty(component, kPropertyNotifyChildrenChanged));
     ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "102", 6, 5));
-    ASSERT_TRUE(ds->processUpdate(createLazyLoad(-1, 102, 6, "6, 7, 8, 9, 10")));
+    ASSERT_TRUE(ds->processUpdate(createLazyLoad(-1, 102, 6, "6, 7, 8, 9, 10, 11")));
     root->clearPending();
 
     ASSERT_TRUE(CheckDirty(component, kPropertyNotifyChildrenChanged));
-    ASSERT_TRUE(CheckChildrenLaidOut(component, Range(0, 11), true));
+    ASSERT_TRUE(CheckChildrenLaidOut(component, Range(0, 12), true));
     ASSERT_EQ("id0", component->getChildAt(0)->getId());
     ASSERT_EQ("id5", component->getChildAt(5)->getId());
-    ASSERT_EQ("id10", component->getChildAt(10)->getId());
-    ASSERT_EQ("li", component->getChildAt(11)->getId());
+    ASSERT_EQ("id11", component->getChildAt(11)->getId());
+    ASSERT_EQ("li", component->getChildAt(12)->getId());
 
     ASSERT_FALSE(root->hasEvent());
 
@@ -769,8 +815,8 @@ TEST_F(DynamicIndexListLazyTest, WithLastOneWay)
     advanceTime(10);
     root->clearPending();
 
-    ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "103", 11, 5));
-    ASSERT_TRUE(ds->processUpdate(createLazyLoad(-1, 103, 11, "11, 12, 13, 14, 15")));
+    ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "103", 12, 5));
+    ASSERT_TRUE(ds->processUpdate(createLazyLoad(-1, 103, 12, "12, 13, 14, 15")));
     root->clearPending();
     ASSERT_TRUE(CheckFetchRequest("vQdpOESlok", "104", 16, 4));
 

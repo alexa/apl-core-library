@@ -17,7 +17,6 @@
 #define _APL_AUDIO_TEST_H
 
 #include "../testeventloop.h"
-#include "testaudioplayerfactory.h"
 
 namespace apl {
 
@@ -27,8 +26,8 @@ namespace apl {
 class AudioTest : public DocumentWrapper {
 public:
     AudioTest() {
-        factory = std::make_shared<TestAudioPlayerFactory>(config->getTimeManager());
-        config->audioPlayerFactory(factory);
+        // Alias to not change all existing tests.
+        factory = audioPlayerFactory;
     }
 
     ActionPtr executeSpeakItem(const std::string& item, CommandScrollAlign align,
@@ -46,27 +45,6 @@ public:
     void executeSpeakItem(const ComponentPtr& component, CommandScrollAlign align,
                           CommandHighlightMode highlightMode, int minimumDwell) {
         executeSpeakItem(component->getUniqueId(), align, highlightMode, minimumDwell);
-    }
-
-    ::testing::AssertionResult CheckPlayer(std::string url, TestAudioPlayer::EventType eventType) {
-        if (!factory->hasEvent())
-            return ::testing::AssertionFailure() << "No player event";
-
-        auto event = factory->popEvent();
-        if (event.eventType != eventType || event.url != url)
-            return ::testing::AssertionFailure()
-                   << "Expected='" << url << "':" << TestAudioPlayer::toString(eventType)
-                   << " Received='" << event.url
-                   << "':" << TestAudioPlayer::toString(event.eventType);
-
-        return ::testing::AssertionSuccess();
-    }
-
-    void TearDown() override {
-        DocumentWrapper::TearDown();
-
-        ASSERT_FALSE(factory->hasEvent());
-        ASSERT_EQ(0, factory->playerCount());
     }
 
 public:

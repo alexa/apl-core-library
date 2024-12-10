@@ -75,6 +75,7 @@
 #include "apl/primitives/urlrequest.h"
 #include "apl/scaling/metricstransform.h"
 #include "apl/touch/pointerevent.h"
+#include "apl/utils/dataurl.h"
 #include "apl/utils/localemethods.h"
 #include "apl/utils/log.h"
 #include "apl/utils/session.h"

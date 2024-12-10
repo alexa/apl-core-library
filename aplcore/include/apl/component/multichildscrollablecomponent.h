@@ -89,6 +89,12 @@ public:
     }
 
     /**
+     * Are multiple items laid out on the cross axis
+     * @return true always for Sequence component, maybe true or false for others
+     */
+    virtual bool isSingleChildOnCrossAxis() = 0;
+
+    /**
      * Scroll immediately to position this child appropriately.
      * @param child A direct child of the component
      * @param align alignment of the child
@@ -131,11 +137,6 @@ protected:
 
     virtual void ensureChildAttached(const CoreComponentPtr& child, int targetIdx);
 
-    /**
-     * Estimate number of children required to cover provided distance based on parameters of child provided.
-     */
-    virtual size_t estimateChildrenToCover(float distance, size_t baseChild) = 0;
-
 private:
     /**
      * Ensure that current state of visibility parameters properly calculated.
@@ -176,7 +177,6 @@ private:
 
     void attachYogaNodeIfRequired(const CoreComponentPtr& coreChild, int index) override;
     bool attachChild(const CoreComponentPtr& child, size_t index);
-    void runLayoutHeuristics(size_t anchorIdx, float childCache, float pageSize, bool useDirtyFlag, bool first);
     void fixScrollPosition(const Rect& oldAnchorRect, const Rect& anchorRect);
     Point getPaddedScrollPosition(LayoutDirection layoutDirection) const;
     void processLayoutChangesInternal(bool useDirtyFlag, bool first, bool delayed, bool needsFullReProcess);

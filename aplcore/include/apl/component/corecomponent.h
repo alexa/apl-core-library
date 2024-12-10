@@ -18,7 +18,6 @@
 
 #include <climits>
 #include <stack>
-#include <yoga/YGNode.h>
 
 #include "apl/apl_config.h"
 
@@ -32,6 +31,7 @@
 #include "apl/primitives/size.h"
 #include "apl/primitives/transform2d.h"
 #include "apl/utils/flags.h"
+#include "apl/yoga/yoganode.h"
 
 #ifdef SCENEGRAPH
 #include "apl/scenegraph/common.h"
@@ -98,9 +98,7 @@ public:
                   Properties&& properties,
                   const Path& path);
 
-    virtual ~CoreComponent() {
-        YGNodeFree(mYGNodeRef);  // TODO: Check to make sure we're deallocating correctly
-    }
+    virtual ~CoreComponent() = default;
 
     /**
      * Release this component and all children.  This component may still be in
@@ -532,14 +530,22 @@ public:
     /**
      * Execute any "onCursorEnter" commands associated with this component.  These commands
      * will be run in fast mode.
+     * @property additionalProperties Any additional properties to add to the event context.
      */
-    virtual void executeOnCursorEnter();
+    virtual void executeOnCursorEnter(const ObjectMapPtr& additionalProperties);
 
     /**
      * Execute any "onCursorExit" commands associated with this component.  These commands
      * will be run in fast mode.
      */
     virtual void executeOnCursorExit();
+
+    /**
+     * Execute any "onCursorMove" commands associated with this component.  These commands
+     * will be run in fast mode.
+     * @property additionalProperties Any additional properties to add to the event context.
+     */
+    virtual void executeOnCursorMove(const ObjectMapPtr& additionalProperties);
 
     /**
      * Process key press targeted to the component.
@@ -796,17 +802,22 @@ public:
      * Update the spacing to specified value if any.
      * @param reset Reset spacing to 0.
      */
-    void fixSpacing(bool reset = false);
+    void fixSpacing(bool reset);
 
     /**
-     * @return Yoga node reference for the component.
+     * @return Yoga node for the component.
      */
-    YGNodeRef getNode() const { return mYGNodeRef; }
+    YogaNode& getNode() { return mYogaNode; }
+
+    /**
+     * @return Yoga node for the component.
+     */
+    const YogaNode& getNode() const { return mYogaNode; }
 
     /**
      * @return Direction in which component is laid out.
      */
-    YGDirection getLayoutDirection() const;
+    LayoutDirection getLayoutDirection() const;
 
     /**
      * Call this method to get shared ptr of CoreComponent
@@ -835,44 +846,6 @@ public:
      */
     void executeEventHandler(const std::string& event, const Object& commands, bool fastMode = true,
                              const ObjectMapPtr& optional = nullptr);
-
-    /**
-     * This inline function casts YGMeasureMode enum to MeasureMode enum.
-     * @param ygMeasureMode Yoga definition of the measuring mode
-     * @return APL definition of the measuring mode
-     */
-    static inline MeasureMode toMeasureMode(YGMeasureMode ygMeasureMode)
-    {
-        switch(ygMeasureMode){
-            case YGMeasureModeExactly:
-                return Exactly;
-            case YGMeasureModeAtMost:
-                return AtMost;
-                //default case will execute when mode is YGMeasureModeUndefined as well as other than specified cases in case of Yoga lib update.
-            default:
-                return Undefined;
-        }
-    }
-
-    /**
-     * This inline function used in TextComponent and EditTextComponent class for TextMeasurement.
-     * @param node The yoga node
-     * @param width Width in dp
-     * @param widthMode Width measuring mode - at most, exactly, or undefined
-     * @param height Height in dp
-     * @param heightMode Height measuring mode - at most, exactly, or undefined
-     * @return Size of measured text, in dp
-     */
-    static YGSize textMeasureFunc(YGNodeRef node, float width, YGMeasureMode widthMode, float height, YGMeasureMode heightMode);
-
-    /**
-     * This inline function used in TextComponent and EditTextComponent class for TextMeasurement.
-     * @param node The yoga node
-     * @param width The width
-     * @param height The height
-     * @return The baseline of the text in dp
-     */
-    static float textBaselineFunc(YGNodeRef node, float width, float height);
 
     /**
      * Executes a given handler by name with a specific position.
@@ -1033,6 +1006,29 @@ public:
      */
     void stashRebuildContext(const ContextPtr& context);
 
+    /**
+     * @return true if this component should clip, false otherwise. Takes into account document version.
+     */
+    bool shouldClip();
+
+    /**
+     * Measure callback
+     * @param width Requested width
+     * @param widthMode Width measure mode
+     * @param height Requested height
+     * @param heightMode Height measure mode
+     * @return Size of measured text
+     */
+    virtual Size textMeasure(float width, MeasureMode widthMode, float height, MeasureMode heightMode) { aplThrow(NOT_SUPPORTED_ERROR); }
+
+    /**
+     * Text baseline callback
+     * @param width Requested width
+     * @param height Requested height
+     * @return Baseline width.
+     */
+    virtual float textBaseline(float width, float height) { aplThrow(NOT_SUPPORTED_ERROR); }
+
 #ifdef SCENEGRAPH
     /**
      * @return The current scene graph node.
@@ -1142,7 +1138,7 @@ protected:
     /**
      * Operation to perform before actual component release.
      */
-    virtual void preRelease() {};
+    virtual void preRelease();
 
     /**
      * Release this component. This component may still be in its parent's child list. This does
@@ -1212,24 +1208,6 @@ protected:
      */
     bool isParentOf(const CoreComponentPtr& child);
 
-    /**
-     * Measure callback
-     * @param width Requested width
-     * @param widthMode Width measure mode
-     * @param height Requested height
-     * @param heightMode Height measure mode
-     * @return Yoga size of measured text
-     */
-    virtual YGSize textMeasure(float width, YGMeasureMode widthMode, float height, YGMeasureMode heightMode);
-
-    /**
-     * Text baseline callback
-     * @param width Requested width
-     * @param height Requested height
-     * @return Baseline width.
-     */
-    virtual float textBaseline(float width, float height);
-
 private:
     friend streamer& operator<<(streamer&, const Component&);
 
@@ -1243,6 +1221,8 @@ private:
         kChildChangeActionInsert,
         kChildChangeActionRemove
     };
+
+    virtual bool doesLegacyClipping() const { return false; };
 
     bool appendChild(const ComponentPtr& child, bool useDirtyFlag);
 
@@ -1340,7 +1320,7 @@ protected:
     std::vector<CoreComponentPtr>    mChildren;    // Children of this component
     std::vector<CoreComponentPtr>    mDisplayedChildren; // ordered list of children to be drawn
     CoreComponentPtr                 mParent;
-    YGNodeRef                        mYGNodeRef;
+    YogaNode                         mYogaNode;
     Path                             mPath;
     std::shared_ptr<LayoutRebuilder> mRebuilder;
     Size                             mLayoutSize;

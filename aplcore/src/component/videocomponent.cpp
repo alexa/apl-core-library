@@ -17,11 +17,11 @@
 
 #include "apl/component/componentpropdef.h"
 #include "apl/content/rootconfig.h"
-#include "apl/component/yogaproperties.h"
 #include "apl/media/mediautils.h"
 #include "apl/primitives/mediasource.h"
 #include "apl/time/sequencer.h"
 #include "apl/utils/session.h"
+#include "apl/yoga/yogaproperties.h"
 #ifdef SCENEGRAPH
 #include "apl/scenegraph/builder.h"
 #endif // SCENEGRAPH
@@ -236,7 +236,7 @@ VideoComponent::propDefSet() const
         auto array = ObjectArray();
         for (auto key : PLAYING_STATE)
             array.emplace_back(component.getCalculated(key));
-        return Object(std::move(array));
+        return {std::move(array)};
     };
 
     // Restore the current playing state of the component. Note that this is NOT guaranteed to
@@ -277,9 +277,9 @@ VideoComponent::propDefSet() const
 
     static ComponentPropDefSet sVideoComponentProperties = ComponentPropDefSet(
         CoreComponent::propDefSet(), MediaComponentTrait::propDefList()).add({
-        { kPropertyAudioTrack,      kAudioTrackForeground,  sAudioTrackMap,     kPropInOut },
+        { kPropertyAudioTrack,      kAudioTrackForeground,  sAudioTrackMap,     kPropInOut | kPropVisualContext },
         { kPropertyAutoplay,        false,                  asOldBoolean,       kPropInOut },
-        { kPropertyMuted,           false,                  asOldBoolean,       kPropDynamic | kPropInOut, setMute },
+        { kPropertyMuted,           false,                  asOldBoolean,       kPropDynamic | kPropInOut | kPropVisualContext, setMute },
         { kPropertyScale,           kVideoScaleBestFit,     sVideoScaleMap,     kPropInOut },
         { kPropertySource,          Object::EMPTY_ARRAY(),  asMediaSourceArray, kPropDynamic | kPropInOut | kPropVisualContext | kPropVisualHash | kPropEvaluated, resetMediaState },
         { kPropertyOnEnd,           Object::EMPTY_ARRAY(),  asCommand,          kPropIn },
@@ -358,144 +358,6 @@ VideoComponent::updateScreenLock()
     mScreenLock.ensure(hasScreenLock);
 }
 
-
-void
-VideoComponent::updateMediaState(const MediaState& state, bool fromEvent)
-{
-    // This method should only be called if we don't have a media player
-    assert(!mMediaPlayer);
-
-    auto previousStatePaused = getCalculated(kPropertyTrackPaused).asBoolean();
-    auto previousStateEnded = getCalculated(kPropertyTrackEnded).asBoolean();
-    auto previousTrackIndex = getCalculated(kPropertyTrackIndex).asInt();
-    auto previousCurrentTime = getCalculated(kPropertyTrackCurrentTime).asInt();
-    auto previousTrackState = getCalculated(kPropertyTrackState).asInt();
-    saveMediaState(state);
-    updateScreenLock();
-
-    if (state.getTrackIndex() != previousTrackIndex) {
-        auto& commands = getCalculated(kPropertyOnTrackUpdate);
-        if (!commands.empty()) {
-            mContext->sequencer().executeCommands(
-                commands,
-                createEventContext("TrackUpdate", createDefaultEventProperties(), state.getTrackIndex()),
-                shared_from_corecomponent(),
-                fromEvent);
-        }
-    }
-
-    if(state.isError() &&
-        ( kTrackFailed != previousTrackState || state.getTrackIndex() != previousTrackIndex)) {
-        auto& commands = getCalculated(kPropertyOnTrackFail);
-        if (!commands.empty()) {
-            mContext->sequencer().executeCommands(
-                commands,
-                createEventContext("TrackFail", createErrorEventProperties(state.getErrorCode())),
-                shared_from_corecomponent(), fromEvent);
-        }
-        return;
-    }
-
-    if(state.isReady() && previousTrackState == kTrackNotReady &&
-        previousTrackIndex == state.getTrackIndex()) {
-        auto& commands = getCalculated(kPropertyOnTrackReady);
-        if (!commands.empty()) {
-            mContext->sequencer().executeCommands(
-                commands,
-                createEventContext("TrackReady", createReadyEventProperties()),
-                shared_from_corecomponent(), fromEvent);
-        }
-    }
-
-    if (state.isPaused() != previousStatePaused) {
-        if (!state.isPaused()) {
-            auto& commands = getCalculated(kPropertyOnPlay);
-            if (!commands.empty())
-                mContext->sequencer().executeCommands(
-                    commands,
-                    createEventContext("Play", createDefaultEventProperties()),
-                    shared_from_corecomponent(),
-                    fromEvent);
-        }
-        else {
-            auto& commands = getCalculated(kPropertyOnPause);
-            if (!commands.empty()) {
-                mContext->sequencer().executeCommands(
-                    commands,
-                    createEventContext("Pause", createDefaultEventProperties()),
-                    shared_from_corecomponent(),
-                    fromEvent);
-            }
-        }
-    }
-
-    if (state.isEnded() != previousStateEnded && state.isEnded()) {
-        auto& commands = getCalculated(kPropertyOnEnd);
-        if (!commands.empty()) {
-            mContext->sequencer().executeCommands(
-                commands,
-                createEventContext("End", createDefaultEventProperties()),
-                shared_from_corecomponent(),
-                fromEvent);
-        }
-    }
-
-    if (state.getCurrentTime() != previousCurrentTime) {
-        auto& commands = getCalculated(kPropertyOnTimeUpdate);
-        if (!commands.empty()) {
-            mContext->sequencer().executeCommands(
-                commands,
-                createEventContext("TimeUpdate", createDefaultEventProperties(), state.getCurrentTime()),
-                shared_from_corecomponent(),
-                true);
-        }
-    }
-}
-
-std::shared_ptr<ObjectMap>
-VideoComponent::createDefaultEventProperties()
-{
-    // This method should only be called if we don't have a media player
-    assert(!mMediaPlayer);
-
-    auto eventProps = std::make_shared<ObjectMap>();
-    eventProps->emplace("trackIndex", getCalculated(kPropertyTrackIndex).asInt());
-    eventProps->emplace("trackCount", getCalculated(kPropertyTrackCount).asInt());
-    eventProps->emplace("trackState", sTrackStateMap.at(getCalculated(kPropertyTrackState).asInt()));
-    eventProps->emplace("currentTime", getCalculated(kPropertyTrackCurrentTime).asInt());
-    eventProps->emplace("duration", getCalculated(kPropertyTrackDuration).asInt());
-    eventProps->emplace("paused", getCalculated(kPropertyTrackPaused).asBoolean());
-    eventProps->emplace("ended", getCalculated(kPropertyTrackEnded).asBoolean());
-    eventProps->emplace("muted", getCalculated(kPropertyMuted).asBoolean());
-    return eventProps;
-}
-
-std::shared_ptr<ObjectMap>
-VideoComponent::createErrorEventProperties(const int error)
-{
-    // This method should only be called if we don't have a media player
-    assert(!mMediaPlayer);
-
-    auto eventProps = std::make_shared<ObjectMap>();
-    eventProps->emplace("trackIndex", getCalculated(kPropertyTrackIndex).asInt());
-    eventProps->emplace("trackState", sTrackStateMap.at(getCalculated(kPropertyTrackState).asInt()));
-    eventProps->emplace("currentTime", getCalculated(kPropertyTrackCurrentTime).asInt());
-    eventProps->emplace("errorCode", error);
-    return eventProps;
-}
-
-std::shared_ptr<ObjectMap>
-VideoComponent::createReadyEventProperties()
-{
-    // This method should only be called if we don't have a media player
-    assert(!mMediaPlayer);
-
-    auto eventProps = std::make_shared<ObjectMap>();
-    eventProps->emplace("trackIndex", getCalculated(kPropertyTrackIndex).asInt());
-    eventProps->emplace("trackState", sTrackStateMap.at(getCalculated(kPropertyTrackState).asInt()));
-    return eventProps;
-}
-
 std::string
 VideoComponent::getCurrentUrl() const
 {
@@ -537,13 +399,14 @@ VideoComponent::getTags(rapidjson::Value& outMap, rapidjson::Document::Allocator
 {
     bool actionable = CoreComponent::getTags(outMap, allocator);
     auto sources = getCalculated(kPropertySource);
-    if (sources.size() > 0) {
+    if (!sources.empty()) {
         bool isPaused = getCalculated(kPropertyTrackPaused).asBoolean();
         bool isEnded = getCalculated(kPropertyTrackEnded).asBoolean();
         int trackIndex = getCalculated(kPropertyTrackIndex).asInt();
         int trackCount = getCalculated(kPropertyTrackCount).asInt();
         int currentTime = getCalculated(kPropertyTrackCurrentTime).asInt();
         int duration = getCalculated(kPropertyTrackDuration).asInt();
+        const std::string& audioTrack = sAudioTrackMap.at(getCalculated(kPropertyAudioTrack).asInt());
 
         bool allowAdjustSeekPositionForward = currentTime < duration;
         bool allowAdjustSeekPositionBackwards = currentTime > 0;
@@ -564,8 +427,10 @@ VideoComponent::getTags(rapidjson::Value& outMap, rapidjson::Document::Allocator
         media.AddMember("allowAdjustSeekPositionBackwards", allowAdjustSeekPositionBackwards, allocator);
         media.AddMember("allowNext", allowNext, allocator);
         media.AddMember("allowPrevious", allowPrevious, allocator);
+        media.AddMember("audioTrack", rapidjson::Value(audioTrack.c_str(), allocator).Move(), allocator);
         media.AddMember("entities", rapidjson::Value(currentSource.getEntities().serialize(allocator),
                 allocator).Move(), allocator);
+        media.AddMember("muted", getCalculated(kPropertyMuted).asBoolean(), allocator);
         media.AddMember("positionInMilliseconds", currentTime, allocator);
         media.AddMember("state", rapidjson::Value(state.c_str(), allocator).Move(), allocator);
         media.AddMember("url", rapidjson::Value(currentSource.getUrl().c_str(), allocator).Move(), allocator);

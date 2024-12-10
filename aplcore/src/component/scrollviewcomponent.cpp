@@ -18,8 +18,8 @@
 #include "apl/command/commandproperties.h"
 #include "apl/command/scrollcommand.h"
 #include "apl/component/componentpropdef.h"
-#include "apl/component/yogaproperties.h"
 #include "apl/time/sequencer.h"
+#include "apl/yoga/yogaproperties.h"
 
 namespace apl {
 
@@ -48,7 +48,7 @@ ScrollViewComponent::propDefSet() const {
 
 Object
 ScrollViewComponent::getValue() const {
-    auto height = YGNodeLayoutGetHeight(mYGNodeRef);
+    auto height = mYogaNode.getHeight();
     auto currentPosition = mCalculated.get(kPropertyScrollPosition).asNumber();
     return height > 0 ? currentPosition / height : 0;
 }

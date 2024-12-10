@@ -22,6 +22,9 @@
 
 namespace apl {
 
+class Transform;
+using TransformPtr = std::shared_ptr<Transform>;
+
 /**
  * Represent a single transformation (such as "rotate" or "skewY") in a sequence of transformations.
  */
@@ -39,9 +42,22 @@ public:
      */
     virtual Transform2D evaluate(float width, float height) const = 0;
 
+    /**
+     * Convert this item into a 2D transformation matrix.
+     * @note Any relative dimensions will be ignored.
+     * @return The 2D transformation matrix
+     */
+    Transform2D evaluate() const { return evaluate(0, 0); }
+
     virtual Transform2D interpolate(Transform& other, float alpha, float width, float height) const = 0;
 
     virtual Type getType() const = 0;
+
+    static TransformPtr rotate(float angle);
+    static TransformPtr skewX(float x);
+    static TransformPtr skewY(float y);
+    static TransformPtr scale(float sx, float sy);
+    static TransformPtr translate(Dimension tx, Dimension ty);
 };
 
 /**
@@ -75,15 +91,14 @@ public:
     virtual Transform2D get(float width, float height) = 0;
 
     std::string toDebugString() const override {
-        return "Transform<>";
+        return "Transformation<>";
     }
 
     class ObjectType final : public SimplePointerHolderObjectType<Transformation> {
     public:
         rapidjson::Value serialize(
             const Object::DataHolder&,
-            rapidjson::Document::AllocatorType& allocator) const override
-        {
+            rapidjson::Document::AllocatorType& allocator) const override {
             return rapidjson::Value("TRANSFORM", allocator);
         }
     };

@@ -79,7 +79,7 @@ FillPathOp::serialize(rapidjson::Document::AllocatorType& allocator) const
     auto result = PathOp::serialize(allocator);
     result.AddMember("type", rapidjson::StringRef("fill"), allocator);
     result.AddMember("fillType",
-                     rapidjson::StringRef(fillType == kFillTypeEvenOdd ? "even-odd" : "winding"),
+                     rapidjson::StringRef(fillType == kFillTypeEvenOdd ? "even-odd" : "non-zero"),
                      allocator);
     return result;
 }

@@ -16,9 +16,9 @@
 #include "apl/component/touchwrappercomponent.h"
 
 #include "apl/component/componentpropdef.h"
-#include "apl/component/yogaproperties.h"
 #include "apl/primitives/keyboard.h"
 #include "apl/time/sequencer.h"
+#include "apl/yoga/yogaproperties.h"
 
 namespace apl {
 
@@ -55,11 +55,11 @@ TouchWrapperComponent::injectReplaceComponent(const CoreComponentPtr& child, boo
 
     insertChild(child, above ? 1 : 0, true);
 
-    yn::setPositionType(child->getNode(), static_cast<int>(kPositionAbsolute), *mContext);
-    yn::setPosition<YGEdgeLeft>(child->getNode(), bounds.getLeft(), *mContext);
-    yn::setPosition<YGEdgeTop>(child->getNode(), bounds.getTop(), *mContext);
-    yn::setWidth(child->getNode(), bounds.getWidth(), *mContext);
-    yn::setHeight(child->getNode(), bounds.getHeight(), *mContext);
+    child->getNode().setPositionType(kPositionAbsolute);
+    child->getNode().setPosition(Edge::Left, bounds.getLeft());
+    child->getNode().setPosition(Edge::Top, bounds.getTop());
+    child->getNode().setWidth(bounds.getWidth());
+    child->getNode().setHeight(bounds.getHeight());
 }
 
 
@@ -68,9 +68,9 @@ TouchWrapperComponent::resetChildPositionType() {
     if (!mChildren.empty()) {
         // TouchWrapper only supports relative positioning, we force absolute and inner bounds
         // coordinates to position overlay in case of Swipe/Replace
-        yn::setPositionType(getCoreChildAt(0)->getNode(), static_cast<int>(kPositionRelative), *mContext);
-        yn::setPosition<YGEdgeLeft>(getCoreChildAt(0)->getNode(), 0, *mContext);
-        yn::setPosition<YGEdgeTop>(getCoreChildAt(0)->getNode(), 0, *mContext);
+        getCoreChildAt(0)->getNode().setPositionType(kPositionRelative);
+        getCoreChildAt(0)->getNode().setPosition(Edge::Left, 0);
+        getCoreChildAt(0)->getNode().setPosition(Edge::Top, 0);
     }
 }
 

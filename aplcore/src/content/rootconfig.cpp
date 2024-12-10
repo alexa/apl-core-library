@@ -16,6 +16,7 @@
 #include "apl/content/rootconfig.h"
 
 #include <cmath>
+#include <mutex>
 #include <set>
 #include <vector>
 
@@ -106,6 +107,8 @@ RootConfig::RootConfig()
         {{kComponentTypeSequence, false}, {Dimension(100), Dimension()}}, // Horizontal scrolling, height=auto width=100dp
         {{kComponentTypeGridSequence, true}, {Dimension(), Dimension(100)}},  // Vertical scrolling, height=100dp width=auto
         {{kComponentTypeGridSequence, false}, {Dimension(100), Dimension()}}, // Horizontal scrolling, height=auto width=100dp
+        {{kComponentTypeFlexSequenceComponent, true}, {Dimension(100), Dimension(100)}},  // Vertical scrolling, height=100dp width=auto
+        {{kComponentTypeFlexSequenceComponent, false}, {Dimension(100), Dimension(100)}}, // Horizontal scrolling, height=auto width=100dp
         {{kComponentTypeVideo, true}, {Dimension(100), Dimension(100)}},
       })
 {
@@ -197,6 +200,9 @@ bool
 RootConfig::isAllowedEnvironmentName(const std::string &name) const
 {
     static std::set<std::string> sReserved;
+    static std::mutex sReservedMutex;
+
+    std::lock_guard<std::mutex> lock(sReservedMutex);
     if (sReserved.empty()) {
         // Don't allow custom env properties to shadow synthesized configuration change event props
         for (const auto &synthesizedName : ConfigurationChange::getSynthesizedPropertyNames()) {
@@ -328,6 +334,10 @@ RootConfig::copy() const
     copy->measure(getMeasure());
     copy->experimentalFeatures(getExperimentalFeatures());
     copy->packageManager(getPackageManager());
+    
+#ifdef SCENEGRAPH
+    copy->editTextFactory(getEditTextFactory());
+#endif
 
     for (auto key : sCopyableConfigProperties) {
         copy->set(key, getProperty(key));

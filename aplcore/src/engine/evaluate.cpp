@@ -13,13 +13,10 @@
  * permissions and limitations under the License.
  */
 
-#include <type_traits>
-
 #include "apl/engine/evaluate.h"
 #include "apl/datagrammar/bytecodeassembler.h"
 #include "apl/datagrammar/bytecodeoptimizer.h"
 #include "apl/engine/context.h"
-#include "apl/utils/log.h"
 #include "apl/utils/session.h"
 
 namespace apl {
@@ -198,26 +195,31 @@ propertyAsString(const Context& context,
 
 double
 propertyAsDouble(const Context& context,
-                  const Object& item,
-                  const char *name,
-                  double defValue )
+                 const Object& item,
+                 const char *name,
+                 double defValue )
 {
     if (!item.isMap() || !item.has(name))
         return defValue;
 
-    return evaluate(context, item.get(name)).asNumber();
+    auto result = evaluate(context, item.get(name)).asNumber();
+    // asNumber() returns NaN if the object wasn't a number.  But when
+    // loading properties with a default value, we generally don't want to store NaN.
+    // Instead, we return the default value.
+    return std::isnan(result) ? defValue : result;
 }
 
 int
 propertyAsInt(const Context& context,
-                 const Object& item,
-                 const char *name,
-                 int defValue )
+              const Object& item,
+              const char *name,
+              int defValue )
 {
     if (!item.isMap() || !item.has(name))
         return defValue;
 
-    return evaluate(context, item.get(name)).asInt();
+    auto result = evaluate(context, item.get(name)).asValidInt();
+    return result.second ? result.first : defValue;
 }
 
 Object
@@ -233,8 +235,8 @@ propertyAsObject(const Context& context,
 
 Object
 propertyAsRecursive(const Context& context,
-                 const Object& item,
-                 const char *name)
+                    const Object& item,
+                    const char *name)
 {
     if (!item.isMap() || !item.has(name))
         return Object::NULL_OBJECT();

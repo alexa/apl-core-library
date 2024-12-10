@@ -728,6 +728,72 @@ TEST(ObjectTest, IntLongFloatNumber)
     ASSERT_TRUE(std::isnan(Object(Dimension(DimensionType::Relative, 23)).asNumber()));  // Relative dimensions don't have a integer type
 }
 
+
+template<typename T>
+::testing::AssertionResult
+CheckValid(int64_t expected, bool valid, std::pair<T, bool> result) {
+    if (expected != result.first)
+        return ::testing::AssertionFailure() << "Value mismatch expected=" << expected << " actual=" << result.first;
+    if (valid != result.second)
+        return ::testing::AssertionFailure() << "Validity mismatch expected=" << valid << " actual=" << result.second;
+    return ::testing::AssertionSuccess();
+}
+
+TEST(ObjectTest, ValidIntLongNumber)
+{
+    ASSERT_TRUE(CheckValid(0, false, Object::NULL_OBJECT().asValidInt()));
+    ASSERT_TRUE(CheckValid(0, true, Object::FALSE_OBJECT().asValidInt()));
+    ASSERT_TRUE(CheckValid(1, true, Object::TRUE_OBJECT().asValidInt()));
+    ASSERT_TRUE(CheckValid(32, true, Object(32).asValidInt()));
+    ASSERT_TRUE(CheckValid(33, true, Object(32.5).asValidInt()));
+    ASSERT_TRUE(CheckValid(23, true, Object("23").asValidInt()));
+    ASSERT_TRUE(CheckValid(23, true, Object("0x17").asValidInt(0)));
+    ASSERT_TRUE(CheckValid(23, true, Object("23.9999").asValidInt()));
+    ASSERT_TRUE(CheckValid(23, true, Object(Dimension(23)).asValidInt()));
+    ASSERT_TRUE(CheckValid(0, false, Object(Dimension(DimensionType::Relative, 23)).asValidInt()));  // Relative dimensions don't have a integer type
+    ASSERT_TRUE(CheckValid(0, false, Object(Dimension(DimensionType::Auto, 0)).asValidInt()));
+
+    ASSERT_TRUE(CheckValid(0, false, Object::NULL_OBJECT().asValidInt64()));
+    ASSERT_TRUE(CheckValid(0, true, Object::FALSE_OBJECT().asValidInt64()));
+    ASSERT_TRUE(CheckValid(1, true, Object::TRUE_OBJECT().asValidInt64()));
+    ASSERT_TRUE(CheckValid(32, true, Object(32).asValidInt64()));
+    ASSERT_TRUE(CheckValid(33, true, Object(32.5).asValidInt64()));
+    ASSERT_TRUE(CheckValid(23, true, Object("23").asValidInt64()));
+    ASSERT_TRUE(CheckValid(23, true, Object("0x17").asValidInt64(0)));
+    ASSERT_TRUE(CheckValid(23, true, Object("23.9999").asValidInt64()));
+    ASSERT_TRUE(CheckValid(23, true, Object(Dimension(23)).asValidInt64()));
+    ASSERT_TRUE(CheckValid(0, false, Object(Dimension(DimensionType::Relative, 23)).asValidInt64()));  // Relative dimensions don't have a integer type
+    ASSERT_TRUE(CheckValid(0, false, Object(Dimension(DimensionType::Auto, 0)).asValidInt64()));
+
+    // Fancier tests on strings
+    ASSERT_TRUE(CheckValid(23, true, Object("       23").asValidInt()));
+    ASSERT_TRUE(CheckValid(0, false, Object("       ").asValidInt()));
+    ASSERT_TRUE(CheckValid(0, true, Object("     0  ").asValidInt()));
+    ASSERT_TRUE(CheckValid(23, true, Object("23    ").asValidInt()));
+    ASSERT_TRUE(CheckValid(-23, true, Object(" \t\r\n   -23").asValidInt()));  // Whitespace is ignored
+    ASSERT_TRUE(CheckValid(23, true, Object(" +23  ").asValidInt()));
+    ASSERT_TRUE(CheckValid(0, false, Object(" \t\r\n   --23").asValidInt()));  // Too many minus signs
+    ASSERT_TRUE(CheckValid(0, false, Object("++23").asValidInt()));
+    ASSERT_TRUE(CheckValid(0, false, Object("+-23").asValidInt()));
+    ASSERT_TRUE(CheckValid(0, false, Object("  .23").asValidInt()));
+    ASSERT_TRUE(CheckValid(2147483647, true, Object("2147483647").asValidInt()));  // MAX 32-BIT INT
+    ASSERT_TRUE(CheckValid(0, false, Object("18446744073709552000").asValidInt()));  // 2^64
+
+    ASSERT_TRUE(CheckValid(23, true, Object("       23").asValidInt64()));
+    ASSERT_TRUE(CheckValid(0, false, Object("       ").asValidInt64()));
+    ASSERT_TRUE(CheckValid(0, true, Object("     0  ").asValidInt64()));
+    ASSERT_TRUE(CheckValid(23, true, Object("23    ").asValidInt64()));
+    ASSERT_TRUE(CheckValid(-23, true, Object(" \t\r\n   -23").asValidInt64()));  // Whitespace is ignored
+    ASSERT_TRUE(CheckValid(23, true, Object(" +23  ").asValidInt64()));
+    ASSERT_TRUE(CheckValid(0, false, Object(" \t\r\n   --23").asValidInt64()));  // Too many minus signs
+    ASSERT_TRUE(CheckValid(0, false, Object("++23").asValidInt64()));
+    ASSERT_TRUE(CheckValid(0, false, Object("+-23").asValidInt64()));
+    ASSERT_TRUE(CheckValid(0, false, Object("  .23").asValidInt64()));
+    ASSERT_TRUE(CheckValid(2147483647, true, Object("2147483647").asValidInt64()));  // MAX 32-BIT INT
+    ASSERT_TRUE(CheckValid(2147483648, true, Object("2147483648").asValidInt64()));
+    ASSERT_TRUE(CheckValid(0, false, Object("18446744073709552000").asValidInt64()));  // 2^64
+}
+
 TEST(ObjectTest, WhenDimensionIsNotFiniteSerializeReturnsZero)
 {
     rapidjson::Document doc;

@@ -37,6 +37,8 @@
 #include <sstream>
 #include <numeric>
 #include <chrono>
+#include <string>
+#include <random>
 
 #ifdef APL_CORE_UWP
 #include <direct.h>   // _getcwd, _mkdir
@@ -334,6 +336,106 @@ private:
     int mIndent;
 };
 
+class ImportPackageUtils {
+public:
+    ImportPackageUtils() : mGen(mRandom()), mDis(0,9), mOpDis(0, 4), mCharDis(0, 61) {}
+
+    std::string generateFuzzyAccept() {
+        std::string accept = generateSimpleRange();
+        while (mDis(mGen) > 5) { // 50% chance of adding another simple range
+            accept += " " + generateSimpleRange();
+        }
+        return accept;
+    }
+
+    std::string generateFuzzyVersion() {
+        std::string version = generateRelease();
+        if (mDis(mGen) > 5) { // 50% chance of adding a prerelease
+            version += generatePrerelease();
+        }
+        if (mDis(mGen) > 5) { // 50% chance of adding a build
+            version += generateBuild();
+        }
+        return version;
+    }
+
+
+private:
+    std::random_device mRandom;
+    std::mt19937 mGen;
+    std::uniform_int_distribution<> mDis;
+    std::uniform_int_distribution<> mOpDis; // <, >, <=, >=, =
+    std::uniform_int_distribution<> mCharDis; // a-zA-Z0-9-
+
+    std::string generateNumber() {
+        std::string num;
+        int n = mDis(mGen) + 1; // Generate a number between 1 and 10
+        num += std::to_string(n);
+        while (mDis(mGen) > 5) { // 50% chance of adding another digit
+            num += std::to_string(mDis(mGen));
+        }
+        return num;
+    }
+
+    std::string generateIdentifier() {
+        std::string id;
+        int len = mDis(mGen) + 1; // Generate an identifier with length between 1 and 10
+        for (int i = 0; i < len; ++i) {
+            char c;
+            c = mCharDis(mGen) % 63;
+            if (c < 26) {
+                c += 'a';
+            } else if (c < 52) {
+                c += 'A' - 26;
+            } else if (c < 62) {
+                c += '0' - 52;
+            } else {
+                c = '-';
+            }
+            id += c;
+        }
+        return id;
+    }
+
+    std::string generateRelease() {
+        std::string release = generateNumber();
+        if (mDis(mGen) > 5) { // 50% chance of adding a second number
+            release += "." + generateNumber();
+            if (mDis(mGen) > 5) { // 50% chance of adding a third number
+                release += "." + generateNumber();
+            }
+        }
+        return release;
+    }
+
+    std::string generatePrerelease() {
+        std::string prerelease = "-" + generateIdentifier();
+        while (mDis(mGen) > 5) { // 50% chance of adding another identifier
+            prerelease += "." + generateIdentifier();
+        }
+        return prerelease;
+    }
+
+    std::string generateBuild() {
+        std::string build = "+" + generateIdentifier();
+        while (mDis(mGen) > 5) { // 50% chance of adding another identifier
+            build += "." + generateIdentifier();
+        }
+        return build;
+    }
+
+    std::string generateSimpleRange() {
+        std::string op;
+        switch (mOpDis(mGen)) {
+            case 0: op = "<"; break;
+            case 1: op = ">"; break;
+            case 2: op = "<="; break;
+            case 3: op = ">="; break;
+            case 4: op = "="; break;
+        }
+        return op + generateFuzzyVersion();
+    }
+};
 
 apl::streamer&
 operator<<(apl::streamer& os, const ViewportSettings& settings)

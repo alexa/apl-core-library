@@ -193,6 +193,29 @@ TEST_F(SGFilterTest, Saturate)
     )apl")));
 }
 
+TEST_F(SGFilterTest, SaturateZero)
+{
+    auto filter = makeFilter("URL");
+    auto saturate = sg::saturate(filter, 0.0f);
+
+    ASSERT_EQ(saturate->toDebugString(), "Saturate amount=0.000000");
+
+    rapidjson::Document doc;
+    ASSERT_TRUE(IsEqual(saturate->serialize(doc.GetAllocator()),
+                        StringToMapObject(R"apl(
+        {
+            "type": "saturateFilter",
+            "filter": {
+                "type": "mediaObjectFilter",
+                "mediaObject": {
+                    "url": "URL"
+                }
+            },
+            "amount": 0.0
+        }
+    )apl")));
+}
+
 
 TEST_F(SGFilterTest, Solid)
 {

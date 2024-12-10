@@ -47,6 +47,7 @@ const std::map<std::string, StyledText::SpanType> sTextSpanTypeMap = {
     {"sub", StyledText::kSpanTypeSubscript},
     {"nobr", StyledText::kSpanTypeNoBreak},
     {"span", StyledText::kSpanTypeSpan},
+    {"li", StyledText::kSpanTypeListItem},
 };
 
 const std::set<std::string> sAttributableTags = {
@@ -65,6 +66,12 @@ const std::set<StyledText::SpanType> sMergeableTags = {
     StyledText::kSpanTypeSubscript
 };
 
+// There are some tags which can't be merged or overlap with same type.
+// For example "<li>te<li>xt</li>" should become "<li>te</li><li>xt</li>"
+const std::set<StyledText::SpanType> sExclusiveTags = {
+    StyledText::kSpanTypeListItem
+};
+
 /**
  * Character converter to be used for multi-byte sized characters.
  * Static variables are contained within a single compilation unit (file)
@@ -78,7 +85,8 @@ static std::wstring_convert<std::codecvt_utf8<char32_t>, char32_t> wchar_convert
 #endif
 
 void
-StyledTextState::append(const std::string& val) {
+StyledTextState::append(const std::string& val)
+{
     wchar_converter.to_bytes(wchar_converter.from_bytes(val.c_str()));
 
     // Get real number of characters.
@@ -90,7 +98,8 @@ StyledTextState::append(const std::string& val) {
 }
 
 void
-StyledTextState::space() {
+StyledTextState::space()
+{
     // Skip if we are collapsing whitespaces
     if (mProcessingWhiteSpace) {
         mAllowMerge = false;
@@ -106,12 +115,14 @@ StyledTextState::space() {
 }
 
 void
-StyledTextState::attributeName(const std::string& attributeName) {
+StyledTextState::attributeName(const std::string& attributeName)
+{
     mCurrentAttributeName = attributeName;
 }
 
 void
-StyledTextState::attributeValue(const std::string& attributeValue) {
+StyledTextState::attributeValue(const std::string& attributeValue)
+{
     if (mCurrentAttributeName.empty()) {
         return;
     }
@@ -126,18 +137,42 @@ StyledTextState::attributeValue(const std::string& attributeValue) {
 }
 
 void
-StyledTextState::tag(const std::string& tag) {
+StyledTextState::tag(const std::string& tag)
+{
     mCurrentTag = apl::tolower(tag);
 }
 
+inline bool shouldCloseSpan(const StyledText::Span& previousSpan,
+                            const StyledText::SpanType& currentSpanType)
+{
+    return sExclusiveTags.find(currentSpanType) != sExclusiveTags.end() &&
+           previousSpan.type == currentSpanType;
+}
+
+StyledText::SpanType
+StyledTextState::closeLastTag()
+{
+    auto span = mBuildStack.top();
+    mBuildStack.pop();
+    mOpenedSpans[span.type] -= 1;
+    span.end = mPosition;
+    mSpans.emplace_back(span);
+    return span.type;
+}
+
 void
-StyledTextState::start() {
+StyledTextState::start()
+{
     auto typeIt = sTextSpanTypeMap.find(mCurrentTag);
     if (typeIt == sTextSpanTypeMap.end()) {
         return;
     }
 
-    auto type = typeIt->second;
+    startSpanWithType(typeIt->second);
+}
+
+void
+StyledTextState::startSpanWithType(StyledText::SpanType type) {
     size_t start = mPosition;
     // If type same as previously closed tag - merge it instead of creating new one.
     // TODO: Not ideal but simple enough. Nested merging to be added if we see problems with viewhost performance.
@@ -149,8 +184,13 @@ StyledTextState::start() {
         }
     }
 
+    // If we have unclosed exclusive tag - close it here if opening new of same type
+    if (!mBuildStack.empty() && shouldCloseSpan(mBuildStack.top(), type)) {
+        closeLastTag();
+    }
+
     mOpenedSpans[type] += 1;
-    mBuildStack.push(StyledText::Span(start, type, mCurrentAttributeMap));
+    mBuildStack.emplace(start, type, mCurrentAttributeMap);
 
     mCurrentAttributeMap.clear();
 
@@ -161,7 +201,8 @@ StyledTextState::start() {
 bool
 StyledTextState::canMergeSpans(const StyledText::Span& previousSpan,
                                const StyledText::SpanType& currentSpanType,
-                               size_t currentPosition) const {
+                               size_t currentPosition) const
+{
     // <b>hello</b> <b>world</b> is 2 spans, raw text is "hello world"
     // <b> hello </b> <b>world</b> is 2 spans, raw text is "hello wold"
     // Both represents the same string "hello world" but because of the whitespace merge
@@ -173,7 +214,8 @@ StyledTextState::canMergeSpans(const StyledText::Span& previousSpan,
 }
 
 void
-StyledTextState::end() {
+StyledTextState::end()
+{
     auto typeIt = sTextSpanTypeMap.find(mCurrentTag);
     if (typeIt == sTextSpanTypeMap.end()) {
         return;
@@ -198,7 +240,7 @@ StyledTextState::end() {
     // If not equal then likely tag is unclosed so close it (above) and try again. This will split intersecting/wrongly closed tags to separate spans in order to simplify view-host processing.
     if (span.type != type) {
         end();
-        mBuildStack.push(StyledText::Span(mPosition, span.type));
+        mBuildStack.emplace(mPosition, span.type);
     }
     else {
         mOpenedSpans[type] -= 1;
@@ -208,12 +250,14 @@ StyledTextState::end() {
 }
 
 void
-StyledTextState::single(StyledText::SpanType type) {
-    mSpans.emplace_back(StyledText::Span(mPosition, type));
+StyledTextState::single(StyledText::SpanType type)
+{
+    mSpans.emplace_back(mPosition, type);
 }
 
 void
-StyledTextState::single() {
+StyledTextState::single()
+{
     auto typeIt = sTextSpanTypeMap.find(mCurrentTag);
     if (typeIt == sTextSpanTypeMap.end()) {
         return;
@@ -227,17 +271,17 @@ StyledTextState::single() {
 }
 
 std::vector<StyledText::Span>
-StyledTextState::finalize() {
+StyledTextState::finalize()
+{
     std::vector<StyledText::Span> output;
     while (!mBuildStack.empty()) {
-        auto span = mBuildStack.top();
-        mBuildStack.pop();
-        span.end = mPosition;
-        mSpans.emplace_back(span);
+        closeLastTag();
     }
 
     std::sort(mSpans.begin(), mSpans.end(), spanComparator);
-    for (auto s : mSpans) {
+    output.reserve(mSpans.size());
+
+    for (const auto& s : mSpans) {
         output.emplace_back(s);
     }
 
@@ -245,7 +289,8 @@ StyledTextState::finalize() {
 }
 
 void
-StyledTextState::emplaceAttribute(const std::string& value) {
+StyledTextState::emplaceAttribute(const std::string& value)
+{
     // Skip if this attribute name is not supported in APL
     auto nameIt = sSpanAttributeMap.find(mCurrentAttributeName);
     if (nameIt == sSpanAttributeMap.end()) {
@@ -270,6 +315,26 @@ StyledTextState::emplaceAttribute(const std::string& value) {
     }
 
     mCurrentAttributeName  = "";
+}
+
+void
+StyledTextState::closeAndCacheAllTags()
+{
+    while (!mBuildStack.empty()) {
+        auto type = closeLastTag();
+        if (sExclusiveTags.find(type) == sExclusiveTags.end()) {
+            mTagsCache.emplace(type);
+        }
+    }
+}
+
+void
+StyledTextState::openAllTagsFromCache() {
+    while (!mTagsCache.empty()) {
+        auto type = mTagsCache.top();
+        startSpanWithType(type);
+        mTagsCache.pop();
+    }
 }
 
 } // namespace apl

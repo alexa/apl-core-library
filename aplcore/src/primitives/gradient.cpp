@@ -86,6 +86,10 @@ inline void convertAngleToCoordinates(double angle, double& x1, double& x2, doub
     // Start is opposite
     x1 = 1 - x2;
     y1 = 1 - y2;
+
+    // Flip vertically for scenegraph
+    y1 = 1 - y1;
+    y2 = 1 - y2;
 }
 
 Object

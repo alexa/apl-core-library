@@ -39,6 +39,8 @@ public:
     void release() override;
 
 #ifdef SCENEGRAPH
+    void assignSceneGraphLayer(const sg::LayerPtr& containingLayer) override;
+
     sg::GraphicFragmentPtr buildSceneGraph(bool allowLayers,
                                            sg::SceneGraphUpdates& sceneGraph) override;
     void updateSceneGraph(sg::SceneGraphUpdates& sceneGraph) override;

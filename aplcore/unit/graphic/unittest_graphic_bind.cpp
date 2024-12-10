@@ -249,7 +249,7 @@ static std::map<std::string, Object> BAD_NAME_TESTS = {
     { "234_foo", "${234_foo}" },
     { "åbc", "${åbc}" },
     { "abç", "${abç}" },
-    { "a-b", "nan" },
+    { "a-b", "" },
     { "0", "0" },
     { "", "" },
 };

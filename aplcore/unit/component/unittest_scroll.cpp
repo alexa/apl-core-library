@@ -207,12 +207,24 @@ TEST_F(ScrollTest, ScrollForward)
 TEST_F(ScrollTest, ScrollForwardMultiple)
 {
     loadDocument(SCROLL_TEST);
+    rapidjson::Document scrollDoc(rapidjson::kObjectType);
     auto touch = context->findComponentById("myTouch");
     auto scroll = context->findComponentById("myScrollView");
     auto frame = context->findComponentById("myFrame");
 
+    ASSERT_EQ(0, root->serializeDocumentState(scrollDoc.GetAllocator()).Size());
     for (int i = 0 ; i < 20 ; i++) {
         performTap(0, 200);
+        auto animationState = root->serializeDocumentState(scrollDoc.GetAllocator());
+        ASSERT_EQ(1, animationState.Size());
+        ASSERT_TRUE(animationState[0].HasMember("actions"));
+        ASSERT_EQ(1, animationState[0]["actions"].Size());
+        ASSERT_TRUE(animationState[0]["actions"][0].HasMember("component"));
+        ASSERT_STREQ("_main/mainTemplate/items/items/0", animationState[0]["actions"][0]["component"]["provenance"].GetString());
+        ASSERT_STREQ("myScrollView", animationState[0]["actions"][0]["component"]["targetId"].GetString());
+        ASSERT_STREQ("ScrollView", animationState[0]["actions"][0]["component"]["targetComponentType"].GetString());
+        ASSERT_TRUE(animationState[0]["actions"][0].HasMember("actionHint"));
+        ASSERT_STREQ("Scrolling", animationState[0]["actions"][0]["actionHint"].GetString());
 
         advanceTime(1000);
 
@@ -3452,10 +3464,9 @@ const static char * REMOVE_STICKY_COMPONENT_DOC = R"apl({
         "id": "stickyContainer",
         "type": "Container",
         "height": 2000,
-        "data": "${TestArray}",
         "item": {
           "type": "Frame",
-          "id": "${data}",
+          "id": "1",
           "position": "sticky",
           "top": 100,
           "height": 100,
@@ -3471,9 +3482,6 @@ const static char * REMOVE_STICKY_COMPONENT_DOC = R"apl({
  */
 TEST_F(ScrollTest, RemoveAndReplaceStickyComponet)
 {
-    auto myArray = LiveArray::create({1});
-    config->liveData("TestArray", myArray);
-
     loadDocument(REMOVE_STICKY_COMPONENT_DOC);
 
     auto scrollTop = context->findComponentById("scrollone");
@@ -3491,7 +3499,7 @@ TEST_F(ScrollTest, RemoveAndReplaceStickyComponet)
 
     EXPECT_TRUE(expectBounds(stickyTop, 300, 0, 400, 100));
 
-    myArray->remove(0);
+    stickyTop->remove();
     root->clearPending();
     ASSERT_EQ(stickyContainer->getChildCount(), 0);
 
@@ -3519,10 +3527,9 @@ const static char * REPLACE_STICKY_COMPONENT_DOC = R"apl({
             "id": "stickyContainer",
             "type": "Container",
             "height": 2000,
-            "data": "${TestArray}",
             "item": {
               "type": "Frame",
-              "id": "${data}",
+              "id": "1",
               "backgroundColor": "yellow",
               "position": "sticky",
               "top": 100,
@@ -3551,8 +3558,6 @@ const static char * REPLACE_STICKY_COMPONENT_DOC = R"apl({
  */
 TEST_F(ScrollTest, ReplaceAndCheckStickyComponent)
 {
-    auto myArray = LiveArray::create({1});
-    config->liveData("TestArray", myArray);
     loadDocument(REPLACE_STICKY_COMPONENT_DOC);
 
     auto scrollTop = context->findComponentById("scrollone");
@@ -3571,7 +3576,7 @@ TEST_F(ScrollTest, ReplaceAndCheckStickyComponent)
 
     EXPECT_TRUE(expectBounds(stickyTop, 300, 0, 400, 100));
 
-    myArray->remove(0);
+    stickyTop->remove();
     root->clearPending();
     ASSERT_EQ(stickyContainer->getChildCount(), 0);
 
@@ -3861,4 +3866,131 @@ TEST_F(ScrollTest, ClearLiveDataDuringChildScrollGesture)
 
   // Rainbows are gone
   ASSERT_EQ(0, component->getChildCount());
+}
+
+static const char *SIMPLE_PAGER_WITH_CHILD = R"({
+  "type": "APL",
+  "version": "1.1",
+  "mainTemplate": {
+    "items": {
+      "type": "Pager",
+      "id": "myPager",
+      "width": 100,
+      "height": 100,
+      "initialPage": 1,
+      "navigation": "normal",
+      "items": {
+        "type": "Sequence",
+        "id": "id${data}",
+        "items": [
+          {
+            "type": "Text",
+            "id": "childId${data}",
+            "text": "TEXT${data}"
+          }
+        ]
+      },
+      "data": [1,2,3,4,5]
+    }
+  }
+})";
+
+TEST_F(ScrollTest, ScrollToUnattachedChild)
+{
+  loadDocument(SIMPLE_PAGER_WITH_CHILD);
+  advanceTime(10);
+  ASSERT_EQ(1, component->pagePosition());
+
+  executeScrollToComponent("childId5", kCommandScrollAlignFirst);
+  ASSERT_EQ("scrolltoaction.cpp:start : Trying to scroll a component that was never laid out. Ignoring the command.", logBridge->getLast());
+  ASSERT_TRUE(LogMessage());
+}
+
+static const char *SCROLL_TO_INDEX_ON_MOUNT = R"({
+  "type": "APL",
+  "version": "2024.1",
+  "theme": "dark",
+  "onMount": [
+    {
+      "type": "ScrollToIndex",
+      "componentId": "sequenceID",
+      "index": 4,
+      "align": "center"
+    }
+  ],
+  "mainTemplate": {
+    "bind": [
+      {
+        "name": "handler",
+        "value": "handler message"
+      }
+    ],
+    "items": [
+      {
+        "type": "Container",
+        "height": "100%",
+        "width": "100%",
+        "paddingTop": "16dp",
+        "paddingLeft": "16dp",
+        "paddingRight": "16dp",
+        "paddingBottom": "16dp",
+        "items": [
+          {
+            "type": "Sequence",
+            "id": "sequenceID",
+            "scrollDirection": "horizontal",
+            "height": "200dp",
+            "width": "200",
+            "snap": "center",
+            "data": [
+              "TEXT 0",
+              "TEXT 1",
+              "TEXT 2",
+              "TEXT 3",
+              "TEXT 4",
+              "TEXT 5",
+              "TEXT 6"
+            ],
+            "items": {
+              "type": "Text",
+              "text": "Type ${data}",
+              "fontSize": "24dp",
+              "paddingTop": "12dp",
+              "paddingBottom": "12dp",
+              "height": "32dp",
+              "width": "200",
+              "onLayout": {
+                "when": "${event.source.index <= 3}",
+                "type": "Sequential",
+                "commands": [
+                  {
+                    "type": "SetValue",
+                    "property": "handler",
+                    "value": "${event.source.handler}",
+                    "componentId": "TextContainer"
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "type": "Text",
+            "id": "TextContainer",
+            "text": "handler: ${handler}",
+            "fontSize": "20dp",
+            "height": "32dp",
+            "width": "100%"
+          }
+        ]
+      }
+    ]
+  }
+})";
+
+TEST_F(ScrollTest, ScrollToIndexOnMount)
+{
+    loadDocument(SCROLL_TO_INDEX_ON_MOUNT);
+    advanceTime(2000);
+    auto sequence = root->findComponentById("sequenceID");
+    ASSERT_NE(0, sequence->scrollPosition().getX());
 }

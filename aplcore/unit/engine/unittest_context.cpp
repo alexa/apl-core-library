@@ -51,7 +51,7 @@ TEST_F(ContextTest, Basic)
     EXPECT_EQ("1.0", env.get("agentVersion").asString());
     EXPECT_EQ("normal", env.get("animation").asString());
     EXPECT_FALSE(env.get("allowOpenURL").asBoolean());
-    EXPECT_EQ("2024.2", env.get("aplVersion").asString());
+    EXPECT_EQ("2024.3", env.get("aplVersion").asString());
     EXPECT_FALSE(env.get("disallowDialog").asBoolean());
     EXPECT_FALSE(env.get("disallowEditText").asBoolean());
     EXPECT_FALSE(env.get("disallowVideo").asBoolean());
@@ -61,7 +61,7 @@ TEST_F(ContextTest, Basic)
     EXPECT_EQ("", env.get("lang").asString());
     EXPECT_EQ("LTR", env.get("layoutDirection").asString());
     EXPECT_EQ(false, env.get("screenReader").asBoolean());
-    EXPECT_EQ("2024.2", env.get("documentAPLVersion").asString());
+    EXPECT_EQ("2024.3", env.get("documentAPLVersion").asString());
 
     auto timing = env.get("timing");
     EXPECT_EQ(500, timing.get("doublePressTimeout").asNumber());
@@ -113,7 +113,7 @@ TEST_F(ContextTest, Evaluation)
     EXPECT_EQ("1.0", env.get("agentVersion").asString());
     EXPECT_EQ("normal", env.get("animation").asString());
     EXPECT_FALSE(env.get("allowOpenURL").asBoolean());
-    EXPECT_EQ("2024.2", env.get("aplVersion").asString());
+    EXPECT_EQ("2024.3", env.get("aplVersion").asString());
     EXPECT_FALSE(env.get("disallowDialog").asBoolean());
     EXPECT_FALSE(env.get("disallowEditText").asBoolean());
     EXPECT_FALSE(env.get("disallowVideo").asBoolean());

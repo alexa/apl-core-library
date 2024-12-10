@@ -39,6 +39,12 @@ android {
         }
     }
 
+    sourceSets {
+        main {
+            // No java sources.
+            java.srcDirs = []
+        }
+    }
     buildTypes {
         releaseWithSceneGraph {
             minifyEnabled false
@@ -108,6 +114,13 @@ publishing {
 task buildHostBinary(type: com.amazon.apl.android.CMakeTask) {
     cmakeArgs cmakeArg
     makeTargets "apl", "alexaext"
+    doLast {
+        copy {
+            from fileTree(dir: '.cxx/cmake/debug/host/', include: '**/*.a').files
+            include '**/*.a'
+            into '../build'
+        }
+    }
 }
 
 project.afterEvaluate {
@@ -122,10 +135,7 @@ project.afterEvaluate {
 }
 
 task release(dependsOn: ['build', 'publish', 'buildHostBinary']) {
-    doLast {
-        copy {
-            from '.cxx/cmake/debug/host/'
-            into '../build'
-        }
-    }
+}
+
+task localBuild(dependsOn: ['build', 'publishToMavenLocal', 'buildHostBinary']) {
 }

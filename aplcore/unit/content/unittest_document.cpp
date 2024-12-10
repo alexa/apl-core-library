@@ -131,10 +131,107 @@ TEST(DocumentTest, Settings)
     ASSERT_TRUE(content->isReady());
 
     auto m = Metrics().size(1024,800).theme("dark");
+    auto config = RootConfig().set(RootProperty::kDefaultIdleTimeout, 15000);
     auto doc = RootContext::create(m, content);
 
     ASSERT_TRUE(doc);
     ASSERT_EQ(10000, content->getDocumentSettings()->idleTimeout(doc->rootConfig()));
+
+    rapidjson::Document document;
+    document.SetObject();
+    rapidjson::Document::AllocatorType& allocator = document.GetAllocator();
+    ASSERT_EQ(10000, content->getDocumentSettings()->serialize(allocator, doc->rootConfig()).FindMember("idleTimeout")->value);
+}
+
+const char *BASIC_DOC_WITH_SETTINGS_MISSING_DEFAULTS = R"apl({
+  "type": "APL",
+  "version": "2024.3",
+  "settings": {
+    "key": "value",
+    "key2": "value2"
+  },
+  "mainTemplate": {
+    "item": {
+      "type": "Text"
+    }
+  }
+})apl";
+
+TEST(DocumentTest, SerializeSettingsAddsDefaults) {
+    auto content = Content::create(BASIC_DOC_WITH_SETTINGS_MISSING_DEFAULTS, makeDefaultSession());
+
+    ASSERT_TRUE(content->isReady());
+
+    auto m = Metrics().size(1024,800).theme("dark");
+    auto config = RootConfig().set(RootProperty::kDefaultIdleTimeout, 15000);
+    auto doc = RootContext::create(m, content, config);
+    ASSERT_TRUE(doc);
+
+    rapidjson::Document document;
+    document.SetObject();
+    rapidjson::Document::AllocatorType& allocator = document.GetAllocator();
+    ASSERT_EQ(15000, content->getDocumentSettings()->serialize(allocator, config).FindMember("idleTimeout")->value);
+    ASSERT_EQ("value", content->getDocumentSettings()->serialize(allocator, config).FindMember("key")->value);
+    ASSERT_EQ("value2", content->getDocumentSettings()->serialize(allocator, config).FindMember("key2")->value);
+}
+
+const char *BASIC_DOC_WITHOUT_SETTINGS_MISSING_DEFAULTS = R"apl({
+  "type": "APL",
+  "version": "2024.3",
+  "mainTemplate": {
+    "item": {
+      "type": "Text"
+    }
+  }
+})apl";
+
+TEST(DocumentTest, SerializeSettingsReturnsDefaults) {
+    auto content = Content::create(BASIC_DOC_WITHOUT_SETTINGS_MISSING_DEFAULTS, makeDefaultSession());
+
+    ASSERT_TRUE(content->isReady());
+
+    auto m = Metrics().size(1024,800).theme("dark");
+    auto config = RootConfig().set(RootProperty::kDefaultIdleTimeout, 15000);
+    auto doc = RootContext::create(m, content, config);
+    ASSERT_TRUE(doc);
+
+    rapidjson::Document document;
+    document.SetObject();
+    rapidjson::Document::AllocatorType& allocator = document.GetAllocator();
+    ASSERT_EQ(15000, content->getDocumentSettings()->serialize(allocator, config).FindMember("idleTimeout")->value);
+    ASSERT_EQ(false, content->getDocumentSettings()->serialize(allocator, config).FindMember("supportsResizing")->value);
+}
+
+const char *BASIC_DOC_INCORRECT_DEFAULT_SETTINGS_ = R"apl({
+  "type": "APL",
+  "version": "2024.3",
+  "settings": {
+    "supportsResizing": "foo",
+    "idleTimeout": "bar"
+  },
+  "mainTemplate": {
+    "item": {
+      "type": "Text"
+    }
+  }
+})apl";
+
+TEST(DocumentTest, SerializeSettingsReturnsOverridenDefaults) {
+    auto content = Content::create(BASIC_DOC_INCORRECT_DEFAULT_SETTINGS_, makeDefaultSession());
+
+    ASSERT_TRUE(content->isReady());
+
+    auto m = Metrics().size(1024,800).theme("dark");
+    auto config = RootConfig().set(RootProperty::kDefaultIdleTimeout, 15000);
+    auto doc = RootContext::create(m, content, config);
+    ASSERT_TRUE(doc);
+
+    rapidjson::Document document;
+    document.SetObject();
+    rapidjson::Document::AllocatorType& allocator = document.GetAllocator();
+
+    ASSERT_EQ(15000, content->getDocumentSettings()->serialize(allocator, config).FindMember("idleTimeout")->value);
+    ASSERT_EQ(true, content->getDocumentSettings()->serialize(allocator, config).FindMember("supportsResizing")->value);
 }
 
 // NOTE: Backward compatibility for some APL 1.0 users where a runtime allowed "features" instead of "settings

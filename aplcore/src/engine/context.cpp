@@ -496,7 +496,7 @@ Context::session() const
     return mCore->session();
 }
 
-YGConfigRef
+const YogaConfig&
 Context::ygconfig() const
 {
     return documentContextData(mCore)->ygconfig();
@@ -516,18 +516,6 @@ void Context::takeScreenLock() const
 void Context::releaseScreenLock() const
 {
     documentContextData(mCore)->releaseScreenLock();
-}
-
-LruCache<TextMeasureRequest, YGSize>&
-Context::cachedMeasures()
-{
-    return documentContextData(mCore)->cachedMeasures();
-}
-
-LruCache<TextMeasureRequest, float>&
-Context::cachedBaselines()
-{
-    return documentContextData(mCore)->cachedBaselines();
 }
 
 WeakPtrSet<CoreComponent>&

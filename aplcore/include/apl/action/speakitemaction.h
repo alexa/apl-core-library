@@ -54,11 +54,7 @@ public:
 
     void freeze() override;
     bool rehydrate(const CoreDocumentContext& context) override;
-
-private:
-    void start();
-    void scroll(const std::shared_ptr<ScrollToAction>& action);
-    void advance();
+    ActionData getActionData() override;
 
 private:
     friend class SpeakListAction;
@@ -69,10 +65,6 @@ private:
     std::string mSource;  // The URL of the audio file to play
 
     friend class SpeakItemActionPrivate;
-#ifdef SCENEGRAPH
-    friend class SpeakItemActionPrivateSceneGraph;
-#endif // SCENEGRAPH
-    friend class SpeakItemActionPrivateEvents;
     std::unique_ptr<SpeakItemActionPrivate> mPrivate;
 };
 

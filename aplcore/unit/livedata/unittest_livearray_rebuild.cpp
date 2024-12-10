@@ -827,17 +827,27 @@ TEST_F(LiveArrayRebuildTest, MultipleContexts)
     root2->clearDirty();
 }
 
-class InflateTextMeasure : public TextMeasurement {
+class InflateTextMeasure : public sg::TextMeasurement {
 public:
-    LayoutSize measure(Component *component, float width, MeasureMode widthMode, float height,
-                   MeasureMode heightMode) override {
-        int symbols = component->getCalculated(kPropertyText).asString().size();
+    sg::TextLayoutPtr layout(const sg::TextChunkPtr& chunk,
+                             const sg::TextPropertiesPtr& textProperties,
+                             float width,
+                             MeasureMode widthMode,
+                             float height,
+                             MeasureMode heightMode) override {
+        int symbols = chunk->styledText().asString().size();
         float newHeight = symbols > 10 ? 200 : 100;
-        return LayoutSize({width, newHeight});
+        return std::make_shared<FixedTestTextLayout>(Size{width, newHeight}, height);
     }
 
-    float baseline(Component *component, float width, float height) override {
-        return height;
+    sg::EditTextBoxPtr box(int size,
+                           const sg::TextPropertiesPtr& textProperties,
+                           float width,
+                           MeasureMode widthMode,
+                           float height,
+                           MeasureMode heightMode) override {
+        float newHeight = size > 10 ? 200 : 100;
+        return std::make_shared<FixedTestTextBox>(Size{width, newHeight}, height);
     }
 };
 
@@ -2173,6 +2183,73 @@ TEST_F(LiveArrayRebuildTest, SpacedSequenceChangeDirectionVertical) {
     EXPECT_TRUE(expectBounds(c2,  40, 0, 50,  100));
     EXPECT_TRUE(expectBounds(c3,  80, 0, 90,  100));
     EXPECT_TRUE(expectBounds(c4, 120, 0, 130, 100));
+}
+
+TEST_F(LiveArrayRebuildTest, ReleasedComponentUnusable) {
+    auto myArray = LiveArray::create(ObjectArray{1, 2});
+    config->liveData("TestArray", myArray);
+
+    loadDocument(BASIC_DOC);
+    ASSERT_TRUE(component);
+    ASSERT_EQ(2, component->getChildCount());
+    ASSERT_EQ(2, component->getDisplayedChildCount());
+
+    auto removedComponent = component->getChildAt(0);
+    ASSERT_TRUE(removedComponent->isValid());
+
+    myArray->clear();
+    root->clearPending();
+    ASSERT_TRUE(CheckDirty(component, kPropertyNotifyChildrenChanged));
+    ASSERT_EQ(0, component->getChildCount());
+    ASSERT_EQ(0, component->getDisplayedChildCount());
+    ASSERT_FALSE(removedComponent->isValid());
+}
+
+static const char *PAGER_RESET = R"({
+  "type": "APL",
+  "version": "2024.2",
+  "mainTemplate": {
+    "items": [
+      {
+        "type": "Pager",
+        "width": "100%",
+        "height": "100%",
+        "data": "${NewsContent}",
+        "items": [
+          {
+            "type": "Text",
+            "text": "${data.primaryText}<br>${data.secondaryText}<br>${data.headerTitle}"
+          }
+        ]
+      }
+    ]
+  }
+})";
+
+TEST_F(LiveArrayRebuildTest, PagerReset) {
+    auto item1 = ObjectMap{{"primaryText", "Text 1"}, {"secondaryText", "Secondary text 1"}, {"headerTitle", "Header 1"}};
+    auto item2 = ObjectMap{{"primaryText", "Text 2"}, {"secondaryText", "Secondary text 2"}, {"headerTitle", "Header 2"}};
+    auto item3 = ObjectMap{{"primaryText", "Text 3"}, {"secondaryText", "Secondary text 3"}, {"headerTitle", "Header 3"}};
+    auto myArray = LiveArray::create(ObjectArray{
+        Object(std::make_shared<ObjectMap>(item1)),
+        Object(std::make_shared<ObjectMap>(item2)),
+        Object(std::make_shared<ObjectMap>(item3))});
+    config->liveData("NewsContent", myArray);
+
+    loadDocument(PAGER_RESET);
+    ASSERT_TRUE(component);
+    ASSERT_EQ(3, component->getChildCount());
+    ASSERT_EQ(0, component->pagePosition());
+
+    myArray->clear();
+    myArray->push_back(Object(std::make_shared<ObjectMap>(item1)));
+    myArray->push_back(Object(std::make_shared<ObjectMap>(item2)));
+    myArray->push_back(Object(std::make_shared<ObjectMap>(item3)));
+
+    advanceTime(16);
+
+    ASSERT_EQ(3, component->getChildCount());
+    ASSERT_EQ(0, component->pagePosition());
 }
 
 } // namespace apl

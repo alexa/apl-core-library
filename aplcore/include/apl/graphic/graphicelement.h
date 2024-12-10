@@ -162,7 +162,7 @@ public:
      * Store a reference to the layer that needs to be redrawn if a content
      * node in the element's scene graph needs to be redrawn
      */
-    void assignSceneGraphLayer(const sg::LayerPtr& containingLayer);
+    virtual void assignSceneGraphLayer(const sg::LayerPtr& containingLayer);
 
     /**
      * Update the scene graph based on dirty properties.

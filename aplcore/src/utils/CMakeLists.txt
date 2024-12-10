@@ -14,6 +14,8 @@
 target_sources_local(apl
     PRIVATE
     corelocalemethods.cpp
+    dataurl.cpp
+    dataurlgrammar.cpp
     log.cpp
     path.cpp
     searchvisitor.cpp

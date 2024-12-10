@@ -16,21 +16,21 @@
 #include "apl/engine/layoutmanager.h"
 
 #include "apl/component/corecomponent.h"
-#include "apl/component/yogaproperties.h"
 #include "apl/content/configurationchange.h"
 #include "apl/document/coredocumentcontext.h"
 #include "apl/engine/corerootcontext.h"
 #include "apl/livedata/layoutrebuilder.h"
 #include "apl/utils/tracing.h"
+#include "apl/yoga/yoganode.h"
+#include "apl/yoga/yogaproperties.h"
 
 namespace apl {
 
 static const bool DEBUG_LAYOUT_MANAGER = false;
 
 static void
-yogaNodeDirtiedCallback(YGNodeRef node)
+yogaNodeDirtiedCallback(CoreComponent* component)
 {
-    auto component = static_cast<CoreComponent*>(YGNodeGetContext(node));
     assert(component);
     LOG_IF(DEBUG_LAYOUT_MANAGER).session(*component) << "dirty top node";
     component->getContext()->layoutManager().requestLayout(component->shared_from_corecomponent(), false);
@@ -183,7 +183,7 @@ LayoutManager::setAsTopNode(const CoreComponentPtr& component)
 {
     assert(component);
     LOG_IF(DEBUG_LAYOUT_MANAGER) << component->toDebugSimpleString();
-    YGNodeSetDirtiedFunc(component->getNode(), yogaNodeDirtiedCallback);
+    component->getNode().setDirtiedFunc(yogaNodeDirtiedCallback);
 }
 
 void
@@ -191,7 +191,7 @@ LayoutManager::removeAsTopNode(const CoreComponentPtr& component)
 {
     assert(component);
     LOG_IF(DEBUG_LAYOUT_MANAGER) << component->toDebugSimpleString();
-    YGNodeSetDirtiedFunc(component->getNode(), nullptr);
+    component->getNode().setDirtiedFunc(nullptr);
 
     // Also remove from pending list
     remove(component);
@@ -201,8 +201,7 @@ bool
 LayoutManager::isTopNode(const ConstCoreComponentPtr& component) const
 {
     assert(component);
-
-    return YGNodeGetDirtiedFunc(component->getNode());
+    return component->getNode().hasDirtiedFunc();
 }
 
 std::pair<float, float>
@@ -212,10 +211,10 @@ LayoutManager::getMinMaxWidth(const CoreComponent& component) const
     auto maxWidth = mConfiguredSize.maxWidth;
 
     if (component.getCalculated(kPropertyMinWidth).asNumber() != 0)
-        minWidth = YGNodeStyleGetMinWidth(component.getNode()).value;
+        minWidth = component.getNode().getMinWidth();
 
     if (!component.getCalculated(kPropertyMaxWidth).isNull())
-        maxWidth = std::min(maxWidth, YGNodeStyleGetMaxWidth(component.getNode()).value);
+        maxWidth = std::min(maxWidth, component.getNode().getMaxWidth());
 
     return std::make_pair(minWidth, maxWidth);
 }
@@ -227,10 +226,10 @@ LayoutManager::getMinMaxHeight(const CoreComponent& component) const
     auto maxHeight = mConfiguredSize.maxHeight;
 
     if (component.getCalculated(kPropertyMinHeight).asNumber() != 0)
-        minHeight = YGNodeStyleGetMinHeight(component.getNode()).value;
+        minHeight = component.getNode().getMinHeight();
 
     if (!component.getCalculated(kPropertyMaxHeight).isNull())
-        maxHeight = std::min(maxHeight, YGNodeStyleGetMaxHeight(component.getNode()).value);
+        maxHeight = std::min(maxHeight, component.getNode().getMaxHeight());
 
     return std::make_pair(minHeight, maxHeight);
 }
@@ -247,7 +246,7 @@ LayoutManager::layoutComponent(const CoreComponentPtr& component, bool useDirtyF
     Size size;
     ViewportSize viewportSize = {};
     float overallWidth, overallHeight;
-    auto node = component->getNode();
+    auto& node = component->getNode();
 
     if (!parent) { // Top component
         viewportSize = mConfiguredSize;
@@ -255,11 +254,11 @@ LayoutManager::layoutComponent(const CoreComponentPtr& component, bool useDirtyF
         overallWidth = viewportSize.width;
         overallHeight = viewportSize.height;
 
-        if (viewportSize.isAutoWidth() && YGNodeStyleGetWidth(node) == YGValueAuto)
-            overallWidth = YGUndefined;
+        if (viewportSize.isAutoWidth() && node.isAutoWidth())
+            overallWidth = YogaUndefined;
 
-        if (viewportSize.isAutoHeight() && YGNodeStyleGetHeight(node) == YGValueAuto)
-            overallHeight = YGUndefined;
+        if (viewportSize.isAutoHeight() && node.isAutoHeight())
+            overallHeight = YogaUndefined;
     } else {
         size = parent->getCalculated(kPropertyInnerBounds).get<Rect>().getSize();
 
@@ -273,13 +272,13 @@ LayoutManager::layoutComponent(const CoreComponentPtr& component, bool useDirtyF
         overallHeight = size.getHeight();
 
         if (autoWidth) {
-            overallWidth = YGUndefined;
+            overallWidth = YogaUndefined;
             auto minmax = getMinMaxWidth(*parent);
             viewportSize.minWidth = minmax.first;
             viewportSize.maxWidth = minmax.second;
         }
         if (autoHeight) {
-            overallHeight = YGUndefined;
+            overallHeight = YogaUndefined;
             auto minmax = getMinMaxHeight(*parent);
             viewportSize.minHeight = minmax.first;
             viewportSize.maxHeight = minmax.second;
@@ -291,24 +290,24 @@ LayoutManager::layoutComponent(const CoreComponentPtr& component, bool useDirtyF
 
     // Layout the component if it has a dirty Yoga node OR if the cached size doesn't match the target size
     // The top-level component may get laid out multiple times if it auto sizes.
-    if (YGNodeIsDirty(node) || size != component->getLayoutSize()) {
+    if (node.isDirty() || size != component->getLayoutSize()) {
         component->preLayoutProcessing(useDirtyFlag);
         APL_TRACE_BEGIN("LayoutManager:YGNodeCalculateLayout");
 
-        YGNodeCalculateLayout(node, overallWidth, overallHeight, component->getLayoutDirection());
+        node.calculateLayout(overallWidth, overallHeight, component->getLayoutDirection());
 
         // If we were allowing the overall width to vary, then the node width was "auto".
         // Re-layout the node with a fixed width that is clipped to min/max
-        if (YGFloatIsUndefined(overallWidth)) {
-            overallWidth = YGNodeLayoutGetWidth(node);
+        if (yn::isYogaUndefined(overallWidth)) {
+            overallWidth = node.getWidth();
             if (overallWidth > viewportSize.maxWidth)
                 overallWidth = viewportSize.maxWidth;
             if (overallWidth < viewportSize.minWidth)
                 overallWidth = viewportSize.minWidth;
-            YGNodeCalculateLayout(node, overallWidth, overallHeight, component->getLayoutDirection());
+            node.calculateLayout(overallWidth, overallHeight, component->getLayoutDirection());
         }
-        else if (viewportSize.isAutoWidth() && YGNodeStyleGetWidth(node).unit == YGUnit::YGUnitPoint) {
-            overallWidth = YGNodeLayoutGetWidth(node);
+        else if (viewportSize.isAutoWidth() && node.isAbsoluteWidth()) {
+            overallWidth = node.getWidth();
             if (overallWidth > viewportSize.maxWidth)
                 overallWidth = viewportSize.maxWidth;
             if (overallWidth < viewportSize.minWidth)
@@ -317,16 +316,16 @@ LayoutManager::layoutComponent(const CoreComponentPtr& component, bool useDirtyF
 
         // If we were allowing the overall height to vary, then the node height was "auto".
         // Re-layout the node with a fixed height that is clipped to min/max
-        if (YGFloatIsUndefined(overallHeight)) {
-            overallHeight = YGNodeLayoutGetHeight(node);
+        if (yn::isYogaUndefined(overallHeight)) {
+            overallHeight = node.getHeight();
             if (overallHeight > viewportSize.maxHeight)
                 overallHeight = viewportSize.maxHeight;
             if (overallHeight < viewportSize.minHeight)
                 overallHeight = viewportSize.minHeight;
-            YGNodeCalculateLayout(node, overallWidth, overallHeight, component->getLayoutDirection());
+            node.calculateLayout(overallWidth, overallHeight, component->getLayoutDirection());
         }
-        else if (viewportSize.isAutoHeight() && YGNodeStyleGetHeight(node).unit == YGUnit::YGUnitPoint) {
-            overallHeight = YGNodeLayoutGetHeight(node);
+        else if (viewportSize.isAutoHeight() && node.isAbsoluteHeight()) {
+            overallHeight = node.getHeight();
             if (overallHeight > viewportSize.maxHeight)
                 overallHeight = viewportSize.maxHeight;
             if (overallHeight < viewportSize.minHeight)
@@ -416,9 +415,9 @@ LayoutManager::ensure(const CoreComponentPtr& component)
         auto parent = CoreComponent::cast(child->getParent());
 
         // If the child is attached to its parent, we don't need to do anything
-        if (!child->getNode()->getOwner()) {
+        if (!child->getNode().hasOwner()) {
             result = true;
-            if (child->getNode()->getDirtied()) {    // This child has a dirtied_ method; it should not be attached
+            if (child->getNode().hasDirtiedFunc()) {    // This child has a dirtied_ method; it should not be attached
                 mPendingLayout.emplace(child);       // Schedule this child for layout.  It will only run if it is needed
                 if (attachedYogaNodeNeedsLayout) {   // If a child node was attached, force the layout
                     child->setLayoutSize({});

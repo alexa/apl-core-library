@@ -92,6 +92,28 @@ public:
     }
 
     /**
+     * Adds core defaults to APL document settings if not available and returns the settings json.
+     * @param allocator RapidJSON memory allocator
+     * @param config    RootConfig
+     * @return          The Json Object
+     */
+    rapidjson::Value serialize(rapidjson::Document::AllocatorType& allocator, const RootConfig & config) {
+        rapidjson::Value result(rapidjson::kObjectType);
+        if (mJson && mJson->IsObject()) {
+            // Document does have settings, so let's copy those in
+            result.CopyFrom(*mJson, allocator);
+            // Remove the settings that we're opinionated about
+            result.RemoveMember("idleTimeout");
+            result.RemoveMember("supportsResizing");
+        }
+
+        // Add (or re-add) the members with correct types and defaults
+        result.AddMember("idleTimeout", idleTimeout(config), allocator);
+        result.AddMember("supportsResizing", getValue("supportsResizing").asBoolean(), allocator);
+        return result;
+    }
+
+    /**
      * Finds the settings section of a Package.
      * @param package The APL Content package.
      * @return json value for Settings, Value.IsNull() is true when not found.

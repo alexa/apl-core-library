@@ -161,7 +161,7 @@ TEST_F(CommandInsertItemTest, InsertItemWhenTargetDoesNotExist)
 
     executeInsertItem("missingTargetComponent");
 
-    validateNonInsert( "Illegal command InsertItem - need to specify a target componentId");
+    validateNonInsert( "Illegal command InsertItem: Could not resolve target 'missingTargetComponent'. Need to specify a valid target componentId");
 }
 
 TEST_F(CommandInsertItemTest, InsertInvalidItem)

@@ -111,6 +111,7 @@ protected:
     void getSupportedStandardAccessibilityActions(std::map<std::string, bool>& result) const override;
 
 private:
+    bool doesLegacyClipping() const override { return true; }
     bool multiChild() const override { return true; }
     void attachYogaNodeIfRequired(const CoreComponentPtr& coreChild, int index) override {};
 

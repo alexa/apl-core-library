@@ -88,6 +88,12 @@ Bimap<int, std::string> sFlexboxAlignMap = {
     {kFlexboxAlignAuto,     "auto"}
 };
 
+Bimap<int, std::string> sFlexboxAlignAxisMap = {
+    {kFlexboxAlignAxisCenter, "center"},
+    {kFlexboxAlignAxisStart,  "start"},
+    {kFlexboxAlignAxisEnd,    "end"}
+};
+
 Bimap<int, std::string> sContainerDirectionMap = {
     {kContainerDirectionColumn,        "column"},
     {kContainerDirectionRow,           "row"},
@@ -400,6 +406,7 @@ Bimap<int, std::string> sComponentPropertyBimap = {
     {kPropertyOnChildrenChanged,            "onChildrenChanged"},
     {kPropertyOnCursorEnter,                "onCursorEnter"},
     {kPropertyOnCursorExit,                 "onCursorExit"},
+    {kPropertyOnCursorMove,                 "onCursorMove"},
     {kPropertyOnDown,                       "onDown"},
     {kPropertyOnEnd,                        "onEnd"},
     {kPropertyOnFail,                       "onFail"},
@@ -492,21 +499,22 @@ Bimap<int, std::string> sComponentPropertyBimap = {
 };
 
 Bimap<int, std::string> sComponentTypeBimap = {
-    {kComponentTypeContainer,     "Container"},
-    {kComponentTypeEditText,      "EditText"},
+    {kComponentTypeContainer,              "Container"},
+    {kComponentTypeEditText,               "EditText"},
     // Extension components define the component type name, this value a placeholder
-    {kComponentTypeExtension,     "_ExtensionComponent"},
-    {kComponentTypeFrame,         "Frame"},
-    {kComponentTypeGridSequence,  "GridSequence"},
-    {kComponentTypeHost,          "Host"},
-    {kComponentTypeImage,         "Image"},
-    {kComponentTypePager,         "Pager"},
-    {kComponentTypeScrollView,    "ScrollView"},
-    {kComponentTypeSequence,      "Sequence"},
-    {kComponentTypeText,          "Text"},
-    {kComponentTypeTouchWrapper,  "TouchWrapper"},
-    {kComponentTypeVectorGraphic, "VectorGraphic"},
-    {kComponentTypeVideo,         "Video"}
+    {kComponentTypeExtension,              "_ExtensionComponent"},
+    {kComponentTypeFrame,                  "Frame"},
+    {kComponentTypeGridSequence,           "GridSequence"},
+    {kComponentTypeHost,                   "Host"},
+    {kComponentTypeImage,                  "Image"},
+    {kComponentTypePager,                  "Pager"},
+    {kComponentTypeScrollView,             "ScrollView"},
+    {kComponentTypeSequence,               "Sequence"},
+    {kComponentTypeText,                   "Text"},
+    {kComponentTypeTouchWrapper,           "TouchWrapper"},
+    {kComponentTypeVectorGraphic,          "VectorGraphic"},
+    {kComponentTypeVideo,                  "Video"},
+    {kComponentTypeFlexSequenceComponent,  "FlexSequence"},
 };
 
 Bimap<int, std::string> sTrackStateMap = {

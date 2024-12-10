@@ -29,7 +29,12 @@ MyTestMeasurement::layout(const sg::TextChunkPtr& textChunk,
     auto text = textChunk->styledText().asString();
 
     // Assume all characters are squares
-    float cw = textProperties->fontSize();
+    // Font override is a proportion of default
+    auto fsize = textProperties->fontSize();
+    // Emulate bold font
+    auto bold = textProperties->fontWeight() >= 700;
+    float cw = mFontSizeOverride != 0 ? fsize / 40 * (float)mFontSizeOverride : fsize;
+    if (bold) cw = cw * 2;
     float ch = cw;
 
     auto layout = std::make_shared<MyTestLayout>(ch * 0.8);  // Sets the baseline
@@ -39,12 +44,44 @@ MyTestMeasurement::layout(const sg::TextChunkPtr& textChunk,
         (widthMode == MeasureMode::Undefined ? std::numeric_limits<std::string::size_type>::max()
                                              : static_cast<int>(width / cw));
 
-    std::string::size_type position = 0;
+    std::vector<std::string> textLines;
+    std::string stringAcc;
+
+    // Simulate break tags
+    auto stit = new StyledText::Iterator(textChunk->styledText());
+    auto spanType = stit->next();
+    while (spanType != StyledText::Iterator::kEnd) {
+        switch (spanType) {
+            case StyledText::Iterator::kStartSpan:
+                if (stit->getSpanType() == StyledText::kSpanTypeLineBreak) {
+                    textLines.emplace_back(stringAcc);
+                    stringAcc = "";
+                }
+                break;
+            case StyledText::Iterator::kString:
+                stringAcc += stit->getString();
+                break;
+            default:
+                break;
+        }
+        spanType = stit->next();
+    }
+
+    if (!stringAcc.empty()) textLines.emplace_back(stringAcc);
+
     const auto maxLines = textProperties->maxLines();
-    while (position < text.size() && (maxLines == 0 || layout->getLineCount() < maxLines)) {
-        auto npos = std::min(charactersPerLine, text.size() - position);
-        layout->addLine(text.substr(position, npos), {cw * npos, ch});
-        position += npos;
+
+    // Split every explicit line into rendered lines as appropriate
+    for (const auto& currentText : textLines) {
+        std::string::size_type position = 0;
+
+        while (position < currentText.size() && (maxLines == 0 || layout->getLineCount() < maxLines)) {
+            auto npos = std::min(charactersPerLine, currentText.size() - position);
+            layout->addLine(currentText.substr(position, npos), {cw * npos, ch});
+            position += npos;
+        }
+
+        if (maxLines != 0 && layout->getLineCount() < maxLines) break;
     }
 
     // At this point the text layout has a "minimum" size that wraps the existing
@@ -95,7 +132,8 @@ MyTestMeasurement::box(int size,
                        MeasureMode heightMode)
 {
     // Assume all characters are squares
-    float cw = textProperties->fontSize();
+    auto fsize = textProperties->fontSize();
+    float cw = mFontSizeOverride != 0 ? fsize / 40 * (float)mFontSizeOverride : fsize;
     float ch = cw;
 
     // At this point the text layout has a "minimum" size that wraps the existing

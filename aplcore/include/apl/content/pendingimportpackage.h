@@ -126,6 +126,7 @@ private:
                    const rapidjson::Value& value,
                    const std::string& name = "",
                    const std::string& version = "",
+                   const std::string& domain = "",
                    const std::set<std::string>& loadAfter = {},
                    const std::string& accept = "");
     bool addToDependencyList(std::vector<PackagePtr>& ordered, std::set<PackagePtr>& inProgress, const PackagePtr& package);

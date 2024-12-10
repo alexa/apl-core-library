@@ -236,9 +236,16 @@ LayoutRebuilder::rebuild()
     auto layout = mLayout.lock();
     auto array = mArray.lock();
 
-    if (!layout || !array) {
-        LOG(LogLevel::kError).session(layout) << "Attempting to rebuild a layout without a layout or data array";
+    if (!layout || !layout->isValid() || !array) {
+        LOG(LogLevel::kError).session(layout) << "Attempting to rebuild a layout without a valid layout or data array";
         return;
+    }
+
+    // If array is replaced - just clean out everything except first and last item before rebuilding
+    // to preserve order of operations (maintaining scroll positions/pager pages/etc).
+    if (array->isReplaced()) {
+        auto walker = ChildWalker(layout, mHasFirstItem);
+        walker.finish(mHasLastItem);
     }
 
     // The old child array is in the correct order (we don't have reordering, but probably the
